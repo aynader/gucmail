@@ -1,0 +1,993 @@
+{
+    "schema":  "gucmail.command-corpus/v1",
+    "groups":  [
+                   {
+                       "command_id":  "mail.open_inbox",
+                       "phrases":  [
+                                       "open inbox",
+                                       "go to my inbox",
+                                       "show incoming mail",
+                                       "opn inbxo",
+                                       "please open inbox",
+                                       "open inbox now"
+                                   ]
+                   },
+                   {
+                       "command_id":  "mail.open_sent",
+                       "phrases":  [
+                                       "open sent items",
+                                       "show sent mail",
+                                       "go to outgoing history",
+                                       "sent messages folder",
+                                       "please open sent items",
+                                       "open sent items now"
+                                   ]
+                   },
+                   {
+                       "command_id":  "mail.open_drafts",
+                       "phrases":  [
+                                       "open drafts",
+                                       "show unfinished emails",
+                                       "go to draft mail",
+                                       "my unsent drafts",
+                                       "please open drafts",
+                                       "open drafts now"
+                                   ]
+                   },
+                   {
+                       "command_id":  "mail.open_deleted",
+                       "phrases":  [
+                                       "open deleted items",
+                                       "show trash",
+                                       "go to recycle bin",
+                                       "deleted mail folder",
+                                       "please open deleted items",
+                                       "open deleted items now"
+                                   ]
+                   },
+                   {
+                       "command_id":  "mail.open_junk",
+                       "phrases":  [
+                                       "open junk mail",
+                                       "show spam folder",
+                                       "go to junk",
+                                       "view unwanted mail",
+                                       "please open junk",
+                                       "open junk now"
+                                   ]
+                   },
+                   {
+                       "command_id":  "mail.open_archive",
+                       "phrases":  [
+                                       "open archive",
+                                       "show archived mail",
+                                       "go to archive folder",
+                                       "view my archives",
+                                       "please open archive",
+                                       "open archive now"
+                                   ]
+                   },
+                   {
+                       "command_id":  "mail.open_unread",
+                       "phrases":  [
+                                       "show unread mail",
+                                       "open unread messages",
+                                       "messages i still havent read",
+                                       "unraed msgs",
+                                       "please open unread mail",
+                                       "open unread mail now"
+                                   ]
+                   },
+                   {
+                       "command_id":  "mail.open_flagged",
+                       "phrases":  [
+                                       "show flagged mail",
+                                       "open my flags",
+                                       "messages i flagged",
+                                       "view starred emails",
+                                       "please open flagged mail",
+                                       "open flagged mail now"
+                                   ]
+                   },
+                   {
+                       "command_id":  "mail.refresh",
+                       "phrases":  [
+                                       "refresh mailbox",
+                                       "reload my mail",
+                                       "sync mailbox now",
+                                       "check for new messages",
+                                       "please refresh mailbox",
+                                       "refresh mailbox now"
+                                   ]
+                   },
+                   {
+                       "command_id":  "mail.open_message",
+                       "phrases":  [
+                                       "open this message",
+                                       "read selected email",
+                                       "show full message",
+                                       "open selected mail",
+                                       "please open selected message",
+                                       "open selected message now"
+                                   ]
+                   },
+                   {
+                       "command_id":  "mail.reply",
+                       "phrases":  [
+                                       "reply to this message",
+                                       "answer this email",
+                                       "respond to selected sender",
+                                       "write a reply",
+                                       "please reply to selected message",
+                                       "reply to selected message now"
+                                   ]
+                   },
+                   {
+                       "command_id":  "mail.reply_all",
+                       "phrases":  [
+                                       "reply all",
+                                       "answer everyone",
+                                       "respond to all recipients",
+                                       "reply to everybody",
+                                       "please reply all",
+                                       "reply all now"
+                                   ]
+                   },
+                   {
+                       "command_id":  "mail.forward",
+                       "phrases":  [
+                                       "forward this message",
+                                       "send this on to ahmed",
+                                       "forward selected email",
+                                       "pass this mail along",
+                                       "please forward selected message",
+                                       "forward selected message now"
+                                   ]
+                   },
+                   {
+                       "command_id":  "mail.mark_read",
+                       "phrases":  [
+                                       "mark this read",
+                                       "make selected messages read",
+                                       "mark visible mail read",
+                                       "set this as read",
+                                       "please mark read",
+                                       "mark read now"
+                                   ]
+                   },
+                   {
+                       "command_id":  "mail.mark_unread",
+                       "phrases":  [
+                                       "mark this unread",
+                                       "make selected messages unread",
+                                       "set this as not read",
+                                       "return message to unread",
+                                       "please mark unread",
+                                       "mark unread now"
+                                   ]
+                   },
+                   {
+                       "command_id":  "mail.flag",
+                       "phrases":  [
+                                       "flag this message",
+                                       "add a flag to selected",
+                                       "mark this for follow up",
+                                       "star selected email",
+                                       "please flag message",
+                                       "flag message now"
+                                   ]
+                   },
+                   {
+                       "command_id":  "mail.unflag",
+                       "phrases":  [
+                                       "unflag this message",
+                                       "remove selected flag",
+                                       "clear flag on this",
+                                       "unstar selected email",
+                                       "please remove message flag",
+                                       "remove message flag now"
+                                   ]
+                   },
+                   {
+                       "command_id":  "mail.move",
+                       "phrases":  [
+                                       "move this to berlin",
+                                       "put selected mail in archive",
+                                       "file this under applications",
+                                       "move these messages",
+                                       "please move message",
+                                       "move message now"
+                                   ]
+                   },
+                   {
+                       "command_id":  "mail.delete",
+                       "phrases":  [
+                                       "delete this message",
+                                       "move this message to trash",
+                                       "delete selected email",
+                                       "send this one to deleted items",
+                                       "please move message to deleted items",
+                                       "move message to deleted items now"
+                                   ]
+                   },
+                   {
+                       "command_id":  "mail.restore",
+                       "phrases":  [
+                                       "restore this message",
+                                       "put selected email back",
+                                       "recover deleted message",
+                                       "move this out of trash",
+                                       "please restore message",
+                                       "restore message now"
+                                   ]
+                   },
+                   {
+                       "command_id":  "compose.new",
+                       "phrases":  [
+                                       "compose a new email",
+                                       "write ahmed an email",
+                                       "new mail to student affairs",
+                                       "email someone",
+                                       "please compose message",
+                                       "compose message now"
+                                   ]
+                   },
+                   {
+                       "command_id":  "draft.save",
+                       "phrases":  [
+                                       "save this as a draft",
+                                       "draft this message",
+                                       "keep current email unfinished",
+                                       "save local draft",
+                                       "please save current draft",
+                                       "save current draft now"
+                                   ]
+                   },
+                   {
+                       "command_id":  "draft.recover",
+                       "phrases":  [
+                                       "recover my last draft",
+                                       "restore autosaved email",
+                                       "open draft recovery",
+                                       "bring back lost draft",
+                                       "please recover draft",
+                                       "recover draft now"
+                                   ]
+                   },
+                   {
+                       "command_id":  "scheduled.open",
+                       "phrases":  [
+                                       "open scheduled messages",
+                                       "show what im sending later",
+                                       "view scheduled mail",
+                                       "what emails are queued",
+                                       "please open scheduled messages",
+                                       "open scheduled messages now"
+                                   ]
+                   },
+                   {
+                       "command_id":  "scheduled.schedule_current",
+                       "phrases":  [
+                                       "schedule this for tomorrow at 9",
+                                       "send this monday morning",
+                                       "delay this by 30 minutes",
+                                       "scheduel this tomorow",
+                                       "please schedule current draft",
+                                       "schedule current draft now"
+                                   ]
+                   },
+                   {
+                       "command_id":  "scheduled.cancel",
+                       "phrases":  [
+                                       "cancel this scheduled message",
+                                       "unschedule selected email",
+                                       "cancel tomorrow email",
+                                       "remove this from scheduled queue",
+                                       "please cancel scheduled message",
+                                       "cancel scheduled message now"
+                                   ]
+                   },
+                   {
+                       "command_id":  "search.mail",
+                       "phrases":  [
+                                       "show unread emails from ahmed",
+                                       "unraed msgs frm ahmed",
+                                       "pdfs from student affairs last month",
+                                       "emails over 5 mb in sent",
+                                       "please search mail",
+                                       "search mail now",
+                                       "emails unread ahmed",
+                                       "find me unread mail by ahmed",
+                                       "ahmed unread",
+                                       "show mails from Ahmed that I havent read",
+                                       "mail ahmed not read",
+                                       "serch unread emals frm ahmed",
+                                       "msgs frm ahmd this wk",
+                                       "show mail i havent replied to",
+                                       "serch mail frm ahmed",
+                                       "ahmed emails",
+                                       "show me stuff ahmed sent",
+                                       "unread frm ahmd this wk",
+                                       "msgs ahmed pdf",
+                                       "mail from Ahmed last week",
+                                       "messages from Ahmed larger than 2 MB",
+                                       "emails without attachments",
+                                       "messages between 2 and 5 MB",
+                                       "unread PDFs from Student Affairs last month"
+                                   ]
+                   },
+                   {
+                       "command_id":  "folders.open",
+                       "phrases":  [
+                                       "open folder berlin",
+                                       "go to master applications",
+                                       "show the course folder",
+                                       "find my applications folder",
+                                       "please open folder",
+                                       "open folder now"
+                                   ]
+                   },
+                   {
+                       "command_id":  "folders.create",
+                       "phrases":  [
+                                       "create a new folder",
+                                       "make folder called berlin",
+                                       "add mailbox folder",
+                                       "new subfolder applications",
+                                       "please create folder",
+                                       "create folder now"
+                                   ]
+                   },
+                   {
+                       "command_id":  "attachments.open",
+                       "phrases":  [
+                                       "show message attachments",
+                                       "open attachments view",
+                                       "list files on this email",
+                                       "what is attached here",
+                                       "please open attachments",
+                                       "open attachments now"
+                                   ]
+                   },
+                   {
+                       "command_id":  "attachments.download",
+                       "phrases":  [
+                                       "download all attachments",
+                                       "save files from this message",
+                                       "download selected attachment",
+                                       "save every attached file",
+                                       "please download attachments",
+                                       "download attachments now"
+                                   ]
+                   },
+                   {
+                       "command_id":  "attachments.search",
+                       "phrases":  [
+                                       "find attachment transcript pdf",
+                                       "search inside attachments for passport",
+                                       "pdf attachments from ahmed",
+                                       "attachments bigger than 5 mb",
+                                       "please search attachments",
+                                       "search attachments now",
+                                       "pdfs student affairs last month",
+                                       "find attachment transcript.pdf",
+                                       "attachments containing transcript"
+                                   ]
+                   },
+                   {
+                       "command_id":  "calendar.open",
+                       "phrases":  [
+                                       "open calendar",
+                                       "show my agenda",
+                                       "view appointments",
+                                       "go to calendar",
+                                       "please open calendar",
+                                       "open calendar now"
+                                   ]
+                   },
+                   {
+                       "command_id":  "calendar.tomorrow",
+                       "phrases":  [
+                                       "calendar tomorrow",
+                                       "show meetings tomorrow",
+                                       "what do i have tomorrow",
+                                       "calender tomorow",
+                                       "please open tomorrow in calendar",
+                                       "open tomorrow in calendar now",
+                                       "tomorow calender"
+                                   ]
+                   },
+                   {
+                       "command_id":  "calendar.create",
+                       "phrases":  [
+                                       "create event tomorrow at 2",
+                                       "new meeting monday morning",
+                                       "schedule thesis discussion friday",
+                                       "make an appointment next week",
+                                       "please create calendar event",
+                                       "create calendar event now"
+                                   ]
+                   },
+                   {
+                       "command_id":  "calendar.search",
+                       "phrases":  [
+                                       "search calendar for acm",
+                                       "find meetings with ahmed",
+                                       "show thesis events",
+                                       "look for appointment next month",
+                                       "please search calendar",
+                                       "search calendar now"
+                                   ]
+                   },
+                   {
+                       "command_id":  "contacts.open",
+                       "phrases":  [
+                                       "open contacts",
+                                       "show address book",
+                                       "view my people",
+                                       "go to contacts",
+                                       "please open contacts",
+                                       "open contacts now"
+                                   ]
+                   },
+                   {
+                       "command_id":  "contacts.search",
+                       "phrases":  [
+                                       "find contact ahmed",
+                                       "look up mohamed",
+                                       "search people for daniele",
+                                       "contacs mohamed",
+                                       "please search contacts",
+                                       "search contacts now"
+                                   ]
+                   },
+                   {
+                       "command_id":  "contacts.create",
+                       "phrases":  [
+                                       "create a contact",
+                                       "save ahmed as a contact",
+                                       "new address book entry",
+                                       "please create contact",
+                                       "create contact now"
+                                   ]
+                   },
+                   {
+                       "command_id":  "contacts.add_sender_to_contacts",
+                       "phrases":  [
+                                       "add this sender to contacts",
+                                       "save this sender as a contact"
+                                   ]
+                   },
+                   {
+                       "command_id":  "tasks.open",
+                       "phrases":  [
+                                       "open tasks",
+                                       "show my task list",
+                                       "view things to do",
+                                       "go to tasks",
+                                       "please open tasks",
+                                       "open tasks now"
+                                   ]
+                   },
+                   {
+                       "command_id":  "tasks.create",
+                       "phrases":  [
+                                       "create a new task",
+                                       "remind me to reply tomorrow",
+                                       "task due next monday",
+                                       "make a task from this email",
+                                       "please create task",
+                                       "create task now"
+                                   ]
+                   },
+                   {
+                       "command_id":  "tasks.complete",
+                       "phrases":  [
+                                       "complete this task",
+                                       "mark selected task done",
+                                       "finish this task",
+                                       "close task as completed",
+                                       "please complete task",
+                                       "complete task now"
+                                   ]
+                   },
+                   {
+                       "command_id":  "backup.open",
+                       "phrases":  [
+                                       "open backup center",
+                                       "show my backups",
+                                       "view backup history",
+                                       "go to backups",
+                                       "please open backup center",
+                                       "open backup center now"
+                                   ]
+                   },
+                   {
+                       "command_id":  "backup.create",
+                       "phrases":  [
+                                       "backup my inbox",
+                                       "make a mailbox backup",
+                                       "back up selected messages",
+                                       "bakup inbxo",
+                                       "please create mailbox backup",
+                                       "create mailbox backup now",
+                                       "backup inbxo",
+                                       "backup everything"
+                                   ]
+                   },
+                   {
+                       "command_id":  "backup.verify",
+                       "phrases":  [
+                                       "verify latest backup",
+                                       "check backup integrity",
+                                       "validate my backup",
+                                       "make sure backup is good",
+                                       "please verify backup",
+                                       "verify backup now"
+                                   ]
+                   },
+                   {
+                       "command_id":  "storage.open",
+                       "phrases":  [
+                                       "show mailbox storage",
+                                       "how full is my mailbox",
+                                       "open quota view",
+                                       "space remaining",
+                                       "please open storage",
+                                       "open storage now"
+                                   ]
+                   },
+                   {
+                       "command_id":  "storage.largest_messages",
+                       "phrases":  [
+                                       "show largest messages",
+                                       "top biggest emails",
+                                       "which mail takes most space",
+                                       "largest 20 emails",
+                                       "please show largest messages",
+                                       "show largest messages now"
+                                   ]
+                   },
+                   {
+                       "command_id":  "storage.largest_attachments",
+                       "phrases":  [
+                                       "show largest attachments",
+                                       "top biggest attached files",
+                                       "sho largst attchments",
+                                       "which attachments use most space",
+                                       "please show largest attachments",
+                                       "show largest attachments now",
+                                       "largst attchmnts",
+                                       "top 20 largest attachments"
+                                   ]
+                   },
+                   {
+                       "command_id":  "cleanup.analyze",
+                       "phrases":  [
+                                       "clean up my mailbox",
+                                       "analyze inbox for cleanup",
+                                       "help me free some space",
+                                       "find things safe to remove",
+                                       "please analyze mailbox for cleanup",
+                                       "analyze mailbox for cleanup now",
+                                       "remove old mail",
+                                       "clean inbox"
+                                   ]
+                   },
+                   {
+                       "command_id":  "monitoring.start",
+                       "phrases":  [
+                                       "start monitoring inbox",
+                                       "watch messages from ahmed",
+                                       "keep checking my mail",
+                                       "monitor student affairs",
+                                       "please start monitoring",
+                                       "start monitoring now",
+                                       "notify me of new mail",
+                                       "only notify me for student affairs",
+                                       "notify me when Ahmed emails",
+                                       "start watching my inbox",
+                                       "watch student affairs",
+                                       "monitor emails with PDFs",
+                                       "watch only important emails",
+                                       "notif studnt affrs"
+                                   ]
+                   },
+                   {
+                       "command_id":  "monitoring.stop",
+                       "phrases":  [
+                                       "stop monitoring",
+                                       "turn off watcher",
+                                       "pause mailbox checks",
+                                       "disable background monitoring",
+                                       "please stop monitoring",
+                                       "stop monitoring now",
+                                       "stop watching inbox",
+                                       "pause watcher"
+                                   ]
+                   },
+                   {
+                       "command_id":  "monitoring.status",
+                       "phrases":  [
+                                       "show monitoring status",
+                                       "when did mail last sync",
+                                       "is watcher running",
+                                       "check watcher health",
+                                       "please show monitoring status",
+                                       "show monitoring status now",
+                                       "is monitoring running",
+                                       "when did it last check mail"
+                                   ]
+                   },
+                   {
+                       "command_id":  "notifications.settings",
+                       "phrases":  [
+                                       "open notification settings",
+                                       "configure desktop alerts",
+                                       "opn setings notifcations",
+                                       "change notification privacy",
+                                       "please open notification settings",
+                                       "open notification settings now"
+                                   ]
+                   },
+                   {
+                       "command_id":  "notifications.test",
+                       "phrases":  [
+                                       "test desktop notification",
+                                       "send a test alert",
+                                       "try windows notification",
+                                       "check notification popup",
+                                       "please test notification",
+                                       "test notification now"
+                                   ]
+                   },
+                   {
+                       "command_id":  "notifications.history",
+                       "phrases":  [
+                                       "show notification history",
+                                       "recent alert deliveries",
+                                       "which notifications were sent",
+                                       "open alert activity",
+                                       "please show notification history",
+                                       "show notification history now"
+                                   ]
+                   },
+                   {
+                       "command_id":  "integrations.open",
+                       "phrases":  [
+                                       "open integrations",
+                                       "show webhook settings",
+                                       "configure external notifications",
+                                       "view connected services",
+                                       "please open integrations",
+                                       "open integrations now"
+                                   ]
+                   },
+                   {
+                       "command_id":  "integrations.webhook_test",
+                       "phrases":  [
+                                       "test generic webhook",
+                                       "send synthetic webhook test",
+                                       "check webhook delivery",
+                                       "webhok test",
+                                       "please test webhook",
+                                       "test webhook now"
+                                   ]
+                   },
+                   {
+                       "command_id":  "integrations.discord_test",
+                       "phrases":  [
+                                       "test discord webhook",
+                                       "send discord test",
+                                       "discrd webhook test",
+                                       "check discord notifications",
+                                       "please test discord webhook",
+                                       "test discord webhook now",
+                                       "test discord"
+                                   ]
+                   },
+                   {
+                       "command_id":  "appearance.settings",
+                       "phrases":  [
+                                       "open appearance settings",
+                                       "show theme browser",
+                                       "customize guc mail colors",
+                                       "appearance preferences",
+                                       "please open appearance settings",
+                                       "open appearance settings now"
+                                   ]
+                   },
+                   {
+                       "command_id":  "appearance.apply_theme",
+                       "phrases":  [
+                                       "apply dracula theme",
+                                       "switch to german theme",
+                                       "use a purple theme",
+                                       "turn on dark mode",
+                                       "please apply theme",
+                                       "apply theme now"
+                                   ]
+                   },
+                   {
+                       "command_id":  "appearance.toggle_banner",
+                       "phrases":  [
+                                       "toggle ascii branding",
+                                       "remove ascii header",
+                                       "please toggle ascii banner",
+                                       "toggle ascii banner now"
+                                   ]
+                   },
+                   {
+                       "command_id":  "layout.preview_wider",
+                       "phrases":  [
+                                       "make preview wider",
+                                       "preveiw biger",
+                                       "increase reader width",
+                                       "give email pane more space",
+                                       "please make preview wider",
+                                       "make preview wider now",
+                                       "make email wider"
+                                   ]
+                   },
+                   {
+                       "command_id":  "layout.preview_narrower",
+                       "phrases":  [
+                                       "make preview narrower",
+                                       "shrink reading pane",
+                                       "decrease reader width",
+                                       "give message list more space",
+                                       "please make preview narrower",
+                                       "make preview narrower now"
+                                   ]
+                   },
+                   {
+                       "command_id":  "layout.toggle_preview",
+                       "phrases":  [
+                                       "toggle message reader",
+                                       "please toggle preview pane",
+                                       "toggle preview pane now"
+                                   ]
+                   },
+                   {
+                       "command_id":  "layout.reset",
+                       "phrases":  [
+                                       "reset layout",
+                                       "restore default pane sizes",
+                                       "fix my interface layout",
+                                       "reset window arrangement",
+                                       "please reset layout",
+                                       "reset layout now"
+                                   ]
+                   },
+                   {
+                       "command_id":  "settings.open",
+                       "phrases":  [
+                                       "open settings",
+                                       "show preferences",
+                                       "configure guc mail",
+                                       "go to settings",
+                                       "please open settings",
+                                       "open settings now"
+                                   ]
+                   },
+                   {
+                       "command_id":  "settings.search",
+                       "phrases":  [
+                                       "find quota setting",
+                                       "search settings for autosave",
+                                       "where is attachment indexing",
+                                       "find preview width preference",
+                                       "please search settings",
+                                       "search settings now"
+                                   ]
+                   },
+                   {
+                       "command_id":  "activity.open",
+                       "phrases":  [
+                                       "open activity",
+                                       "show recent operations",
+                                       "view application activity",
+                                       "what happened recently",
+                                       "please open activity",
+                                       "open activity now"
+                                   ]
+                   },
+                   {
+                       "command_id":  "diagnostics.doctor",
+                       "phrases":  [
+                                       "run doctor",
+                                       "diagnose guc mail",
+                                       "why did notifications stop",
+                                       "check everything",
+                                       "please run doctor",
+                                       "run doctor now"
+                                   ]
+                   },
+                   {
+                       "command_id":  "diagnostics.connection",
+                       "phrases":  [
+                                       "check connection",
+                                       "mail stopped loading",
+                                       "test exchange connection",
+                                       "why isnt mail loading",
+                                       "please check connection",
+                                       "check connection now"
+                                   ]
+                   },
+                   {
+                       "command_id":  "diagnostics.logs",
+                       "phrases":  [
+                                       "open logs",
+                                       "show error log",
+                                       "view diagnostic history",
+                                       "where are guc mail logs",
+                                       "please open logs",
+                                       "open logs now"
+                                   ]
+                   },
+                   {
+                       "command_id":  "diagnostics.ews_capabilities",
+                       "phrases":  [
+                                       "show ews capabilities",
+                                       "what exchange features are available",
+                                       "show server operations",
+                                       "inspect ews support",
+                                       "please show ews capabilities",
+                                       "show ews capabilities now"
+                                   ]
+                   },
+                   {
+                       "command_id":  "offline.enter",
+                       "phrases":  [
+                                       "enter offline mode",
+                                       "work without exchange",
+                                       "disconnect and work locally",
+                                       "switch to offline",
+                                       "please enter offline mode",
+                                       "enter offline mode now"
+                                   ]
+                   },
+                   {
+                       "command_id":  "offline.browse",
+                       "phrases":  [
+                                       "browse mail offline",
+                                       "open latest backup offline",
+                                       "show offline folders",
+                                       "read backup without internet",
+                                       "please browse offline backup",
+                                       "browse offline backup now"
+                                   ]
+                   },
+                   {
+                       "command_id":  "help.open",
+                       "phrases":  [
+                                       "open help",
+                                       "show help center",
+                                       "i need help",
+                                       "view user guide",
+                                       "please open help",
+                                       "open help now"
+                                   ]
+                   },
+                   {
+                       "command_id":  "help.search",
+                       "phrases":  [
+                                       "how do i schedule email",
+                                       "how do backups work",
+                                       "how do i run this on a server",
+                                       "why did my mail stop loading",
+                                       "please search help",
+                                       "search help now",
+                                       "setup headless mode",
+                                       "install server service",
+                                       "show server health",
+                                       "restart mail service",
+                                       "show watcher logs"
+                                   ]
+                   },
+                   {
+                       "command_id":  "help.shortcuts",
+                       "phrases":  [
+                                       "show keyboard shortcuts",
+                                       "list hotkeys",
+                                       "what keys can i press",
+                                       "open shortcut reference",
+                                       "please show keyboard shortcuts",
+                                       "show keyboard shortcuts now"
+                                   ]
+                   },
+                   {
+                       "command_id":  "backup.create_full_backup",
+                       "phrases":  [
+                                       "full backup"
+                                   ]
+                   },
+                   {
+                       "command_id":  "backup.back_up_current_folder",
+                       "phrases":  [
+                                       "backup this folder"
+                                   ]
+                   },
+                   {
+                       "command_id":  "notifications.enable_desktop_notifications",
+                       "phrases":  [
+                                       "turn notifications on"
+                                   ]
+                   },
+                   {
+                       "command_id":  "notifications.disable_desktop_notifications",
+                       "phrases":  [
+                                       "turn notifications off"
+                                   ]
+                   },
+                   {
+                       "command_id":  "notifications.mute_notifications",
+                       "phrases":  [
+                                       "mute notifications tonight"
+                                   ]
+                   },
+                   {
+                       "command_id":  "notifications.enable_quiet_hours",
+                       "phrases":  [
+                                       "quiet hours from 11 to 8"
+                                   ]
+                   },
+                   {
+                       "command_id":  "integrations.add_discord_webhook",
+                       "phrases":  [
+                                       "add discord webhook",
+                                       "setup discord notifications"
+                                   ]
+                   },
+                   {
+                       "command_id":  "integrations.pause_webhook",
+                       "phrases":  [
+                                       "turn discord off"
+                                   ]
+                   },
+                   {
+                       "command_id":  "integrations.show_webhook_delivery_history",
+                       "phrases":  [
+                                       "show discord failures",
+                                       "show failed webhook deliveries"
+                                   ]
+                   },
+                   {
+                       "command_id":  "integrations.add_webhook",
+                       "phrases":  [
+                                       "add webhook"
+                                   ]
+                   },
+                   {
+                       "command_id":  "integrations.retry_failed_webhook",
+                       "phrases":  [
+                                       "retry failed webhooks"
+                                   ]
+                   },
+                   {
+                       "command_id":  "appearance.hide_ascii_banner",
+                       "phrases":  [
+                                       "hide the guc banner"
+                                   ]
+                   },
+                   {
+                       "command_id":  "appearance.show_ascii_banner",
+                       "phrases":  [
+                                       "show guc logo"
+                                   ]
+                   },
+                   {
+                       "command_id":  "layout.collapse_preview",
+                       "phrases":  [
+                                       "hide preview pane",
+                                       "collapse email preview"
+                                   ]
+                   },
+                   {
+                       "command_id":  "layout.expand_preview",
+                       "phrases":  [
+                                       "show preview pane"
+                                   ]
+                   }
+               ]
+}

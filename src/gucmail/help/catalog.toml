@@ -1,0 +1,889 @@
+schema_version = 1
+home_page = "start.overview"
+
+[[pages]]
+id = "start.overview"
+title = "Welcome to GUC Mail CLI"
+category = "Start Here"
+summary = "Choose a safe starting point for mail, search, scheduling, backup, or troubleshooting."
+path = "start/overview.md"
+keywords = ["welcome", "start", "home", "overview", "unofficial"]
+aliases = ["what is guc mail", "help home", "getting started"]
+commands = ["status", "doctor", "tui"]
+settings = ["mode"]
+related = ["start.first-launch", "start.login", "start.interface", "help.using-help", "tutorial.first-message"]
+level = "beginner"
+platforms = ["all"]
+contexts = ["home", "help"]
+kind = "reference"
+
+[[pages]]
+id = "start.login"
+title = "Sign in and protect your password"
+category = "Start Here"
+summary = "Configure the mailbox identity and use a hidden prompt or operating-system keyring."
+path = "start/login.md"
+keywords = ["login", "password", "credentials", "keyring", "creds env"]
+aliases = ["sign in", "authenticate", "credential manager"]
+commands = ["login", "logout", "status"]
+settings = ["email", "username", "endpoint"]
+related = ["privacy.credentials", "troubleshooting.connection"]
+level = "beginner"
+platforms = ["all"]
+contexts = ["login", "settings", "connection"]
+kind = "online"
+
+[[pages]]
+id = "start.interface"
+title = "Interface tour"
+category = "Start Here"
+summary = "Understand folders, message lists, readers, status indicators, and keyboard focus."
+path = "start/interface.md"
+keywords = ["interface", "tui", "navigation", "panes", "focus"]
+aliases = ["screen tour", "where am i", "terminal interface"]
+commands = ["tui"]
+settings = ["theme", "mode"]
+related = ["appearance.layout", "reference.shortcuts", "mail.reading"]
+level = "beginner"
+platforms = ["all"]
+contexts = ["home", "mail", "navigation"]
+kind = "local"
+
+[[pages]]
+id = "tutorial.first-message"
+title = "Tutorial: read and prepare a first message"
+category = "Tutorials"
+summary = "Practice the reader and composer with a synthetic example before sending anything."
+path = "tutorials/first-message.md"
+keywords = ["tutorial", "first email", "compose", "read", "practice"]
+aliases = ["send first mail", "walkthrough", "show me how to email"]
+commands = ["messages.list", "messages.show", "send"]
+settings = []
+related = ["mail.reading", "mail.compose", "privacy.credentials"]
+level = "beginner"
+platforms = ["all"]
+contexts = ["tutorial", "mail", "compose"]
+capabilities = ["ews.mail"]
+kind = "capability_gated"
+
+[[pages]]
+id = "mail.folders"
+title = "Inbox and folder hierarchy"
+category = "Mail"
+summary = "Browse standard, custom, localized, and nested Exchange folders in bounded pages."
+path = "mail/folders.md"
+keywords = ["folders", "inbox", "nested", "custom", "tree", "counts"]
+aliases = ["folder list", "mailbox tree", "where is sent mail"]
+commands = ["folders.list", "folders.tree"]
+settings = ["default_folder", "page_size"]
+related = ["mail.reading", "mail.deleted-items"]
+level = "beginner"
+platforms = ["all"]
+contexts = ["mail", "folders", "navigation"]
+capabilities = ["ews.folders"]
+kind = "capability_gated"
+
+[[pages]]
+id = "mail.reading"
+legacy_ids = ["user-guide/reading-and-organizing-mail"]
+title = "Read messages safely"
+category = "Mail"
+summary = "Load bounded summaries first, fetch a body on demand, and keep remote content blocked."
+path = "mail/reading.md"
+keywords = ["read", "message", "preview", "remote images", "headers", "metadata"]
+aliases = ["open email", "message reader", "view mail"]
+commands = ["messages.list", "messages.show", "messages.headers", "messages.raw"]
+settings = ["allow_remote_content", "page_size"]
+related = ["attachments.safety", "privacy.local-data", "mail.folders"]
+level = "beginner"
+platforms = ["all"]
+contexts = ["mail", "messages", "reader"]
+capabilities = ["ews.mail"]
+kind = "capability_gated"
+
+[[pages]]
+id = "mail.deleted-items"
+title = "Delete, Deleted Items, and restore"
+category = "Mail"
+summary = "Distinguish recoverable deletion from permanent deletion and review restoration scope."
+path = "mail/deleted-items.md"
+keywords = ["delete", "deleted items", "trash", "restore", "permanent"]
+aliases = ["recover email", "undo delete", "trash folder"]
+commands = ["messages.delete", "messages.restore"]
+settings = []
+related = ["mail.folders", "backup.overview", "troubleshooting.database"]
+level = "intermediate"
+platforms = ["all"]
+contexts = ["mail", "deleted", "reader"]
+capabilities = ["ews.mail"]
+kind = "capability_gated"
+
+[[pages]]
+id = "mail.compose"
+legacy_ids = ["user-guide/composing-replying-forwarding"]
+title = "Compose, reply, and forward safely"
+category = "Compose"
+summary = "Validate recipients, content, attachments, and confirmation scope before transmission."
+path = "mail/compose.md"
+keywords = ["compose", "send", "reply", "reply all", "forward", "recipient"]
+aliases = ["write email", "new message", "answer email"]
+commands = ["send", "reply", "reply-all", "forward"]
+settings = ["signature", "external_editor", "max_attachment_bytes"]
+related = ["mail.drafts", "attachments.safety", "troubleshooting.sending"]
+level = "beginner"
+platforms = ["all"]
+contexts = ["compose", "mail", "reader"]
+capabilities = ["ews.send"]
+kind = "capability_gated"
+
+[[pages]]
+id = "mail.drafts"
+legacy_ids = ["user-guide/drafts-and-recovery"]
+title = "Drafts, autosave, and recovery"
+category = "Drafts and Scheduled Mail"
+summary = "Understand local recovery, durable drafts, server drafts, revisions, and conflicts."
+path = "mail/drafts.md"
+keywords = ["draft", "autosave", "recovery", "conflict", "revision"]
+aliases = ["save unfinished email", "lost draft", "resume message"]
+errors = ["draft disappeared", "draft conflict", "autosave failed"]
+commands = ["drafts.list", "drafts.create", "drafts.recover", "drafts.conflicts"]
+settings = ["autosave_seconds"]
+related = ["mail.compose", "mail.scheduled", "troubleshooting.sending"]
+level = "beginner"
+platforms = ["all"]
+contexts = ["drafts", "compose", "recovery"]
+kind = "local"
+
+[[pages]]
+id = "mail.scheduled"
+legacy_ids = ["scheduling/index"]
+title = "Scheduled mail, Outbox, and Undo Send"
+category = "Drafts and Scheduled Mail"
+summary = "Use the durable local queue and understand sleep, retries, and uncertain sends."
+path = "mail/scheduled.md"
+keywords = ["schedule", "outbox", "undo send", "delayed", "retry", "uncertain"]
+aliases = ["send later", "email tomorrow", "cancel scheduled mail"]
+errors = ["scheduled message did not send", "scheduler paused", "uncertain send"]
+commands = ["scheduled.list", "scheduler.status", "scheduler.run-once"]
+settings = ["undo_send_seconds", "timezone"]
+related = ["faq.pc-on", "tutorial.scheduling", "troubleshooting.sending"]
+level = "intermediate"
+platforms = ["all"]
+contexts = ["scheduled", "outbox", "compose"]
+kind = "local"
+
+[[pages]]
+id = "tutorial.scheduling"
+title = "Tutorial: schedule a message without sending"
+category = "Tutorials"
+summary = "Create a synthetic local draft, preview a future time, and cancel the practice job."
+path = "tutorials/scheduling.md"
+keywords = ["tutorial", "scheduled email", "send later", "dry run", "cancel"]
+aliases = ["practice scheduling", "show me delayed mail"]
+commands = ["drafts.create", "drafts.schedule", "scheduled.cancel"]
+settings = ["timezone"]
+related = ["mail.scheduled", "faq.pc-on"]
+level = "beginner"
+platforms = ["all"]
+contexts = ["tutorial", "scheduled", "compose"]
+kind = "local"
+
+[[pages]]
+id = "search.overview"
+legacy_ids = ["search/index"]
+title = "Search mail and saved searches"
+category = "Search"
+summary = "Choose live server filtering, saved queries, or a bounded local search source."
+path = "search/overview.md"
+keywords = ["search", "email", "unread", "query", "sender", "subject", "date", "saved search"]
+aliases = ["find email", "look for message", "search inbox"]
+commands = ["search", "messages.search", "saved-searches.list"]
+settings = ["page_size"]
+related = ["search.local", "palette.overview"]
+level = "beginner"
+platforms = ["all"]
+contexts = ["search", "mail", "palette"]
+capabilities = ["ews.search"]
+kind = "capability_gated"
+
+[[pages]]
+id = "search.local"
+title = "Local index, fuzzy search, attachments, and clusters"
+category = "Search"
+summary = "Understand optional local indexing, fuzzy ranking, extraction limits, and offline results."
+path = "search/local.md"
+keywords = ["index", "fts", "fuzzy", "attachment search", "cluster", "semantic"]
+aliases = ["deep search", "typo search", "search inside files"]
+commands = ["index.status", "index.build", "index.search", "clusters.list", "semantic.status"]
+settings = ["cache_message_bodies", "index_attachments", "semantic_search_enabled"]
+related = ["search.overview", "attachments.safety", "privacy.local-data"]
+level = "intermediate"
+platforms = ["all"]
+contexts = ["search", "index", "offline"]
+kind = "local"
+
+[[pages]]
+id = "palette.overview"
+title = "Command palette and natural-language requests"
+category = "Command Palette"
+summary = "Discover canonical actions, review interpretations, and keep risky requests confirmation-bound."
+path = "palette/overview.md"
+keywords = ["palette", "command", "natural language", "fuzzy", "shortcut", "confidence"]
+aliases = ["spotlight", "ctrl k", "tell guc mail what to do"]
+nlp_examples = ["find unread mail from Ahmed Example"]
+commands = []
+settings = []
+related = ["tutorial.palette", "search.overview", "reference.commands"]
+level = "beginner"
+platforms = ["all"]
+contexts = ["palette", "home", "help"]
+kind = "local"
+
+[[pages]]
+id = "tutorial.palette"
+title = "Tutorial: use the command palette"
+category = "Tutorials"
+summary = "Practice search and navigation requests while learning previews and confidence behavior."
+path = "tutorials/palette.md"
+keywords = ["tutorial", "palette", "natural language", "typo", "preview"]
+aliases = ["practice command palette", "show me spotlight"]
+nlp_examples = ["open help about backups", "show calendar this week", "move these"]
+commands = []
+settings = []
+related = ["palette.overview", "search.overview"]
+level = "beginner"
+platforms = ["all"]
+contexts = ["tutorial", "palette"]
+kind = "local"
+
+[[pages]]
+id = "calendar.overview"
+legacy_ids = ["calendar/index"]
+title = "Calendar, meetings, and availability"
+category = "Calendar"
+summary = "View bounded date windows and use capability-gated event and meeting operations."
+path = "pim/calendar.md"
+keywords = ["calendar", "meeting", "event", "agenda", "availability", "timezone"]
+aliases = ["appointments", "free busy", "what is on my calendar", "events this week"]
+commands = ["calendar.agenda", "calendar.list", "calendar.availability"]
+settings = ["timezone", "datetime_format"]
+related = ["tasks.overview", "advanced.ews"]
+level = "beginner"
+platforms = ["all"]
+contexts = ["calendar", "home"]
+capabilities = ["ews.calendar"]
+kind = "capability_gated"
+
+[[pages]]
+id = "contacts.overview"
+legacy_ids = ["contacts/index"]
+title = "Contacts, recipients, and directory search"
+category = "Contacts"
+summary = "Separate editable mailbox contacts, local recipient history, and read-only directory results."
+path = "pim/contacts.md"
+keywords = ["contacts", "people", "directory", "recipient", "duplicate", "vcard"]
+aliases = ["address book", "find person", "global address list"]
+commands = ["contacts.list", "contacts.search", "directory.search", "recipients.recent"]
+settings = []
+related = ["mail.compose", "privacy.local-data", "advanced.ews"]
+level = "beginner"
+platforms = ["all"]
+contexts = ["contacts", "compose", "people"]
+capabilities = ["ews.contacts"]
+kind = "capability_gated"
+
+[[pages]]
+id = "tasks.overview"
+legacy_ids = ["tasks/index"]
+title = "Tasks, reminders, and completion"
+category = "Tasks"
+summary = "Browse and update Exchange tasks when the task folder and account permit it."
+path = "pim/tasks.md"
+keywords = ["tasks", "due date", "reminder", "complete", "recurrence"]
+aliases = ["to do", "todo", "follow up task"]
+commands = ["tasks.list", "tasks.search", "tasks.complete"]
+settings = ["timezone"]
+related = ["calendar.overview", "advanced.ews"]
+level = "beginner"
+platforms = ["all"]
+contexts = ["tasks", "home"]
+capabilities = ["ews.tasks"]
+kind = "capability_gated"
+
+[[pages]]
+id = "attachments.safety"
+title = "View, download, and inspect attachments safely"
+category = "Files and Attachments"
+summary = "List metadata first and apply filename, path, size, collision, and extraction limits."
+path = "attachments/safety.md"
+keywords = ["attachment", "download", "filename", "dangerous file", "hash", "extract"]
+aliases = ["save file", "email attachment", "large attachment"]
+commands = ["attachments.list", "attachments.save", "attachments.save-all"]
+settings = ["download_directory", "max_attachment_bytes", "index_attachments"]
+related = ["mail.reading", "search.local", "privacy.local-data"]
+level = "beginner"
+platforms = ["all"]
+contexts = ["attachments", "reader", "search"]
+capabilities = ["ews.attachments"]
+kind = "capability_gated"
+
+[[pages]]
+id = "storage.quota"
+title = "Mailbox quota and local storage"
+category = "Storage"
+summary = "Keep current usage, server thresholds, cache, index, and backup sizes separate."
+path = "storage/quota.md"
+keywords = ["quota", "mailbox full", "storage", "warning", "prohibit send", "disk"]
+aliases = ["100 mb", "out of space", "mail full", "how much storage"]
+commands = ["quota.show", "quota.folders", "quota.local"]
+settings = ["cache_enabled", "cache_message_bodies"]
+related = ["cleanup.overview", "backup.overview", "faq.pc-on"]
+level = "beginner"
+platforms = ["all"]
+contexts = ["storage", "quota", "mailbox-full"]
+kind = "online"
+
+[[pages]]
+id = "cleanup.overview"
+legacy_ids = ["features/insights-and-cleanup"]
+title = "Analyze mailbox cleanup without surprise deletion"
+category = "Cleanup"
+summary = "Build bounded, explainable cleanup plans and keep ordinary deletion recoverable."
+path = "storage/cleanup.md"
+keywords = ["cleanup", "duplicate", "large mail", "old unread", "reclaim space"]
+aliases = ["free mailbox space", "delete old emails", "mailbox cleanup"]
+commands = ["cleanup.analyze", "cleanup.plan", "insights.storage"]
+settings = []
+related = ["storage.quota", "mail.deleted-items", "backup.overview"]
+level = "intermediate"
+platforms = ["all"]
+contexts = ["cleanup", "storage"]
+capabilities = ["ews.mail"]
+kind = "capability_gated"
+
+[[pages]]
+id = "backup.overview"
+legacy_ids = ["backup/index"]
+title = "Create and verify a private backup"
+category = "Backup and Offline Mode"
+summary = "Plan, create, encrypt, resume, and verify a backup that is separate from cache."
+path = "backup/overview.md"
+keywords = ["backup", "encrypt", "verify", "manifest", "incremental", "restore"]
+aliases = ["save mailbox copy", "archive mail", "protect my email"]
+commands = ["backup.estimate", "backup.create", "backup.verify", "backup.restore-plan"]
+settings = []
+related = ["backup.offline", "tutorial.backup", "privacy.local-data"]
+level = "intermediate"
+platforms = ["all"]
+contexts = ["backup", "storage", "offline"]
+kind = "local"
+
+[[pages]]
+id = "backup.offline"
+title = "Browse and search backups offline"
+category = "Backup and Offline Mode"
+summary = "Inspect completed backup records without resolving Exchange credentials or network access."
+path = "backup/offline.md"
+keywords = ["offline", "backup browse", "backup search", "restore", "cache difference"]
+aliases = ["read mail without internet", "offline mailbox", "backup browser"]
+commands = ["backup.browse", "backup.search", "backup.inspect"]
+settings = []
+related = ["backup.overview", "search.local", "privacy.local-data"]
+level = "beginner"
+platforms = ["all"]
+contexts = ["backup", "offline", "search"]
+kind = "local"
+
+[[pages]]
+id = "tutorial.backup"
+title = "Tutorial: plan and verify a first backup"
+category = "Tutorials"
+summary = "Estimate safely, choose encryption, and verify before considering restore."
+path = "tutorials/backup.md"
+keywords = ["tutorial", "backup", "estimate", "verify", "encryption"]
+aliases = ["first backup", "show me backup"]
+commands = ["backup.estimate", "backup.create", "backup.verify"]
+settings = []
+related = ["backup.overview", "privacy.local-data"]
+level = "beginner"
+platforms = ["all"]
+contexts = ["tutorial", "backup"]
+kind = "local"
+
+[[pages]]
+id = "monitoring.overview"
+title = "Monitor new mail reliably"
+category = "Notifications and Monitoring"
+summary = "Understand quiet baselines, checkpoints, deduplication, polling, sync, and backoff."
+path = "notifications/monitoring.md"
+keywords = ["watch", "monitor", "new mail", "checkpoint", "polling", "sync"]
+aliases = ["notify me of email", "watch inbox", "background mail"]
+commands = ["watch", "notifications.history"]
+settings = ["monitoring_enabled", "poll_interval_seconds"]
+related = ["notifications.windows", "notifications.rules", "faq.pc-on"]
+level = "intermediate"
+platforms = ["all"]
+contexts = ["monitoring", "activity", "notifications"]
+capabilities = ["ews.mail"]
+kind = "capability_gated"
+
+[[pages]]
+id = "notifications.windows"
+title = "Windows desktop notifications"
+category = "Notifications and Monitoring"
+summary = "Configure a local desktop provider and choose how much message detail it may reveal."
+path = "notifications/windows.md"
+keywords = ["windows", "toast", "desktop notification", "privacy", "click"]
+aliases = ["windows popup", "notification center", "desktop alert"]
+errors = ["desktop notification failed", "notifications stopped appearing"]
+commands = ["notifications.test", "notifications.history"]
+settings = []
+related = ["monitoring.overview", "startup.windows", "tutorial.notifications"]
+level = "beginner"
+platforms = ["windows"]
+contexts = ["notifications", "settings", "activity"]
+capabilities = ["notifications.desktop"]
+kind = "capability_gated"
+
+[[pages]]
+id = "notifications.rules"
+title = "Notification filtering, quiet hours, and digests"
+category = "Notifications and Monitoring"
+summary = "Route only intended events and preview rules against synthetic or bounded data."
+path = "notifications/rules.md"
+keywords = ["rule", "filter", "quiet hours", "digest", "profile", "routing"]
+aliases = ["silence notifications", "important mail only", "notification schedule"]
+commands = ["notifications.test", "notifications.history"]
+settings = []
+related = ["monitoring.overview", "integrations.discord", "integrations.webhooks"]
+level = "intermediate"
+platforms = ["all"]
+contexts = ["notifications", "settings", "rules"]
+kind = "local"
+
+[[pages]]
+id = "tutorial.notifications"
+title = "Tutorial: test notifications with synthetic data"
+category = "Tutorials"
+summary = "Preview a local notification without reading or changing mailbox content."
+path = "tutorials/notifications.md"
+keywords = ["tutorial", "notification test", "synthetic", "privacy"]
+aliases = ["first notification", "show me alerts"]
+commands = ["notifications.test", "notifications.history"]
+settings = []
+related = ["notifications.windows", "monitoring.overview"]
+level = "beginner"
+platforms = ["all"]
+contexts = ["tutorial", "notifications"]
+kind = "local"
+
+[[pages]]
+id = "startup.windows"
+title = "Start monitoring with Windows"
+category = "Start with Windows"
+summary = "Understand Task Scheduler, startup delay, single-instance behavior, repair, and removal."
+path = "notifications/windows-startup.md"
+keywords = ["windows startup", "task scheduler", "login", "background", "repair"]
+aliases = ["run at startup", "start watcher on login", "automatic monitoring"]
+commands = ["startup.enable", "startup.status", "startup.repair", "startup.disable", "headless.health"]
+settings = ["monitoring_enabled"]
+related = ["monitoring.overview", "faq.pc-on", "server.headless"]
+level = "intermediate"
+platforms = ["windows"]
+contexts = ["startup", "monitoring", "settings"]
+kind = "local"
+
+[[pages]]
+id = "integrations.discord"
+title = "Discord notification privacy and setup"
+category = "Integrations"
+summary = "Treat webhook URLs as secrets and test only synthetic, allowlisted notification data."
+path = "integrations/discord.md"
+keywords = ["discord", "webhook", "embed", "mention", "secret", "privacy"]
+aliases = ["discord alerts", "send mail notifications to discord", "webhhok discord"]
+errors = ["discord webhook delivery failed", "HTTP 401", "invalid webhook url"]
+commands = ["webhooks.add", "webhooks.list", "webhooks.test", "webhooks.enable"]
+settings = []
+related = ["integrations.webhooks", "notifications.rules", "privacy.local-data"]
+level = "intermediate"
+platforms = ["all"]
+contexts = ["integrations", "notifications", "discord"]
+capabilities = ["notifications.discord"]
+kind = "capability_gated"
+
+[[pages]]
+id = "integrations.webhooks"
+title = "Generic outbound webhooks"
+category = "Integrations"
+summary = "Send allowlisted events over HTTPS with timeouts, signing, idempotency, and safe retries."
+path = "integrations/webhooks.md"
+keywords = ["webhook", "http", "hmac", "retry", "idempotency", "https"]
+aliases = ["outbound integration", "post notification", "hook endpoint"]
+errors = ["webhook delivery failed", "webhook timeout", "HTTP 429", "HMAC mismatch"]
+commands = ["webhooks.add", "webhooks.test", "webhooks.enable"]
+settings = []
+related = ["monitoring.overview", "integrations.discord", "privacy.local-data"]
+level = "advanced"
+platforms = ["all"]
+contexts = ["integrations", "webhooks", "notifications"]
+kind = "local"
+
+[[pages]]
+id = "server.headless"
+title = "Run monitoring on an always-on computer"
+category = "Running GUC Mail 24/7"
+summary = "Plan credentials, supervision, health checks, logs, upgrades, and conservative polling."
+path = "server/headless.md"
+keywords = ["headless", "server", "vps", "systemd", "service", "health"]
+aliases = ["run 24 7", "always on watcher", "linux service"]
+commands = ["headless.validate", "headless.run", "headless.status", "headless.health", "headless.pause", "headless.resume", "headless.stop", "startup.plan", "startup.enable", "doctor", "status"]
+settings = ["monitoring_enabled", "poll_interval_seconds", "logging_level"]
+related = ["monitoring.overview", "faq.pc-on", "privacy.credentials"]
+level = "advanced"
+platforms = ["all"]
+contexts = ["server", "monitoring", "advanced"]
+kind = "local"
+
+[[pages]]
+id = "appearance.themes"
+title = "Themes, contrast, and color"
+category = "Appearance and Personalization"
+summary = "Preview installed themes, keep complete palettes distinct, and preserve readable contrast."
+path = "appearance/themes.md"
+keywords = ["theme", "color", "contrast", "monochrome", "favorite", "custom"]
+aliases = ["change colors", "dark mode", "high contrast"]
+commands = []
+settings = ["theme", "no_color"]
+related = ["appearance.branding", "appearance.layout", "settings.overview"]
+level = "beginner"
+platforms = ["all"]
+contexts = ["themes", "appearance", "settings"]
+kind = "local"
+
+[[pages]]
+id = "appearance.branding"
+title = "GUC ASCII branding"
+category = "Appearance and Personalization"
+summary = "Choose image-derived, stylized, compact, minimal, or custom terminal-safe branding."
+path = "appearance/branding.md"
+keywords = ["ascii", "logo", "guc", "banner", "branding", "font"]
+aliases = ["guc mail logo", "ascii art", "header logo"]
+commands = []
+settings = []
+related = ["appearance.themes", "appearance.layout"]
+level = "beginner"
+platforms = ["all"]
+contexts = ["branding", "appearance", "settings"]
+kind = "local"
+
+[[pages]]
+id = "appearance.layout"
+title = "Layout, preview pane, and message reader"
+category = "Appearance and Personalization"
+summary = "Use the layout controls exposed by the installed TUI and recover a cramped arrangement."
+path = "appearance/layout.md"
+keywords = ["layout", "pane", "resize", "preview", "reader", "small terminal"]
+aliases = ["move divider", "hide preview", "reset interface"]
+commands = ["tui"]
+settings = []
+related = ["start.interface", "reference.shortcuts", "appearance.themes"]
+level = "beginner"
+platforms = ["all"]
+contexts = ["layout", "mail", "reader", "settings"]
+kind = "local"
+
+[[pages]]
+id = "settings.overview"
+title = "Find and change settings safely"
+category = "Settings"
+summary = "Inspect non-secret configuration, understand modes, and keep credentials separate."
+path = "settings/overview.md"
+keywords = ["settings", "config", "preference", "basic", "advanced", "expert"]
+aliases = ["change option", "configuration", "reset settings"]
+commands = ["config.show", "config.set", "config.path"]
+settings = ["mode", "theme", "timezone"]
+related = ["privacy.credentials", "appearance.themes", "diagnostics.doctor"]
+level = "beginner"
+platforms = ["all"]
+contexts = ["settings", "home"]
+kind = "local"
+
+[[pages]]
+id = "privacy.credentials"
+legacy_ids = ["privacy-and-security/index"]
+title = "Credentials, keyring, and legacy files"
+category = "Privacy and Security"
+summary = "Know which credential source is used and move plaintext secrets into the OS keyring."
+path = "privacy/credentials.md"
+keywords = ["credentials", "password", "keyring", "creds env", "environment"]
+aliases = ["where is password", "credential manager", "remove login"]
+commands = ["login", "logout", "status"]
+settings = ["email", "username", "endpoint"]
+related = ["start.login", "privacy.local-data", "troubleshooting.connection"]
+level = "beginner"
+platforms = ["all"]
+contexts = ["privacy", "login", "settings"]
+kind = "local"
+
+[[pages]]
+id = "privacy.local-data"
+title = "Local data, logs, indexes, and integration privacy"
+category = "Privacy and Security"
+summary = "Understand what each local store contains and what can leave the computer."
+path = "privacy/local-data.md"
+keywords = ["privacy", "local data", "logs", "index", "backup", "webhook"]
+aliases = ["what is stored", "delete local data", "does ai read mail"]
+commands = ["config.path", "cache.status", "index.status", "backup.list"]
+settings = ["redact_email_addresses", "cache_message_bodies", "index_attachments"]
+related = ["privacy.credentials", "backup.overview", "integrations.webhooks"]
+level = "beginner"
+platforms = ["all"]
+contexts = ["privacy", "storage", "settings"]
+kind = "local"
+
+[[pages]]
+id = "troubleshooting.connection"
+title = "Connection, login, timeout, and stale-session problems"
+category = "Troubleshooting"
+summary = "Diagnose once, avoid rapid authentication retries, and distinguish network from permission errors."
+path = "troubleshooting/connection.md"
+keywords = ["cannot connect", "login fails", "timeout", "stale session", "throttling"]
+aliases = ["mail stops loading", "infinite loading", "offline error"]
+errors = ["connection timed out", "invalid credentials", "unauthorized", "stale session", "server busy", "errorserverbusy", "tls failure", "dns failure"]
+commands = ["status", "doctor", "ews.diagnostics"]
+settings = ["request_timeout_seconds", "retry_attempts", "retry_base_seconds"]
+related = ["diagnostics.doctor", "start.login", "advanced.ews"]
+level = "beginner"
+platforms = ["all"]
+contexts = ["error", "connection", "login"]
+kind = "online"
+
+[[pages]]
+id = "troubleshooting.sending"
+title = "Sending, draft, and uncertain-result problems"
+category = "Troubleshooting"
+summary = "Separate validation failures, definite pre-send errors, and ambiguous post-request outcomes."
+path = "troubleshooting/sending.md"
+keywords = ["send failed", "draft failed", "uncertain", "duplicate send", "outbox"]
+aliases = ["email will not send", "stuck draft", "did message send"]
+errors = ["send failed", "invalid recipient", "message may have been sent", "draft save failed", "request timed out after send"]
+commands = ["drafts.recover", "scheduled.list", "scheduler.doctor"]
+settings = ["autosave_seconds", "request_timeout_seconds"]
+related = ["mail.compose", "mail.drafts", "mail.scheduled"]
+level = "intermediate"
+platforms = ["all"]
+contexts = ["error", "compose", "drafts", "scheduled"]
+kind = "online"
+
+[[pages]]
+id = "troubleshooting.database"
+title = "Cache, database, and Deleted Items errors"
+category = "Troubleshooting"
+summary = "Protect durable state, distinguish cache from state, and refresh stale item references."
+path = "troubleshooting/database.md"
+keywords = ["database", "integrity error", "locked", "corrupt", "deleted items", "stale id"]
+aliases = ["sqlite error", "mailbox unavailable integrityerror", "cache broken"]
+errors = ["integrityerror", "database is locked", "database disk image is malformed", "stale item id", "deleted items will not open"]
+commands = ["cache.status", "doctor", "messages.restore"]
+settings = ["cache_enabled"]
+related = ["mail.deleted-items", "privacy.local-data", "diagnostics.doctor"]
+level = "intermediate"
+platforms = ["all"]
+contexts = ["error", "database", "deleted"]
+kind = "local"
+
+[[pages]]
+id = "diagnostics.doctor"
+title = "Doctor, diagnostics, and safe support information"
+category = "Diagnostics"
+summary = "Run local checks first and opt into network or authentication checks deliberately."
+path = "diagnostics/doctor.md"
+keywords = ["doctor", "diagnostics", "support", "redaction", "health check"]
+aliases = ["why is guc mail broken", "run checks", "diagnostic bundle"]
+errors = ["doctor check failed", "startup target missing", "cache health failed"]
+commands = ["doctor", "diagnostics", "ews.diagnostics"]
+settings = ["logging_level", "redact_email_addresses"]
+related = ["troubleshooting.connection", "privacy.local-data", "advanced.ews"]
+level = "beginner"
+platforms = ["all"]
+contexts = ["diagnostics", "error", "help"]
+kind = "local"
+
+[[pages]]
+id = "advanced.ews"
+legacy_ids = ["ews/index"]
+title = "Exchange, EWS, SOAP, and capability status"
+category = "Advanced"
+summary = "Interpret implementation, server, account, verification, and safety axes independently."
+path = "advanced/ews.md"
+keywords = ["ews", "soap", "exchange", "capability", "version", "operation"]
+aliases = ["server support matrix", "exchange version", "raw soap"]
+commands = ["ews.operations", "ews.describe", "ews.support-matrix", "ews.diagnostics", "ews.delegates"]
+settings = ["endpoint", "request_timeout_seconds"]
+related = ["diagnostics.doctor", "troubleshooting.connection", "storage.quota"]
+level = "expert"
+platforms = ["all"]
+contexts = ["advanced", "ews", "diagnostics"]
+kind = "reference"
+
+[[pages]]
+id = "reference.shortcuts"
+title = "Keyboard shortcuts"
+category = "Reference"
+summary = "Use the active footer and shortcut browser because bindings can vary by screen."
+path = "reference/shortcuts.md"
+keywords = ["keyboard", "shortcut", "key", "focus", "navigation"]
+aliases = ["hotkeys", "key bindings", "what does this key do"]
+commands = []
+settings = []
+related = ["start.interface", "appearance.layout", "palette.overview"]
+level = "beginner"
+platforms = ["all"]
+contexts = ["help", "navigation", "settings"]
+kind = "reference"
+
+[[pages]]
+id = "reference.commands"
+title = "Command-line and structured-output reference"
+category = "Reference"
+summary = "Discover installed commands through offline help and keep global options before subcommands."
+path = "reference/commands.md"
+keywords = ["cli", "command", "json", "ndjson", "exit code", "automation"]
+aliases = ["command reference", "scripting", "terminal commands"]
+commands = ["version"]
+settings = ["no_color", "mode"]
+related = ["palette.overview", "advanced.ews", "glossary"]
+level = "intermediate"
+platforms = ["all"]
+contexts = ["help", "commands", "advanced"]
+kind = "reference"
+
+[[pages]]
+id = "glossary"
+title = "Glossary"
+category = "Reference"
+summary = "Plain-language definitions for mailbox, local-state, scheduling, and Exchange terms."
+path = "reference/glossary.md"
+keywords = ["glossary", "definition", "ews", "cache", "backup", "draft"]
+aliases = ["what does this mean", "terms", "vocabulary"]
+commands = []
+settings = []
+related = ["start.overview", "reference.commands"]
+level = "beginner"
+platforms = ["all"]
+contexts = ["help", "reference"]
+kind = "reference"
+
+[[pages]]
+id = "faq.pc-on"
+title = "Does my PC need to stay on?"
+category = "Frequently Asked Questions"
+summary = "Know which local background features stop during sleep and which data remains durable."
+path = "faq/pc-on.md"
+keywords = ["pc on", "sleep", "tui closed", "scheduled email", "notifications", "server"]
+aliases = ["does computer need to stay awake", "close tui", "run in background"]
+commands = ["scheduler.status", "watch"]
+settings = ["monitoring_enabled", "poll_interval_seconds"]
+related = ["mail.scheduled", "monitoring.overview", "startup.windows", "server.headless"]
+level = "beginner"
+platforms = ["all"]
+contexts = ["faq", "scheduled", "monitoring", "help"]
+kind = "reference"
+
+[[pages]]
+id = "help.using-help"
+title = "Find answers and act safely from Help"
+category = "Start Here"
+summary = "Search offline guidance, navigate the hierarchy, use contextual links, and validate the corpus."
+path = "start/using-help.md"
+keywords = ["help center", "table of contents", "breadcrumb", "history", "favorite", "context"]
+aliases = ["how to use help", "find documentation", "help navigation"]
+commands = ["help.search", "help.show", "help.toc", "help.commands", "help.shortcuts", "help.glossary", "help.error", "help.validate"]
+settings = []
+related = ["start.overview", "reference.commands", "reference.shortcuts", "diagnostics.doctor"]
+level = "beginner"
+platforms = ["all"]
+contexts = ["help", "home", "error", "settings"]
+kind = "local"
+
+[[pages]]
+id = "start.first-launch"
+title = "First launch on Windows"
+category = "Start Here"
+summary = "Run the project executable, choose credentials safely, open the TUI, and diagnose one failed connection."
+path = "start/first-launch.md"
+keywords = ["first launch", "windows", "powershell", "virtual environment", "credentials file", "tui"]
+aliases = ["how to run guc mail", "start the app", "use creds env", "launch tui"]
+commands = ["version", "doctor", "login", "status", "tui"]
+settings = ["email", "username", "endpoint"]
+related = ["start.login", "start.interface", "tutorial.first-message", "troubleshooting.connection"]
+level = "beginner"
+platforms = ["windows"]
+contexts = ["home", "login", "first-launch", "help"]
+kind = "local"
+
+[[pages]]
+id = "faq.common"
+title = "Common questions about GUC Mail CLI"
+category = "Frequently Asked Questions"
+summary = "Get direct answers about notifications, sleep, schedules, quota, backup, offline use, and privacy."
+path = "faq/common.md"
+keywords = ["faq", "notifications", "sleep", "scheduled", "quota", "backup", "offline", "privacy"]
+aliases = ["common questions", "can guc mail", "what happens if"]
+commands = ["status", "scheduler.status", "headless.health", "notifications.history", "backup.list", "index.status"]
+settings = ["monitoring_enabled", "undo_send_seconds", "semantic_search_enabled"]
+related = ["faq.pc-on", "mail.scheduled", "storage.quota", "privacy.local-data"]
+level = "beginner"
+platforms = ["all"]
+contexts = ["faq", "help", "home"]
+kind = "reference"
+
+[[pages]]
+id = "integrations.providers"
+title = "Choose notification destinations and routing"
+category = "Integrations"
+summary = "Compare desktop, Discord, webhooks, compatible chat providers, event streams, and command hooks."
+path = "integrations/providers.md"
+keywords = ["provider", "routing", "slack", "teams", "telegram", "ndjson", "command hook"]
+aliases = ["notification destinations", "send alerts elsewhere", "provider matrix"]
+commands = ["notifications.test", "notifications.history", "webhooks.list", "webhooks.test"]
+settings = []
+related = ["notifications.rules", "integrations.discord", "integrations.webhooks", "server.headless"]
+level = "intermediate"
+platforms = ["all"]
+contexts = ["integrations", "notifications", "settings", "providers"]
+kind = "local"
+
+[[pages]]
+id = "troubleshooting.notifications"
+title = "Notifications or background monitoring stopped"
+category = "Troubleshooting"
+summary = "Diagnose watcher, startup, desktop, Discord, webhook, sleep, and single-instance symptoms safely."
+path = "troubleshooting/notifications.md"
+keywords = ["notifications stopped", "watcher stopped", "already running", "sleep", "discord 401", "webhook 429"]
+aliases = ["no notifications", "background monitoring broken", "watcher already running"]
+errors = ["watcher is already running", "notification delivery failed", "desktop notification failed", "discord webhook delivery failed", "HTTP 401", "HTTP 403", "HTTP 404", "HTTP 429"]
+commands = ["headless.status", "headless.health", "notifications.test", "notifications.history", "startup.status", "startup.repair"]
+settings = ["monitoring_enabled", "poll_interval_seconds"]
+related = ["monitoring.overview", "startup.windows", "integrations.discord", "integrations.webhooks"]
+level = "beginner"
+platforms = ["all"]
+contexts = ["error", "monitoring", "notifications", "activity"]
+kind = "local"
+
+[[pages]]
+id = "troubleshooting.backup-search"
+title = "Backup, offline browsing, or search is not working"
+category = "Troubleshooting"
+summary = "Recover incomplete backups, verify archives, identify search sources, and diagnose local disk use."
+path = "troubleshooting/backup-search.md"
+keywords = ["backup stuck", "verification failed", "offline missing", "search missing", "index stale", "disk space"]
+aliases = ["cannot find email", "backup failed", "index broken", "too much disk"]
+errors = ["backup incomplete", "backup verification failed", "object hash mismatch", "index verification failed", "search result missing", "insufficient disk space"]
+commands = ["backup.inspect", "backup.resume", "backup.verify", "backup.restore-plan", "index.status"]
+settings = ["index_attachments", "cache_message_bodies"]
+related = ["backup.overview", "backup.offline", "search.overview", "search.local", "storage.quota"]
+level = "intermediate"
+platforms = ["all"]
+contexts = ["error", "backup", "offline", "search", "storage"]
+kind = "local"

@@ -1,0 +1,34 @@
+# Synthetic GUC Mail CLI configuration. Passwords never belong in this file.
+[gucmail]
+email = "student@example.invalid"
+username = "student.example"
+endpoint = "https://mail.guc.edu.eg/EWS/Exchange.asmx"
+default_folder = "inbox"
+page_size = 25
+poll_interval_seconds = 300
+theme = "gucmail-dark"
+no_color = false
+datetime_format = "%Y-%m-%d %H:%M %Z"
+timezone = "Africa/Cairo"
+external_editor = "notepad.exe"
+download_directory = "C:\\Users\\Example\\Downloads\\GUC Mail"
+signature = "Regards,\nExample Student"
+allow_remote_content = false
+cache_enabled = true
+cache_message_bodies = false
+index_attachments = false
+semantic_search_enabled = false
+monitoring_enabled = false
+command_hooks_enabled = false
+request_timeout_seconds = 30
+retry_attempts = 3
+retry_base_seconds = 2.0
+retry_max_seconds = 120.0
+max_attachment_bytes = 52428800
+autosave_seconds = 30
+undo_send_seconds = 0
+logging_level = "WARNING"
+redact_email_addresses = true
+mode = "basic"
+onboarding_complete = false
+expert_raw_soap_enabled = false

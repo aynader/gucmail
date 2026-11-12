@@ -1,0 +1,19 @@
+{
+  "classification": "Synthetic numerical fixture; no real mail or downloaded model",
+  "sha256": "a76d900b37fe6274f02c28dbf691dbd927b5d7d531a3d92196267c8bbbab3728",
+  "training_chunks": [
+    "car automobile motor engine vehicle road drive",
+    "car engine road vehicle commute",
+    "automobile motor vehicle drive transport",
+    "bus train commute transport road",
+    "cat kitten animal pet whiskers fur",
+    "cat kitten pet animal paws",
+    "dog puppy animal pet fur",
+    "dog puppy pet walk animal"
+  ],
+  "python": "3.12.14",
+  "numpy": "2.3.5",
+  "requested_dimensions": 2,
+  "source_proof": ".tmp-continuation-20261001/semantic58-candidate/worker-proof/report.json",
+  "boundary": "Actual local SVD trained by owned network-denied worker. Narrow model/store module proof used a namespace shim because bundled numerical runtime lacks full application dependencies; not full Python 3.12 application certification."
+}

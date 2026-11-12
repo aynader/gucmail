@@ -1,0 +1,9 @@
+example-backup/
+|-- manifest.json
+`-- objects/
+    |-- 0a/
+    |   `-- 0a00000000000000000000000000000000000000000000000000000000000000
+    `-- f0/
+        `-- f00000000000000000000000000000000000000000000000000000000000000
+
+The hexadecimal names above are synthetic content identifiers, not mailbox item IDs.

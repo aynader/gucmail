@@ -1,0 +1,5 @@
+2026-08-05 16:30 EEST  Draft saved locally
+2026-08-05 16:32 EEST  Scheduled for 2026-08-06 09:00 EEST
+2026-08-06 09:00 EEST  Job claimed by the local scheduler
+2026-08-06 09:00 EEST  Send attempt recorded
+2026-08-06 09:00 EEST  Sent outcome confirmed

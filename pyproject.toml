@@ -1,0 +1,169 @@
+[build-system]
+requires = ["hatchling>=1.27,<2"]
+build-backend = "hatchling.build"
+
+[project]
+name = "gucmail"
+version = "1.1.5"
+description = "An independent, security-focused terminal client for GUC Exchange mailboxes"
+readme = "README.md"
+requires-python = ">=3.11,<3.15"
+license = "MIT"
+authors = [{ name = "GUC Mail CLI contributors" }]
+keywords = ["email", "exchange", "ews", "terminal", "guc"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Environment :: Console",
+  "Operating System :: Microsoft :: Windows",
+  "Operating System :: POSIX :: Linux",
+  "Operating System :: MacOS",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+  "Topic :: Communications :: Email :: Email Clients (MUA)",
+]
+dependencies = [
+  "beautifulsoup4>=4.12,<5",
+  "cryptography>=43,<51",
+  "defusedxml>=0.7,<1",
+  "exchangelib==5.6.0",
+  "httpx>=0.27,<1",
+  "keyring>=25,<27",
+  "lxml>=5,<7",
+  "platformdirs>=4.3,<5",
+  "pyfiglet>=1.0.2,<2",
+  "python-dateutil>=2.9,<3",
+  "rapidfuzz>=3.10,<4",
+  "rich>=13.9,<15",
+  "textual>=7.5,<8",
+  "typer>=0.15,<1",
+]
+
+[project.optional-dependencies]
+semantic = ["numpy==2.3.5"]
+attachments = [
+  "openpyxl>=3.1,<4",
+  "pypdf>=6.16.1,<7",
+  "python-docx>=1.1,<2",
+  "python-pptx>=1.0,<2",
+]
+desktop = ["plyer>=2.1,<3", "Windows-Toasts==1.3.1; sys_platform == 'win32'"]
+dev = [
+  "build>=1.2,<2",
+  "hatchling>=1.27,<2",
+  "mypy>=1.14,<2",
+  "pytest>=8.3,<10",
+  "pytest-asyncio>=0.25,<2",
+  "pytest-cov>=6,<8",
+  "ruff>=0.9,<1",
+  "types-python-dateutil>=2.9",
+]
+
+[project.scripts]
+gucmail = "gucmail.cli:app"
+
+[project.urls]
+Homepage = "https://github.com/aynader/gucmail"
+Source = "https://github.com/aynader/gucmail"
+Issues = "https://github.com/aynader/gucmail/issues"
+Documentation = "https://github.com/aynader/gucmail/tree/main/docs"
+
+[tool.hatch.build]
+# Help is an application resource, not repository-only documentation. Keep the
+# catalog and Markdown pages in both editable installs and built wheels.
+artifacts = [
+  "src/gucmail/data/builtin-themes.json.gz",
+  "src/gucmail/data/command_corpus.json",
+  "src/gucmail/data/shortcut_catalog.json",
+  "src/gucmail/help/catalog.toml",
+  "src/gucmail/help/pages/**/*.md",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/gucmail"]
+
+[tool.hatch.build.targets.sdist]
+skip-excluded-dirs = true
+only-include = [
+  ".gitignore", "docs", "qa", "src", "tests",
+  "README.md", "pyproject.toml",
+]
+# Source releases use an explicit allowlist. Repository prompts, credentials,
+# runtime state, and root-level reference screenshots are deliberately outside
+# the distribution boundary.
+include = [
+  "/.gitignore",
+  "/docs",
+  "/qa",
+  "/src",
+  "/tests",
+  "/README.md",
+  "/pyproject.toml",
+]
+exclude = [
+  "/AGENTS.md",
+  "/Secondpass.md",
+  "/creds.env",
+  "/guc.py",
+  "/*.png",
+  "/dist",
+  "/.tmp-*",
+  "/.venv",
+  "/docs/audit",
+  "/docs/remediation",
+  "/docs/PRODUCTION_READINESS_PLAN_2026-10-29.md",
+  "**/__pycache__",
+  "**/*.pyc",
+  "**/*.pyo",
+  "**/*.sqlite3",
+  "**/*.sqlite",
+  "**/*.sqlite-wal",
+  "**/*.sqlite-shm",
+  "**/*.db",
+  "**/*.db-wal",
+  "**/*.db-shm",
+  "**/*.env",
+  "**/*.log",
+]
+
+[tool.pytest.ini_options]
+addopts = "-ra --strict-config --strict-markers"
+testpaths = ["tests"]
+markers = [
+  "live: explicitly enabled, bounded, read-only checks against a real mailbox",
+  "slow: longer-running local test",
+]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+src = ["src", "tests", "qa"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "S", "SIM", "RUF"]
+ignore = ["S101"]
+
+[tool.ruff.lint.per-file-ignores]
+"src/gucmail/cli.py" = ["B008"]
+"tests/**" = ["S105", "S106", "S108"]
+"qa/**" = ["S105", "S106", "S108", "S607", "S608", "E501", "B023", "F841"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+packages = ["gucmail"]
+warn_unused_ignores = true
+exclude = ["tests/fixtures"]
+
+[[tool.mypy.overrides]]
+module = ["exchangelib", "exchangelib.*", "lxml", "lxml.*", "defusedxml", "defusedxml.*"]
+ignore_missing_imports = true
+
+[tool.coverage.run]
+branch = true
+source = ["gucmail"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
