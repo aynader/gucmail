@@ -6351,7 +6351,11 @@ async def test_composer_discard_deletes_server_reference_before_removing_local_c
         await pilot.pause()
         assert isinstance(app.screen, ConfirmationScreen)
         await pilot.press("y")
-        await app.workers.wait_for_complete()
+        # Wait for this outcome only: wait_for_complete() also fails when an unrelated
+        # startup worker is cancelled, which happens on slow CI machines.
+        async with asyncio.timeout(15):
+            while not deleted or drafts.exists(draft.reference):
+                await asyncio.sleep(0.01)
         assert deleted == [draft.server_id]
         assert not drafts.exists(draft.reference)
 

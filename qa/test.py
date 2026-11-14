@@ -62,7 +62,14 @@ def main(argv: list[str]) -> int:
             "pytest",
             *args,
         ]
-        status = subprocess.call(command, cwd=REPO)  # noqa: S603 - fixed argv, no shell
+        # Typer forces colored help when any of these is set (GitHub Actions sets the first).
+        # Color codes split option names like "--all-folders", so tests see plain text only.
+        env = {
+            key: value
+            for key, value in os.environ.items()
+            if key not in {"GITHUB_ACTIONS", "FORCE_COLOR", "PY_COLORS"}
+        }
+        status = subprocess.call(command, cwd=REPO, env=env)  # noqa: S603 - fixed argv, no shell
         failures = work / "private" / "test-failures.txt"
         if status and failures.is_file():
             print("\n--- failure details ---")

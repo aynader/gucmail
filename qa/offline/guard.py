@@ -118,6 +118,23 @@ class Guard:
         except ValueError:
             return False
 
+    def check_child(self, executable: Any, argv: Any, env: Any) -> None:
+        child_args = (
+            list(argv) if isinstance(argv, (list, tuple)) else shlex.split(argv, posix=False)
+        )
+        program = executable or (child_args[0].strip('"') if child_args else "")
+        candidate = Path(os.fsdecode(program)).resolve()
+        allowed = candidate == Path(sys.executable).resolve() or (
+            self.inside(candidate, self.private) and candidate.name.lower().startswith("python")
+        )
+        child_env = os.environ if env is None else env
+        bypass = any(str(arg) in {"-I", "-S", "-E"} for arg in child_args)
+        guarded = child_env.get("GUCMAIL_AUDIT_GUARDED") == "1" and (
+            str(self.private / "bootstrap") in child_env.get("PYTHONPATH", "")
+        )
+        if not allowed or bypass or not guarded:
+            self.deny("unguarded_child_process")
+
     def audit_hook(self, event: str, args: tuple[Any, ...]) -> None:
         if event == "open":
             name, _mode, flags = args
@@ -152,8 +169,12 @@ class Guard:
         elif event in {"socket.getaddrinfo", "socket.gethostbyname", "socket.gethostbyaddr"}:
             if not self.loopback(args[0]):
                 self.deny("external_dns")
-        elif event in {"os.system", "os.startfile", "os.startfile/2", "os.posix_spawn"}:
+        elif event in {"os.system", "os.startfile", "os.startfile/2"}:
             self.deny("external_command")
+        elif event == "os.posix_spawn":
+            # Python 3.13 subprocess uses posix_spawn on Linux; check it like Popen.
+            path, argv, env = args
+            self.check_child(path, argv, env)
         elif event in {"os.mkdir", "os.remove", "os.rmdir", "os.chmod", "os.utime", "os.rename"}:
             # Each target is paired with its dir_fd (the folder handle a relative name is
             # opened against). Linux shutil.rmtree deletes that way.
@@ -179,21 +200,7 @@ class Guard:
             self.deny("registry_mutation")
         elif event == "subprocess.Popen":
             executable, argv, _cwd, env = args
-            child_args = (
-                list(argv) if isinstance(argv, (list, tuple)) else shlex.split(argv, posix=False)
-            )
-            program = executable or (child_args[0].strip('"') if child_args else "")
-            candidate = Path(os.fsdecode(program)).resolve()
-            allowed = candidate == Path(sys.executable).resolve() or (
-                self.inside(candidate, self.private) and candidate.name.lower().startswith("python")
-            )
-            child_env = os.environ if env is None else env
-            bypass = any(str(arg) in {"-I", "-S", "-E"} for arg in child_args)
-            guarded = child_env.get("GUCMAIL_AUDIT_GUARDED") == "1" and (
-                str(self.private / "bootstrap") in child_env.get("PYTHONPATH", "")
-            )
-            if not allowed or bypass or not guarded:
-                self.deny("unguarded_child_process")
+            self.check_child(executable, argv, env)
         elif event == "sqlite3.connect":
             database = os.fspath(args[0])
             if database == ":memory:":
