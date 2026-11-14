@@ -234,7 +234,7 @@ def test_cli_saved_collision_explicit_override_preview_and_confirmed_overwrite(
     target = destination / "report.txt"
     target.write_bytes(b"old")
     gateway = DownloadGateway()
-    monkeypatch.setattr(cli, "_gateway", lambda _: gateway)
+    monkeypatch.setattr(cli.core, "gateway", lambda _: gateway)
     runner = CliRunner()
     args = ["--json", "attachments", "save", "message", "att-0", "--directory", str(destination)]
     preview = runner.invoke(cli.app, [*args, "--dry-run"], env=_environment(tmp_path))
@@ -264,7 +264,7 @@ def test_cli_save_all_preflights_every_path_and_bound_before_content(tmp_path, m
     destination.mkdir()
     (destination / "existing.txt").write_bytes(b"old")
     gateway = DownloadGateway(("first.txt", "existing.txt"))
-    monkeypatch.setattr(cli, "_gateway", lambda _: gateway)
+    monkeypatch.setattr(cli.core, "gateway", lambda _: gateway)
     runner = CliRunner()
     args = ["--json", "attachments", "save-all", "message", "--directory", str(destination)]
     preview = runner.invoke(cli.app, [*args, "--dry-run"], env=_environment(tmp_path))
@@ -277,7 +277,7 @@ def test_cli_save_all_preflights_every_path_and_bound_before_content(tmp_path, m
     assert saved.exit_code == 0, saved.output
     assert all(item["sha256"] for item in json.loads(saved.output)["data"])
     assert gateway.metadata_calls[-1] == ("message", 100, 0)
-    monkeypatch.setattr(cli, "_gateway", lambda _: pytest.fail("Invalid options stay local"))
+    monkeypatch.setattr(cli.core, "gateway", lambda _: pytest.fail("Invalid options stay local"))
     invalid = runner.invoke(cli.app, [*args, "--limit", "201"], env=_environment(tmp_path))
     assert invalid.exit_code == 2
     invalid = runner.invoke(cli.app, [*args, "--collision", "replace"], env=_environment(tmp_path))

@@ -299,7 +299,7 @@ def test_cli_uses_canonical_workweek_and_same_free_time_policy(tmp_path, monkeyp
     context = _context(tmp_path)
     configure(context)
     gateway = ReadOnlyCalendar()
-    monkeypatch.setattr(cli, "_gateway", lambda *_: gateway)
+    monkeypatch.setattr(cli.core, "gateway", lambda *_: gateway)
     result = invoke(tmp_path, ["week", "2026-10-06", "--work-week", "--limit", "19"])
     assert result.exit_code == 0, result.output
     assert [day["date"] for day in json.loads(result.output)["data"]["days"]] == [
@@ -338,7 +338,7 @@ def test_cli_uses_canonical_workweek_and_same_free_time_policy(tmp_path, monkeyp
 
 def test_cli_invalid_free_time_stays_local_and_help_explains_override(tmp_path, monkeypatch):
     monkeypatch.setattr(
-        cli, "_gateway", lambda *_: pytest.fail("Invalid input resolved credentials")
+        cli.core, "gateway", lambda *_: pytest.fail("Invalid input resolved credentials")
     )
     result = invoke(
         tmp_path,

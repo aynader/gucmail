@@ -154,7 +154,7 @@ def test_cli_response_omitted_uses_saved_but_explicit_wins_and_no_implicit_write
     event = meeting()
     gateway = ReadOnlyCalendar()
     gateway.events = {event.reference: event}
-    monkeypatch.setattr(cli, "_gateway", lambda *_: gateway)
+    monkeypatch.setattr(cli.core, "gateway", lambda *_: gateway)
     args = ["respond", event.reference, *([explicit] if explicit else [])]
     result = CliRunner().invoke(
         cli.app,
@@ -185,7 +185,7 @@ def test_shared_watcher_factory_reloads_calendar_filter_without_affecting_mail(t
     provider = CaptureProvider()
     if profiled:
         NotificationConfigurationService(context.state).profiles.save_profile(_profile())
-    dispatcher = cli._profiled_notification_dispatcher(
+    dispatcher = cli.core.profiled_notification_dispatcher(
         context, [ProviderBinding(provider)], profile_id="study" if profiled else None
     )
     settings_for(context).set("calendar.notifications", False)
@@ -213,7 +213,7 @@ def test_invalid_calendar_environment_blocks_calendar_but_keeps_mail_dispatch(
     provider = CaptureProvider()
     if profiled:
         NotificationConfigurationService(context.state).profiles.save_profile(_profile())
-    dispatcher = cli._profiled_notification_dispatcher(
+    dispatcher = cli.core.profiled_notification_dispatcher(
         context, [ProviderBinding(provider)], profile_id="study" if profiled else None
     )
     monkeypatch.setenv("GUCMAIL_SETTING_CALENDAR__NOTIFICATIONS", "invalid-private-value")
@@ -272,7 +272,7 @@ def test_calendar_opt_out_filters_queued_members_before_disclosure_and_mixed_dig
         digest = provider.events[0]
         assert "Mail must remain" in digest.preview
         assert "Calendar must disappear" not in digest.preview
-        assert digest.subject == "1 new mail notification(s)"
+        assert digest.subject == "1 new message"
     else:
         assert provider.events == []
     assert all(row["state"] == "delivered" for row in _queue_rows(context.state))

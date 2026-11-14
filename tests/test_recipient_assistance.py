@@ -218,7 +218,7 @@ def test_cli_accepted_send_records_only_exact_successful_recipients(tmp_path, mo
             body_text="Synthetic original",
         )
     )
-    monkeypatch.setattr(cli, "_gateway", lambda *_: gateway)
+    monkeypatch.setattr(cli.core, "gateway", lambda *_: gateway)
     if kind == "draft":
         local = DraftService(context.state, context.paths.recovery_dir).create(sent_draft())
         args = ["drafts", "send", local.reference]
@@ -275,7 +275,7 @@ def test_cli_preview_queue_failure_opt_out_and_local_error_do_not_confuse_send_o
             raise OSError("Synthetic private path that must not be printed")
 
         monkeypatch.setattr(module, "remember_sent_recipients", broken)
-    monkeypatch.setattr(cli, "_gateway", lambda *_: gateway)
+    monkeypatch.setattr(cli.core, "gateway", lambda *_: gateway)
     args = [
         "send",
         "--to",

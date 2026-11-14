@@ -353,7 +353,7 @@ def test_digest_batches_due_events_exactly_once(tmp_path: Path) -> None:
     assert len(provider.events) == 1
     digest = provider.events[0]
     assert digest.event_type == "notification_digest"
-    assert digest.subject == "2 new mail notification(s)"
+    assert digest.subject == "2 new messages"
     assert "Synthetic timetable update" in (digest.preview or "")
     assert all(row["state"] == "delivered" for row in _queue_rows(state))
     assert dispatcher.drain_due() == ()

@@ -98,7 +98,7 @@ def test_naive_or_invalid_schedule_is_rejected_before_authentication(value, monk
     def unexpected_gateway(*args, **kwargs):
         pytest.fail("Invalid local input must not resolve a gateway.")
 
-    monkeypatch.setattr(cli, "_gateway", unexpected_gateway)
+    monkeypatch.setattr(cli.core, "gateway", unexpected_gateway)
     result = CliRunner().invoke(
         cli.app,
         ["automatic-replies", "set", "--state", "scheduled", "--start", value],
@@ -144,7 +144,7 @@ def test_real_ews_serializer_preserves_policy_and_never_copies_internal_text_ext
 
 def test_cli_dry_run_noninteractive_confirmation_and_scheduled_json(tmp_path, monkeypatch):
     gateway = _Gateway()
-    monkeypatch.setattr(cli, "_gateway", lambda *args, **kwargs: gateway)
+    monkeypatch.setattr(cli.core, "gateway", lambda *args, **kwargs: gateway)
     internal = tmp_path / "internal.txt"
     internal.write_text("Back on Monday.", encoding="utf-8")
     base = [

@@ -4,26 +4,56 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_call:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  check:
-    runs-on: windows-latest
+  lint:
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - name: Install
-        # attachments: mypy (strict) needs pypdf, python-docx and python-pptx to check the extractors.
-        run: python -m pip install -e ".[dev,attachments]"
-      - name: Lint
-        run: python -m ruff check src tests qa
-      - name: Type check
-        run: python -m mypy src
-      - name: Core tests (offline guard; no network or credentials)
-        run: >
-          python qa/offline/run.py --fixture-credentials
-          --private .ci/private --output .ci/output
-          pytest -q tests/test_cli.py tests/test_cli_core_mail_output.py
-          tests/test_foundations.py tests/test_documentation.py
-          tests/test_package_artifacts.py tests/test_windows_identity.py
+          cache: pip
+      # attachments: mypy needs pypdf, python-docx and python-pptx to check the extractors.
+      - run: python -m pip install -e ".[dev,attachments]"
+      - run: python -m ruff check src tests qa
+      - run: python -m mypy src
+
+  test:
+    needs: lint
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+        python: ["3.11", "3.13"]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+      - run: python -m pip install -e ".[dev,attachments]"
+      # Whole suite, in parallel, inside the offline guard (no network, no credentials).
+      - run: python qa/test.py
+
+  package:
+    needs: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: python -m pip install build twine
+      - run: python -m build
+      - run: python -m twine check --strict dist/*
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/

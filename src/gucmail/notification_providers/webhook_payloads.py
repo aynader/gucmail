@@ -271,7 +271,7 @@ def mask_discord_webhook_url(url: str) -> str:
 class DiscordConfig:
     url: str = field(repr=False)
     policy: PayloadPolicy = field(
-        default_factory=lambda: PayloadPolicy(privacy=PrivacyMode.SENDER_SUBJECT)
+        default_factory=lambda: PayloadPolicy(privacy=PrivacyMode.SENDER_AND_SUBJECT)
     )
     embeds: bool = True
     username: str = "GUC Mail"

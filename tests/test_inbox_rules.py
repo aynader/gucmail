@@ -227,13 +227,12 @@ def test_cli_help_invalid_local_input_dry_run_confirmation_and_json(server, tmp_
         result = runner.invoke(cli.app, ["inbox-rules", command, "--help"], env=env)
         assert result.exit_code == 0, result.output
     monkeypatch.setattr(
-        cli,
-        "_gateway",
+        cli.core, "gateway",
         lambda *args, **kwargs: pytest.fail("Invalid local input resolved credentials"),
     )
     bad = runner.invoke(cli.app, ["inbox-rules", "create", "--name", "Invalid"], env=env)
     assert bad.exit_code == 3 and server.reads == 0
-    monkeypatch.setattr(cli, "_gateway", lambda *args, **kwargs: server.gateway)
+    monkeypatch.setattr(cli.core, "gateway", lambda *args, **kwargs: server.gateway)
     base = ["inbox-rules", "enable", "native-rule-1"]
     dry = runner.invoke(cli.app, ["--json", *base, "--dry-run"], env=env)
     assert dry.exit_code == 0, dry.output

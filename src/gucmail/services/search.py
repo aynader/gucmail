@@ -18,6 +18,7 @@ from typing import Any, TypeAlias
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from rapidfuzz import fuzz
+from rapidfuzz.distance import OSA
 
 from gucmail.models import Importance, SearchQuery
 
@@ -674,6 +675,28 @@ def apply_residual(
 filter_residual = apply_residual
 
 
+def _typo_score(needle: str, text: str) -> float:
+    """Score words that are one or two typos away ("ahmad" for "ahmed", "exma" for "exam").
+
+    Ratio-based scores punish short words: one wrong letter in a five-letter name scores
+    80. Here each word of the search may be up to one edit away (two for words of eight
+    or more letters, swapped letters count as one), and the score drops 6 per edit.
+    """
+
+    words = text.split()
+    total = 0
+    for token in needle.split():
+        allowed = 0 if len(token) < 4 else 1 if len(token) < 8 else 2
+        best = min(
+            (OSA.distance(token, word, score_cutoff=allowed + 1) for word in words),
+            default=allowed + 1,
+        )
+        if best > allowed:
+            return -1.0
+        total += best
+    return 100.0 - 6 * total
+
+
 def fuzzy_rerank(
     items: Iterable[object],
     needle: str,
@@ -722,7 +745,14 @@ def fuzzy_rerank(
                 score = (
                     100.0
                     if normalized == normalized_needle
-                    else (99.0 if exact else float(fuzz.WRatio(normalized_needle, normalized)))
+                    else (
+                        99.0
+                        if exact
+                        else max(
+                            float(fuzz.WRatio(normalized_needle, normalized)),
+                            _typo_score(normalized_needle, normalized),
+                        )
+                    )
                 )
                 if (exact, score) > (best_exact, best_score):
                     best_exact, best_score, best_field = exact, score, field

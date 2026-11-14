@@ -205,6 +205,7 @@ class CalendarImportPlan:
     calendar_reference: str | None
     invitations: InvitationPolicy
     warnings: tuple[str, ...] = ()
+    already_present: tuple[CalendarEvent, ...] = ()
 
 
 @runtime_checkable
@@ -696,6 +697,9 @@ class CalendarService:
         # coherence in isolation.  Resolve current state when callers (notably the CLI)
         # do not already have it, then produce a strict explicit field allowlist.
         current = self.get(reference) if current is None else normalize_event(current)
+        if "start" in changes and "end" not in changes and current.start and current.end:
+            # Moving only the start keeps the event's length, like dragging it.
+            changes["end"] = changes["start"] + (current.end - current.start)
         scope = _mutation_scope(scope)
         _validate_mutation_scope(current, scope, changes)
         if scope is RecurrenceScope.SERIES and _is_occurrence(current):
@@ -828,15 +832,56 @@ class CalendarService:
             raise ConfigurationError(
                 f"Calendar ICS imports are limited to {MAX_PIM_PAGE_SIZE} events."
             )
+        target = calendar_reference or self.default_calendar
+        events, present = self._without_existing(events, target)
         warnings: list[str] = []
+        if present:
+            count = len(present)
+            warnings.append(
+                f"Skipping {count} event{'s' if count != 1 else ''} already in your calendar."
+            )
         if any(event.is_meeting for event in events) and invitations is InvitationPolicy.SEND_NONE:
             warnings.append("Meeting attendees will not receive invitations during this import.")
         return CalendarImportPlan(
             events=events,
-            calendar_reference=calendar_reference or self.default_calendar,
+            calendar_reference=target,
             invitations=invitations,
             warnings=tuple(warnings),
+            already_present=present,
         )
+
+    def _without_existing(
+        self, events: tuple[CalendarEvent, ...], calendar_reference: str | None
+    ) -> tuple[tuple[CalendarEvent, ...], tuple[CalendarEvent, ...]]:
+        """Split imported events into new ones and ones the calendar already has.
+
+        An event matches by its iCalendar UID, or by subject, start and end when the
+        file has no UID. This makes importing the same file twice harmless.
+        """
+
+        if not events:
+            return events, ()
+        start = min(event.start for event in events)
+        end = max(event.end for event in events)
+        if end <= start:
+            end = start + timedelta(minutes=1)
+        existing = self.gateway.list_events(
+            start=start.astimezone(UTC),
+            end=(end + timedelta(seconds=1)).astimezone(UTC),
+            calendar_reference=calendar_reference,
+            limit=MAX_PIM_PAGE_SIZE,
+        )
+        uids = {event.uid for event in existing if event.uid}
+        keys = {
+            (event.subject.casefold(), event.start.astimezone(UTC), event.end.astimezone(UTC))
+            for event in existing
+        }
+        fresh: list[CalendarEvent] = []
+        present: list[CalendarEvent] = []
+        for event in events:
+            key = (event.subject.casefold(), event.start.astimezone(UTC), event.end.astimezone(UTC))
+            (present if (event.uid and event.uid in uids) or key in keys else fresh).append(event)
+        return tuple(fresh), tuple(present)
 
     def apply_import(self, plan: CalendarImportPlan) -> tuple[CalendarEvent, ...]:
         created: list[CalendarEvent] = []

@@ -51,8 +51,10 @@ def invoke(config, args, *, yes=False):
 
 @pytest.mark.parametrize("command", ["complete", "reopen", "delete"])
 def test_lifecycle_preview_has_no_context_credentials_or_gateway(local_paths, monkeypatch, command):
-    monkeypatch.setattr(cli, "_gateway", lambda *_: pytest.fail("Preview resolved Exchange"))
-    monkeypatch.setattr(cli, "build_context", lambda **_: pytest.fail("Preview opened app state"))
+    monkeypatch.setattr(cli.core, "gateway", lambda *_: pytest.fail("Preview resolved Exchange"))
+    monkeypatch.setattr(
+        cli.core, "build_context", lambda **_: pytest.fail("Preview opened app state")
+    )
     result = invoke(local_paths, [command, "synthetic:task", "--dry-run"])
     assert result.exit_code == 0, result.output
     value = json.loads(result.output)["data"]
@@ -243,7 +245,7 @@ def test_bad_or_unconfirmed_series_intent_never_resolves_gateway(
     local_paths, monkeypatch, options, code
 ):
     monkeypatch.setattr(
-        cli, "_gateway", lambda *_: pytest.fail("Invalid request resolved Exchange")
+        cli.core, "gateway", lambda *_: pytest.fail("Invalid request resolved Exchange")
     )
     result = invoke(local_paths, ["delete", "synthetic:task", *options], yes=True)
     assert result.exit_code == code, result.output
@@ -253,7 +255,7 @@ def test_bad_or_unconfirmed_series_intent_never_resolves_gateway(
 def test_cli_confirmation_and_exact_delete_plan_once(local_paths, monkeypatch, mode):
     calls = []
     gateway = SimpleNamespace(delete_task=calls.append)
-    monkeypatch.setattr(cli, "_gateway", lambda *_: gateway)
+    monkeypatch.setattr(cli.core, "gateway", lambda *_: gateway)
     options = [] if mode == "move" else ["--permanent"]
     if mode == "series":
         options += ["--series", "--confirm-series", "synthetic:task"]

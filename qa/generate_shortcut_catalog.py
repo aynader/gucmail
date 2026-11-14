@@ -8,6 +8,8 @@ from typing import Any
 
 from textual.screen import Screen
 
+# Screens the app imports only when first opened; import them so they are listed too.
+import gucmail.tui.task_delete_screen  # noqa: F401
 from gucmail.tui.app import GUCmailApp
 from gucmail.tui.shortcuts_screen import binding_scope
 from gucmail.tui.unanswered_screen import UnansweredScreen

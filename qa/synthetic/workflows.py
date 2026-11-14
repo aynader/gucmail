@@ -262,9 +262,9 @@ def main():
 
     import gucmail.cli as cli
 
-    original_build = cli.build_context
+    original_build = cli.core.build_context
     original_get = testing._get_command
-    cli.build_context = lambda **kwargs: context
+    cli.core.build_context = lambda **kwargs: context
     command = get_command(cli.app)
     testing._get_command = lambda app: app if hasattr(app, "main") else original_get(app)
     runner = CliRunner()
@@ -308,7 +308,7 @@ def main():
                 "Actual Typer entry point + production services + persistent synthetic transport",
             )
     finally:
-        cli.build_context = original_build
+        cli.core.build_context = original_build
         testing._get_command = original_get
     print(
         json.dumps(

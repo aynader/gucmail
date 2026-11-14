@@ -208,7 +208,7 @@ def test_cli_delete_saved_destination_override_and_permanent_dry_run_stay_local(
 ):
     configure(_context(tmp_path))
     monkeypatch.setattr(
-        cli, "_gateway", lambda *_: pytest.fail("Preview must not resolve credentials")
+        cli.core, "gateway", lambda *_: pytest.fail("Preview must not resolve credentials")
     )
     result = CliRunner().invoke(
         cli.app,
@@ -232,7 +232,9 @@ def test_cli_delete_saved_destination_override_and_permanent_dry_run_stay_local(
     ],
 )
 def test_cli_invalid_delete_overrides_fail_before_gateway(tmp_path, monkeypatch, options):
-    monkeypatch.setattr(cli, "_gateway", lambda *_: pytest.fail("Invalid request must stay local"))
+    monkeypatch.setattr(
+        cli.core, "gateway", lambda *_: pytest.fail("Invalid request must stay local")
+    )
     result = CliRunner().invoke(
         cli.app,
         ["messages", "delete", "first", "--dry-run", *options],
@@ -247,7 +249,7 @@ def test_cli_missing_destination_and_unconfirmed_move_fail_local_then_exact_appr
     context = _context(tmp_path)
     service = settings_for(context)
     service.set("mail.delete_behavior", "move_to_folder")
-    monkeypatch.setattr(cli, "_gateway", lambda *_: pytest.fail("Invalid plan must stay local"))
+    monkeypatch.setattr(cli.core, "gateway", lambda *_: pytest.fail("Invalid plan must stay local"))
     command = ["--json", "--non-interactive", "messages", "delete", "first"]
     runner = CliRunner()
     missing = runner.invoke(cli.app, [*command, "--dry-run"], env=_environment(tmp_path))
@@ -256,7 +258,7 @@ def test_cli_missing_destination_and_unconfirmed_move_fail_local_then_exact_appr
     unconfirmed = runner.invoke(cli.app, command, env=_environment(tmp_path))
     assert unconfirmed.exit_code != 0 and "--yes" in unconfirmed.output
     gateway = MailGateway()
-    monkeypatch.setattr(cli, "_gateway", lambda *_: gateway)
+    monkeypatch.setattr(cli.core, "gateway", lambda *_: gateway)
     approved = runner.invoke(cli.app, ["--yes", *command], env=_environment(tmp_path))
     assert approved.exit_code == 0, approved.output
     assert gateway.mutations == [("move", "first", "inbox/Chosen")]

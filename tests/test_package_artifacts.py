@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import subprocess
 import sys
 import sysconfig
@@ -19,7 +20,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SOURCE_ROOT = ROOT / "src" / "gucmail"
 HELP_ROOT = SOURCE_ROOT / "help"
 PROJECT = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
-VERSION = PROJECT["project"]["version"]
+VERSION = gucmail.__version__
 ARTIFACT_DIR = Path(os.environ.get("GUCMAIL_ARTIFACT_DIR", ROOT / "dist"))
 REQUIRE_ARTIFACTS = os.environ.get("GUCMAIL_REQUIRE_RELEASE_ARTIFACTS") == "1"
 
@@ -47,6 +48,8 @@ FORBIDDEN_SUFFIXES = {
 }
 ALLOWED_SDIST_ROOTS = {
     ".gitignore",
+    "CHANGELOG.md",
+    "LICENSE",
     "PKG-INFO",
     "README.md",
     "docs",
@@ -166,7 +169,14 @@ def test_help_and_parser_resources_are_declared_and_importable() -> None:
 def test_project_metadata_is_release_consistent() -> None:
     project = PROJECT["project"]
     classifiers = set(project["classifiers"])
-    assert gucmail.__version__ == project["version"] == "1.1.5"
+    # One version source: hatch reads __init__.py, nothing else repeats the number.
+    assert "version" not in project
+    assert project["dynamic"] == ["version"]
+    assert PROJECT["tool"]["hatch"]["version"]["path"] == "src/gucmail/__init__.py"
+    assert re.fullmatch(r"\d+\.\d+\.\d+", gucmail.__version__)
+    changelog = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
+    assert f"## {gucmail.__version__}" in changelog
+    assert (ROOT / "LICENSE").read_text(encoding="utf-8").startswith("MIT License")
     assert "Development Status :: 4 - Beta" in classifiers
     assert "Development Status :: 5 - Production/Stable" not in classifiers
     assert project["license"] == "MIT"
@@ -304,7 +314,7 @@ def test_built_sdist_honors_the_privacy_allowlist() -> None:
         f"Unapproved sdist roots: {sorted(roots - ALLOWED_SDIST_ROOTS)}"
     )
     assert {"src", "docs", "README.md", "pyproject.toml"} <= roots
-    assert packaged_project["project"]["version"] == VERSION
+    assert packaged_project["project"]["dynamic"] == ["version"]
     assert not any(
         PurePosixPath(name).suffix.casefold() == ".png" and len(PurePosixPath(name).parts) == 2
         for name in names

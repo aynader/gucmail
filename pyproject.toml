@@ -4,12 +4,13 @@ build-backend = "hatchling.build"
 
 [project]
 name = "gucmail"
-version = "1.1.5"
+dynamic = ["version"]
 description = "An independent, security-focused terminal client for GUC Exchange mailboxes"
 readme = "README.md"
 requires-python = ">=3.11,<3.15"
 license = "MIT"
-authors = [{ name = "GUC Mail CLI contributors" }]
+license-files = ["LICENSE"]
+authors = [{ name = "gucmail contributors" }]
 keywords = ["email", "exchange", "ews", "terminal", "guc"]
 classifiers = [
   "Development Status :: 4 - Beta",
@@ -37,7 +38,7 @@ dependencies = [
   "rapidfuzz>=3.10,<4",
   "rich>=13.9,<15",
   "textual>=7.5,<8",
-  "typer>=0.15,<1",
+  "typer>=0.15,<0.28",  # 0.29 changes internals our help grammar reads; test before raising
 ]
 
 [project.optional-dependencies]
@@ -56,6 +57,7 @@ dev = [
   "pytest>=8.3,<10",
   "pytest-asyncio>=0.25,<2",
   "pytest-cov>=6,<8",
+  "pytest-xdist>=3.6,<4",
   "ruff>=0.9,<1",
   "types-python-dateutil>=2.9",
 ]
@@ -68,6 +70,10 @@ Homepage = "https://github.com/aynader/gucmail"
 Source = "https://github.com/aynader/gucmail"
 Issues = "https://github.com/aynader/gucmail/issues"
 Documentation = "https://github.com/aynader/gucmail/tree/main/docs"
+
+[tool.hatch.version]
+# The only place the version is written. Bump it here, add a CHANGELOG entry, tag vX.Y.Z.
+path = "src/gucmail/__init__.py"
 
 [tool.hatch.build]
 # Help is an application resource, not repository-only documentation. Keep the
@@ -87,7 +93,7 @@ packages = ["src/gucmail"]
 skip-excluded-dirs = true
 only-include = [
   ".gitignore", "docs", "qa", "src", "tests",
-  "README.md", "pyproject.toml",
+  "README.md", "CHANGELOG.md", "LICENSE", "pyproject.toml",
 ]
 # Source releases use an explicit allowlist. Repository prompts, credentials,
 # runtime state, and root-level reference screenshots are deliberately outside
@@ -99,6 +105,8 @@ include = [
   "/src",
   "/tests",
   "/README.md",
+  "/CHANGELOG.md",
+  "/LICENSE",
   "/pyproject.toml",
 ]
 exclude = [
@@ -145,12 +153,15 @@ select = ["E", "F", "I", "B", "UP", "S", "SIM", "RUF"]
 ignore = ["S101"]
 
 [tool.ruff.lint.per-file-ignores]
-"src/gucmail/cli.py" = ["B008"]
+"src/gucmail/cli/**" = ["B008"]
 "tests/**" = ["S105", "S106", "S108"]
 "qa/**" = ["S105", "S106", "S108", "S607", "S608", "E501", "B023", "F841"]
 
 [tool.mypy]
 python_version = "3.11"
+# Windows-only calls are guarded at run time with os.name, which mypy cannot see.
+# Check as Windows everywhere, so CI on Linux gives the same answer.
+platform = "win32"
 strict = true
 packages = ["gucmail"]
 warn_unused_ignores = true

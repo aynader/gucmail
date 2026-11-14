@@ -15,6 +15,7 @@ from gucmail.errors import ConfigurationError
 from gucmail.models import Address, ContactInfo
 from gucmail.services.contact_preferences import ContactOperationPreferences
 from gucmail.services.contacts_display import validate_duplicate_threshold
+from gucmail.services.gateway import resolve
 from gucmail.services.interchange import export_vcards as render_vcards
 from gucmail.services.interchange import parse_vcards
 from gucmail.services.pim import (
@@ -656,8 +657,9 @@ class ContactsService:
             raise ConfigurationError("Contact offset cannot be negative.")
         resolved = ContactQuery(text=query.strip()) if isinstance(query, str) else query
         bounded = self._limit(limit)
-        if isinstance(self.gateway, PagedContactsGateway):
-            page = self.gateway.search_contacts_page(
+        gateway = resolve(self.gateway)
+        if isinstance(gateway, PagedContactsGateway):
+            page = gateway.search_contacts_page(
                 resolved,
                 folder_reference=folder_reference or self.default_folder,
                 limit=bounded,
@@ -689,9 +691,10 @@ class ContactsService:
             raise ConfigurationError("Directory search text is empty or invalid.")
         if limit < 1 or limit > 100:
             raise ConfigurationError("Directory results must be limited to between 1 and 100.")
-        if not isinstance(self.gateway, DirectoryGateway):
+        gateway = resolve(self.gateway)
+        if not isinstance(gateway, DirectoryGateway):
             raise ConfigurationError("This account gateway does not provide directory lookup.")
-        return tuple(self.gateway.search_directory(value, limit=limit))
+        return tuple(gateway.search_directory(value, limit=limit))
 
     def resolve_directory(self, query: str) -> Address:
         results = self.search_directory(query, limit=2)

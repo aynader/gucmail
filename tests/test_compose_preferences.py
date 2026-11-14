@@ -217,7 +217,7 @@ def test_cli_reply_routes_override_defaults_without_mutating_source_or_sending(
         body_text="Quoted message <safe>",
     )
     gateway = ComposeFake(source)
-    monkeypatch.setattr(cli, "_gateway", lambda *_: gateway)
+    monkeypatch.setattr(cli.core, "gateway", lambda *_: gateway)
     result = CliRunner().invoke(
         cli.app,
         [
@@ -249,7 +249,7 @@ def test_cli_reply_routes_override_defaults_without_mutating_source_or_sending(
 
 def test_cli_draft_create_seeds_once_and_reopen_keeps_reviewed_fields(tmp_path, monkeypatch):
     context, _settings = configured(tmp_path)
-    monkeypatch.setattr(cli, "_gateway", lambda *_: pytest.fail("Local drafts cannot connect"))
+    monkeypatch.setattr(cli.core, "gateway", lambda *_: pytest.fail("Local drafts cannot connect"))
     created = CliRunner().invoke(
         cli.app,
         [
@@ -278,7 +278,9 @@ def test_cli_preview_is_local_and_preserves_html_receipts_and_defaults(
     tmp_path, monkeypatch, queue
 ):
     context, _settings = configured(tmp_path)
-    monkeypatch.setattr(cli, "_gateway", lambda *_: pytest.fail("A composition preview is local"))
+    monkeypatch.setattr(
+        cli.core, "gateway", lambda *_: pytest.fail("A composition preview is local")
+    )
     result = CliRunner().invoke(
         cli.app,
         [
@@ -306,7 +308,7 @@ def test_cli_preview_is_local_and_preserves_html_receipts_and_defaults(
 
 def test_cli_message_overrides_and_scheduled_roundtrip_keep_exact_fields(tmp_path, monkeypatch):
     context, _settings = configured(tmp_path)
-    monkeypatch.setattr(cli, "_gateway", lambda *_: pytest.fail("Scheduling is local"))
+    monkeypatch.setattr(cli.core, "gateway", lambda *_: pytest.fail("Scheduling is local"))
     runner = CliRunner()
     env = _environment(tmp_path)
     base = ["send", "--to", "synthetic@example.test", "--subject", "Synthetic", "--body", "Body"]
@@ -339,7 +341,9 @@ def test_draft_send_preview_is_local_and_never_reseeds_or_queues(tmp_path, monke
     context, _settings = configured(tmp_path)
     drafts = DraftService(context.state, context.paths.recovery_dir)
     stored = drafts.create(draft(reference="dft-existing", importance=Importance.LOW))
-    monkeypatch.setattr(cli, "_gateway", lambda *_: pytest.fail("A local draft preview is local"))
+    monkeypatch.setattr(
+        cli.core, "gateway", lambda *_: pytest.fail("A local draft preview is local")
+    )
     result = CliRunner().invoke(
         cli.app,
         [
@@ -368,7 +372,9 @@ def test_draft_schedule_requires_review_and_empty_subject_permission_survives_qu
     context, _settings = configured(tmp_path)
     drafts = DraftService(context.state, context.paths.recovery_dir)
     stored = drafts.create(draft(reference="dft-existing", subject=""))
-    monkeypatch.setattr(cli, "_gateway", lambda *_: pytest.fail("A local draft schedule is local"))
+    monkeypatch.setattr(
+        cli.core, "gateway", lambda *_: pytest.fail("A local draft schedule is local")
+    )
     args = ["drafts", "send", stored.reference, "--schedule", "in 1 hour"]
     denied = CliRunner().invoke(cli.app, args, env=_environment(tmp_path))
     assert denied.exit_code != 0 and "Warning:" in denied.output

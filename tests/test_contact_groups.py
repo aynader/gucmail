@@ -309,7 +309,9 @@ def test_group_item_never_enters_individual_contact_editing(server, monkeypatch,
 
 def test_cli_groups_local_default_and_explicit_replacement_preview(tmp_path, monkeypatch):
     monkeypatch.setattr(
-        cli, "_gateway", lambda *args, **kwargs: pytest.fail("Local groups resolved credentials")
+        cli.core,
+        "gateway",
+        lambda *args, **kwargs: pytest.fail("Local groups resolved credentials"),
     )
     runner = CliRunner()
     env = _environment(tmp_path)

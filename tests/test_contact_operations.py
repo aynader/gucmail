@@ -69,7 +69,7 @@ class MetadataHistory:
 @pytest.mark.parametrize("kind", ["recent", "frequent"])
 def test_cli_correspondent_reports_use_bounded_metadata_only(tmp_path, monkeypatch, kind):
     gateway = MetadataHistory()
-    monkeypatch.setattr(cli, "_gateway", lambda ctx: gateway)
+    monkeypatch.setattr(cli.core, "gateway", lambda ctx: gateway)
     result = CliRunner().invoke(
         cli.app,
         ["--json", "--non-interactive", "recipients", kind, "--scan", "7"],
@@ -96,7 +96,7 @@ def test_disabled_cli_operations_do_not_resolve_gateway(tmp_path, monkeypatch, k
     context = _context(tmp_path)
     settings_for(context).set(key, False)
     calls = []
-    monkeypatch.setattr(cli, "_gateway", lambda ctx: calls.append("gateway"))
+    monkeypatch.setattr(cli.core, "gateway", lambda ctx: calls.append("gateway"))
     result = CliRunner().invoke(
         cli.app, ["--json", "--non-interactive", *args], env=_environment(tmp_path)
     )
@@ -184,7 +184,7 @@ def test_metadata_since_limit_own_exclusion_frequency_off_does_not_disable_recen
         )
 
     monkeypatch.setattr(gateway, "list_correspondence", read)
-    monkeypatch.setattr(cli, "_gateway", lambda ctx: gateway)
+    monkeypatch.setattr(cli.core, "gateway", lambda ctx: gateway)
     result = CliRunner().invoke(
         cli.app,
         [
@@ -371,7 +371,9 @@ def test_local_history_cli_never_connects_and_clear_requires_confirmation(tmp_pa
     service = settings_for(context)
     index = ContactHistoryIndex(context.state)
     index.record((observation(),))
-    monkeypatch.setattr(cli, "_gateway", lambda ctx: pytest.fail("Local index resolved gateway"))
+    monkeypatch.setattr(
+        cli.core, "gateway", lambda ctx: pytest.fail("Local index resolved gateway")
+    )
     runner = CliRunner()
 
     def invoke(*arguments):

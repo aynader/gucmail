@@ -103,7 +103,7 @@ def run_doctor(
         except (OSError, ssl.SSLError) as exc:
             results.append(CheckResult("tls", "error", redact_text(exc), True))
     else:
-        results.append(CheckResult("network", "skipped", "Use --network to test DNS and TLS."))
+        results.append(CheckResult("network", "skipped", "Add --network to test the connection."))
 
     if authenticate:
         try:
@@ -122,9 +122,54 @@ def run_doctor(
             results.append(CheckResult("authentication", "error", redact_text(exc), True))
     else:
         results.append(
-            CheckResult("authentication", "skipped", "Authentication was not requested.")
+            CheckResult("authentication", "skipped", "Add --authenticate to test your login.")
         )
     return results
+
+
+_LABELS = {
+    "python": "Python",
+    "platform": "System",
+    "configuration": "Settings file",
+    "state_database": "Local database",
+    "network": "Network",
+    "dns": "Mail server address",
+    "tls": "Secure connection",
+    "authentication": "Login",
+}
+
+
+def doctor_summary(results: list[CheckResult]) -> list[dict[str, str]]:
+    """The doctor report as a short, readable table (JSON output keeps every detail)."""
+
+    from gucmail.formatting import human_bytes
+
+    def row(check: str, ok: bool | None, details: str) -> dict[str, str]:
+        result = "Not checked" if ok is None else "OK" if ok else "Problem"
+        return {"Check": check, "Result": result, "Details": details}
+
+    packages = [r for r in results if r.name.startswith("package:")]
+    folders = [r for r in results if r.name.endswith("_directory")]
+    rows: list[dict[str, str]] = []
+    for result in results:
+        if result in packages or result in folders:
+            continue
+        detail = result.detail
+        if result.name == "state_database" and result.status == "ok":
+            size = json.loads(detail).get("size_bytes")
+            detail = f"Healthy, {human_bytes(size)}"
+        ok = None if result.status == "skipped" else result.status == "ok"
+        rows.append(row(_LABELS.get(result.name, result.name), ok, detail))
+        if result.name == "platform" and packages:
+            missing = [r.name.split(":", 1)[1] for r in packages if r.status != "ok"]
+            names = ", ".join(f"{r.name.split(':', 1)[1]} {r.detail}" for r in packages[:3])
+            rows.append(
+                row("Packages", not missing, f"Missing: {', '.join(missing)}" if missing else names)
+            )
+        if result.name == "configuration" and folders:
+            broken = [r.detail for r in folders if r.status != "ok"]
+            rows.append(row("App folders", not broken, "; ".join(broken) or "All writable"))
+    return rows
 
 
 def write_diagnostic_bundle(

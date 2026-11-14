@@ -124,6 +124,7 @@ def test_task_scheduler_reserialization_is_not_reported_as_drift(tmp_path, monke
     assert StartupIssue.DEFINITION_DRIFT in inspect_startup(plan, changed_command).issues
 
 
+@pytest.mark.skipif(os.name != "nt", reason="pythonw.exe exists only on Windows")
 def test_background_tasks_prefer_the_windowless_interpreter(tmp_path):
     """Task Scheduler opens a console window for python.exe; pythonw.exe has none."""
 

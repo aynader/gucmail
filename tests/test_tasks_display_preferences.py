@@ -158,7 +158,7 @@ def test_cli_saved_views_push_restrictions_and_preserve_page_metadata_and_record
     context = _context(tmp_path)
     configure(context, view, show)
     gateway = ReadOnlyTasks()
-    monkeypatch.setattr(cli, "_gateway", lambda *_: gateway)
+    monkeypatch.setattr(cli.core, "gateway", lambda *_: gateway)
     original_today = TaskDisplayPreferences.today
     monkeypatch.setattr(
         TaskDisplayPreferences, "today", lambda self, now=None: original_today(self, NOW)
@@ -221,7 +221,7 @@ def test_cli_list_and_search_share_saved_sort_with_ephemeral_overrides(
     context = _context(tmp_path)
     configure(context, sort=sort)
     gateway = ReadOnlyTasks()
-    monkeypatch.setattr(cli, "_gateway", lambda *_: gateway)
+    monkeypatch.setattr(cli.core, "gateway", lambda *_: gateway)
     before = context.paths.config_file.read_bytes()
     for arguments in (["list"], ["search", "needle"]):
         result = invoke(tmp_path, arguments)
@@ -242,7 +242,7 @@ def test_search_status_and_overdue_are_explicit_and_invalid_requests_never_conne
     context = _context(tmp_path)
     configure(context, "due", False)
     gateway = ReadOnlyTasks()
-    monkeypatch.setattr(cli, "_gateway", lambda *_: gateway)
+    monkeypatch.setattr(cli.core, "gateway", lambda *_: gateway)
     result = invoke(tmp_path, ["search", "--status", "completed"])
     assert result.exit_code == 0
     assert [r["reference"] for r in json.loads(result.output)["data"]] == ["d"]
@@ -258,7 +258,7 @@ def test_search_status_and_overdue_are_explicit_and_invalid_requests_never_conne
     assert result.exit_code == 0 and gateway.calls[-1][1].overdue_at == TODAY
     assert [r["reference"] for r in json.loads(result.output)["data"]] == ["a"]
     calls = []
-    monkeypatch.setattr(cli, "_gateway", lambda *_: calls.append("unsafe"))
+    monkeypatch.setattr(cli.core, "gateway", lambda *_: calls.append("unsafe"))
     for args in (
         ["search"],
         ["search", "--overdue", "--status", "completed"],

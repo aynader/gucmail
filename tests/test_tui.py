@@ -2059,7 +2059,7 @@ async def test_mail_bounded_selection_bulk_export_backup_and_external_open(
     gateway = MultiMessageGateway()
     app = GUCmailApp(context_for(tmp_path), gateway=gateway)
     opened: list[Path] = []
-    monkeypatch.setattr("gucmail.tui.app._open_file_with_registered_handler", opened.append)
+    monkeypatch.setattr("gucmail.tui.app_mail._open_file_with_registered_handler", opened.append)
 
     async with app.run_test(size=(120, 35)) as pilot:
         for _ in range(30):
@@ -2902,6 +2902,18 @@ async def test_calendar_palette_executes_availability_proposal_and_message_hando
         return original(self, *args, **kwargs)
 
     monkeypatch.setattr(FakeGateway, "get_availability", delayed_lookup)
+
+    # The fake events are dated today, but free-time search skips weekends, so the test
+    # would fail on Saturdays and Sundays. Search a fixed Wednesday instead.
+    original_init = CalendarAvailabilityScreen.__init__
+
+    def workday_init(self, *args, **kwargs):
+        if kwargs.get("find_free_time"):
+            kwargs["start"] = datetime(2026, 11, 18, 8, 0, tzinfo=UTC)
+            kwargs["end"] = kwargs["start"] + timedelta(hours=8)
+        original_init(self, *args, **kwargs)
+
+    monkeypatch.setattr(CalendarAvailabilityScreen, "__init__", workday_init)
     app = GUCmailApp(context_for(tmp_path), gateway=FakeGateway())
     async with app.run_test(size=(120, 35)) as pilot:
         for _ in range(30):
@@ -4875,7 +4887,7 @@ async def test_composer_palette_controls_execute_real_draft_fields_and_handoffs(
             saved = self.drafts.save(draft, expected_revision=draft.revision)
             return SimpleNamespace(draft=saved)
 
-    monkeypatch.setattr("gucmail.tui.app.ExternalDraftEditor", FakeEditor)
+    monkeypatch.setattr("gucmail.tui.app_compose.ExternalDraftEditor", FakeEditor)
     app = GUCmailApp(context, gateway=FakeGateway())
     async with app.run_test(size=(120, 35)) as pilot:
         for _ in range(30):

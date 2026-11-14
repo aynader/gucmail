@@ -400,13 +400,13 @@ def test_cli_ordinary_restore_reports_uncertainty_without_replay(tmp_path, monke
     backup = service.create([BackupItem("m-one", "message", {"summary": {"subject": "Synthetic"}})])
     gateway, calls = _ordinary_restore_gateway(monkeypatch, outcome)
     resolutions = []
-    monkeypatch.setattr(cli, "_backup_service", lambda _ctx: service)
+    monkeypatch.setattr(cli.backup, "_backup_service", lambda _ctx: service)
 
     def target(_ctx):
         resolutions.append(True)
         return gateway
 
-    monkeypatch.setattr(cli, "_gateway", target)
+    monkeypatch.setattr(cli.core, "gateway", target)
     args = ["--json", "--non-interactive"]
     if outcome in {"verified", "uncertain"}:
         args += ["--yes"]

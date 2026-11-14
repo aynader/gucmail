@@ -240,7 +240,9 @@ def test_cli_regeneration_saved_defaults_explicit_override_and_local_preview(
         session.set(key, value)
     session.apply()
     before = context.paths.config_file.read_bytes()
-    monkeypatch.setattr(cli, "_gateway", lambda *_: pytest.fail("Local preview resolved Exchange"))
+    monkeypatch.setattr(
+        cli.core, "gateway", lambda *_: pytest.fail("Local preview resolved Exchange")
+    )
     saved = invoke(tmp_path, "tasks", ["--start", "2030-01-01", "--dry-run"])
     assert saved.exit_code == 0, saved.output
     rule = json.loads(saved.output)["data"]["task"]["recurrence"]

@@ -2401,8 +2401,11 @@ def build_core_command_registry() -> CommandRegistry:
     # Preserve command IDs and handlers while distinguishing folder navigation from the
     # draft workspace. Old folder phrases remain compatible, without duplicate aliases.
     presentation = {
-        "mail.open_drafts": ("Open Exchange Drafts", ("open drafts", "drafts", "unfinished mail")),
-        "drafts.open_drafts": ("Open Draft Manager", ("open draft manager", "local drafts")),
+        "mail.open_drafts": ("Open Drafts folder", ("open drafts", "drafts", "unfinished mail")),
+        "drafts.open_drafts": (
+            "Manage drafts",
+            ("open draft manager", "manage drafts", "local drafts"),
+        ),
         "search.search_all_data": (
             "Open Local Search",
             ("open local search", "local search", "search all data", "search search all data"),

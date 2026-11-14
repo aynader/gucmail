@@ -238,7 +238,7 @@ async def test_recent_mail_button_runs_worker_dry_run_without_provider_delivery(
         await pilot.pause()
         screen.query_one("#notification-tabs", TabbedContent).active = "notification-rules-tab"
         screen.query_one("#notification-rule-recent", Button).press()
-        for _ in range(40):
+        for _ in range(300):  # sampling and the dry run are two worker steps
             await pilot.pause(0.05)
             if "Recent metadata sample" in str(
                 screen.query_one("#notification-rule-detail", Static).content

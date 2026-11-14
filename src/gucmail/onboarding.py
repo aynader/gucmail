@@ -25,7 +25,7 @@ def onboarding_status(context: AppContext, *, legacy_path: Path | None = None) -
     candidate = legacy_path or Path.cwd() / "creds.env"
     return OnboardingStatus(
         unofficial_notice=(
-            "GUC Mail CLI is an independent client. It is not an official GUC or Microsoft product."
+            "gucmail is an independent app. It is not made or supported by GUC or Microsoft."
         ),
         legacy_credentials_detected=candidate.is_file(),
         legacy_warning=(

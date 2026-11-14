@@ -167,7 +167,7 @@ def test_cli_draft_pages_keep_json_items_contract(tmp_path, monkeypatch):
     context = context_for(tmp_path)
     service = DraftService(context.state, context.paths.recovery_dir)
     populate(service, 57)
-    monkeypatch.setattr(cli, "build_context", lambda **kwargs: context)
+    monkeypatch.setattr(cli.core, "build_context", lambda **kwargs: context)
     runner = CliRunner()
     first = runner.invoke(cli.app, ["--json", "--non-interactive", "drafts", "list"])
     second = runner.invoke(

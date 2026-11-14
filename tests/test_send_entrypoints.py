@@ -33,7 +33,7 @@ def test_send_dry_run_never_resolves_gateway_or_creates_draft_or_job(
     def forbidden(*_args, **_kwargs):
         pytest.fail("A send preview must be local")
 
-    monkeypatch.setattr(cli, "_gateway", forbidden)
+    monkeypatch.setattr(cli.core, "gateway", forbidden)
     result = CliRunner().invoke(
         cli.app,
         [
@@ -59,7 +59,7 @@ def test_send_dry_run_never_resolves_gateway_or_creates_draft_or_job(
 
 
 def test_scheduling_requires_confirmation_and_validates_before_persistence(tmp_path, monkeypatch):
-    monkeypatch.setattr(cli, "_gateway", lambda *_: pytest.fail("Scheduling is local"))
+    monkeypatch.setattr(cli.core, "gateway", lambda *_: pytest.fail("Scheduling is local"))
     args = [
         "--non-interactive",
         "send",

@@ -26,7 +26,7 @@ from gucmail.tui.themes import (
     contrast_ratio,
 )
 
-SLIM_TITLE: Final = "GUC Mail CLI"
+SLIM_TITLE: Final = "GUC Mail CLI"  # the tricolour GUC logo mark, not a label
 GERMAN_BLACK: Final = "#000000"
 GERMAN_RED: Final = "#dd0000"
 GERMAN_GOLD: Final = "#ffcc00"

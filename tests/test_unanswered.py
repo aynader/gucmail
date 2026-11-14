@@ -153,7 +153,7 @@ def test_cli_outputs_coverage_and_validates_identity_before_gateway(tmp_path, mo
         calls.append(True)
         return gateway
 
-    monkeypatch.setattr(cli, "_gateway", connect)
+    monkeypatch.setattr(cli.core, "gateway", connect)
     env = {
         f"GUCMAIL_{name}_DIR": str(tmp_path / name) for name in ("CONFIG", "DATA", "CACHE", "LOG")
     }

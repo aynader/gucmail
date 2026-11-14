@@ -142,8 +142,8 @@ async def main():
             encoding="utf-8",
         )
 
-    original_build = cli.build_context
-    cli.build_context = lambda **_kwargs: context
+    original_build = cli.core.build_context
+    cli.core.build_context = lambda **_kwargs: context
     try:
         async with app.run_test(size=(120, 36)) as pilot:
 
@@ -431,7 +431,7 @@ async def main():
             assert len(gateway.deliveries()) == before_count
             record("compose.palette-save-sql-rejection-retry", fresh_readback=True)
     finally:
-        cli.build_context = original_build
+        cli.core.build_context = original_build
         context.close()
     print(json.dumps({"checks": len(results), "captures": len(captures)}))
 

@@ -1303,7 +1303,7 @@ def _toml_value(value: Any) -> str:
 
 
 def _mapping_to_toml(mapping: Mapping[str, Any]) -> str:
-    lines = ["# GUC Mail CLI settings. Passwords and provider secrets never belong here."]
+    lines = ["# gucmail settings. Never put passwords here; they live in your system keyring."]
 
     def emit_table(path: tuple[str, ...], table: Mapping[str, Any]) -> None:
         scalar_items = [(key, value) for key, value in table.items() if not isinstance(value, dict)]

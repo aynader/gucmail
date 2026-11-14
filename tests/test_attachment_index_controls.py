@@ -70,7 +70,7 @@ def test_enabled_cli_index_requires_confirmation_before_gateway(tmp_path, monkey
         def forbidden(_ctx):
             raise AssertionError("Unconfirmed attachment index opened the gateway")
 
-        monkeypatch.setattr(cli, "_gateway", forbidden)
+        monkeypatch.setattr(cli.core, "gateway", forbidden)
         result = CliRunner().invoke(
             cli.app,
             ["--json", "--non-interactive", "index", command, "--limit", "1"],
@@ -88,7 +88,7 @@ def test_cli_changed_policy_after_confirmation_prevents_download(tmp_path, monke
     context = _context(tmp_path)
     try:
         SettingsService(context.config_store).set("search.index_attachments", True)
-        original = cli._confirm
+        original = cli.core.confirm
 
         def change_policy(ctx, *args, **kwargs):
             original(ctx, *args, **kwargs)
@@ -97,8 +97,8 @@ def test_cli_changed_policy_after_confirmation_prevents_download(tmp_path, monke
         def forbidden(_ctx):
             raise AssertionError("Stale policy opened the gateway")
 
-        monkeypatch.setattr(cli, "_confirm", change_policy)
-        monkeypatch.setattr(cli, "_gateway", forbidden)
+        monkeypatch.setattr(cli.core, "confirm", change_policy)
+        monkeypatch.setattr(cli.core, "gateway", forbidden)
         result = CliRunner().invoke(
             cli.app,
             ["--json", "--non-interactive", "--yes", "index", command, "--limit", "1"],

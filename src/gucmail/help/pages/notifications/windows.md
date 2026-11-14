@@ -19,7 +19,7 @@ gucmail --json notifications desktop setup
 gucmail notifications desktop setup --apply
 ```
 
-In the TUI, open **Notifications → Providers & Privacy → Desktop setup…**.
+In the TUI, open **Notifications → Destinations → Desktop setup…**.
 Setup previews the exact current-user application identity and opening command before
 confirmation. Unknown or conflicting registry data blocks changes. Escape cancels.
 The same shared service handles CLI and TUI changes and rechecks the preview before applying it.

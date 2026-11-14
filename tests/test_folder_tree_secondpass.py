@@ -684,7 +684,7 @@ def test_cli_tree_paginates_all_root_children_up_to_the_explicit_limit(
             calls.append((limit, offset))
             return folders[offset : offset + limit]
 
-    monkeypatch.setattr(cli_module, "_gateway", lambda _ctx: Gateway())
+    monkeypatch.setattr(cli_module.core, "gateway", lambda _ctx: Gateway())
     paths = _context(tmp_path).paths
     environment = {
         "GUCMAIL_CONFIG_DIR": str(paths.config_dir),

@@ -228,7 +228,7 @@ async def test_ui_empty_page_still_offers_next_and_changed_query_resets_offset(k
 @pytest.mark.parametrize("kind", ["contacts", "tasks"])
 def test_cli_page_continuation_is_structured_and_keeps_default_array(tmp_path, monkeypatch, kind):
     gateway = PagedGateway()
-    monkeypatch.setattr(cli, "_gateway", lambda _ctx: gateway)
+    monkeypatch.setattr(cli.core, "gateway", lambda _ctx: gateway)
     args = ["--json", kind, "search", "needle", "--page"]
     first = CliRunner().invoke(cli.app, args, env=_environment(tmp_path))
     assert first.exit_code == 0, first.output
@@ -244,7 +244,7 @@ def test_cli_page_continuation_is_structured_and_keeps_default_array(tmp_path, m
 
 def test_fuzzy_contacts_use_contact_names_and_preserve_specific_filters(tmp_path, monkeypatch):
     gateway = PagedGateway()
-    monkeypatch.setattr(cli, "_gateway", lambda _ctx: gateway)
+    monkeypatch.setattr(cli.core, "gateway", lambda _ctx: gateway)
     result = CliRunner().invoke(
         cli.app,
         [

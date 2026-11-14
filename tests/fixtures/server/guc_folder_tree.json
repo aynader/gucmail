@@ -1,0 +1,46 @@
+{
+  "about": "Folder layout of a GUC Exchange 2016 student mailbox: names and folder classes only, no personal data. null means the server sent no folder class. Refresh with qa/record_server_shapes.py.",
+  "root": {
+    "name": "Top of Information Store",
+    "class": "IPF.Note",
+    "children": [
+      {"name": "Inbox", "class": "IPF.Note", "role": "inbox", "messages": 2,
+       "children": [{"name": "Folder 1", "class": "IPF.Note", "messages": 1}]},
+      {"name": "Drafts", "class": "IPF.Note", "role": "drafts"},
+      {"name": "Sent Items", "class": "IPF.Note", "role": "sentitems", "messages": 1},
+      {"name": "Deleted Items", "class": "IPF.Note", "role": "deleteditems"},
+      {"name": "Junk Email", "class": "IPF.Note", "role": "junkemail"},
+      {"name": "Outbox", "class": "IPF.Note", "role": "outbox"},
+      {"name": "Archive", "class": "IPF.Note", "messages": 1},
+      {"name": "Calendar", "class": "IPF.Appointment"},
+      {"name": "Contacts", "class": "IPF.Contact",
+       "children": [
+         {"name": "Recipient Cache", "class": "IPF.Contact.RecipientCache"},
+         {"name": "PersonMetadata", "class": "IPF.Contact"},
+         {"name": "{06967759-274D-40B2-A3EB-D7F9E73727D7}", "class": "IPF.Contact.MOC.QuickContacts"}
+       ]},
+      {"name": "Tasks", "class": "IPF.Task"},
+      {"name": "Notes", "class": "IPF.StickyNote"},
+      {"name": "Journal", "class": "IPF.Journal"},
+      {"name": "Conversation Action Settings", "class": "IPF.Configuration"},
+      {"name": "Quick Step Settings", "class": "IPF.Configuration"},
+      {"name": "Conversation History", "class": "IPF.Note.Microsoft.Conversation"},
+      {"name": "RSS Feeds", "class": "IPF.Note.OutlookHomepage"},
+      {"name": "Social Activity Notifications", "class": "IPF.Note.Microsoft.Conversation"},
+      {"name": "ExternalContacts", "class": "IPF.Contact.MOC.ExternalContacts"},
+      {"name": "Files", "class": null},
+      {"name": "Yammer Root", "class": null,
+       "children": [
+         {"name": "Feeds", "class": "IPF.Note.Microsoft.Yammer"},
+         {"name": "Inbound", "class": "IPF.Note.Microsoft.Yammer"},
+         {"name": "Outbound", "class": "IPF.Note.Microsoft.Yammer"}
+       ]},
+      {"name": "Sync Issues", "class": "IPF.Note",
+       "children": [
+         {"name": "Conflicts", "class": "IPF.Note"},
+         {"name": "Local Failures", "class": "IPF.Note"},
+         {"name": "Server Failures", "class": "IPF.Note"}
+       ]}
+    ]
+  }
+}

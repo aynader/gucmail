@@ -264,7 +264,7 @@ class Gateway(FakeGateway):
 
 def test_cli_json_human_help_and_bad_arguments_share_read_only_service(monkeypatch, tmp_path):
     gateway = Gateway()
-    monkeypatch.setattr(cli, "_gateway", lambda *args, **kwargs: gateway)
+    monkeypatch.setattr(cli.core, "gateway", lambda *args, **kwargs: gateway)
     runner = CliRunner()
     env = _environment(tmp_path)
     assert runner.invoke(cli.app, ["ews", "delegates", "--help"], env=env).exit_code == 0

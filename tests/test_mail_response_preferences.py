@@ -242,7 +242,7 @@ def test_no_history_forward_still_discloses_inherited_attachment_indicator():
     preview.draft.body_text = "New text"
     plan = service.plan_send(preview)
     assert plan.source_has_attachments and "Original synthetic history" not in plan.draft.body_text
-    assert "Inherited attachments: retained on Exchange" in cli._compose_review(plan)
+    assert "Inherited attachments: retained on Exchange" in cli.core.compose_review(plan)
     assert gateway.calls == [("show", "msg-original", False)]
 
 
@@ -325,7 +325,7 @@ def test_cli_response_defaults_and_explicit_history_sent_copy_overrides(
 ):
     configured(tmp_path)
     gateway = ComposeFake(original())
-    monkeypatch.setattr(cli, "_gateway", lambda *_: gateway)
+    monkeypatch.setattr(cli.core, "gateway", lambda *_: gateway)
     args = ["--json", route, "msg-original", "--body", "New synthetic text", "--dry-run"]
     if route == "forward":
         args += ["--to", "forward@example.test"]
@@ -353,7 +353,9 @@ def test_cli_send_draft_edit_preview_and_schedule_keep_the_reviewed_copy_choice(
     tmp_path, monkeypatch
 ):
     context, settings = configured(tmp_path)
-    monkeypatch.setattr(cli, "_gateway", lambda *_: pytest.fail("All operations here are local"))
+    monkeypatch.setattr(
+        cli.core, "gateway", lambda *_: pytest.fail("All operations here are local")
+    )
     runner = CliRunner()
     env = _environment(tmp_path)
     values = ["--to", "recipient@example.test", "--subject", "Synthetic", "--body", "Body"]
@@ -382,7 +384,9 @@ def test_cli_send_draft_edit_preview_and_schedule_keep_the_reviewed_copy_choice(
 
 
 def test_cli_invalid_reply_mode_rejected_without_account_or_source_read(tmp_path, monkeypatch):
-    monkeypatch.setattr(cli, "_gateway", lambda *_: pytest.fail("No gateway for invalid options"))
+    monkeypatch.setattr(
+        cli.core, "gateway", lambda *_: pytest.fail("No gateway for invalid options")
+    )
     result = CliRunner().invoke(
         cli.app, ["reply", "msg-original", "--reply-mode", "everyone"], env=_environment(tmp_path)
     )

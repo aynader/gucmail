@@ -123,7 +123,7 @@ def test_bare_cli_uses_saved_view_zone_today_and_explicit_command_is_ephemeral(
     gateway.events = {"original": _event("original", INSTANT, INSTANT + timedelta(hours=1))}
     original = to_primitive(gateway.events)
     monkeypatch.setattr(calendar_module, "datetime", FixedDatetime)
-    monkeypatch.setattr(cli, "_gateway", lambda *_: gateway)
+    monkeypatch.setattr(cli.core, "gateway", lambda *_: gateway)
     before = context.paths.config_file.read_bytes()
     result = invoke(tmp_path, [])
     assert result.exit_code == 0, result.output
@@ -163,7 +163,7 @@ def test_cli_month_complete_grid_matches_tui_backend_and_marks_adjacent_dates(
     context = _context(tmp_path)
     set_display(context, week=week, timezone="Europe/Berlin")
     gateway = ReadOnlyCalendar()
-    monkeypatch.setattr(cli, "_gateway", lambda *_: gateway)
+    monkeypatch.setattr(cli.core, "gateway", lambda *_: gateway)
     result = invoke(tmp_path, ["month", "2026-10-06", "--limit", "17"])
     assert result.exit_code == 0, result.output
     data = json.loads(result.output)["data"]
@@ -212,7 +212,7 @@ def test_explicit_cli_week_uses_saved_alignment_and_one_query(tmp_path, monkeypa
     context = _context(tmp_path)
     set_display(context, week=week, timezone="UTC")
     gateway = ReadOnlyCalendar()
-    monkeypatch.setattr(cli, "_gateway", lambda *_: gateway)
+    monkeypatch.setattr(cli.core, "gateway", lambda *_: gateway)
     result = invoke(tmp_path, ["week", "2026-10-06", "--limit", "23"])
     assert result.exit_code == 0, result.output
     data = json.loads(result.output)["data"]
@@ -256,7 +256,7 @@ def test_cli_human_projection_json_original_and_invalid_environment_stays_local(
     gateway = ReadOnlyCalendar()
     event = _event("original", INSTANT, INSTANT + timedelta(hours=1))
     gateway.events = {event.reference: event}
-    monkeypatch.setattr(cli, "_gateway", lambda *_: gateway)
+    monkeypatch.setattr(cli.core, "gateway", lambda *_: gateway)
     result = invoke(tmp_path, ["show", event.reference], human=True)
     assert result.exit_code == 0, result.output
     assert "2026-10-02 01:30+02:00" in result.output and "Europe/Berlin" in result.output
@@ -269,7 +269,7 @@ def test_cli_human_projection_json_original_and_invalid_environment_stays_local(
     assert "Europe/Berlin" in result.output and "2026-10-06" in result.output
     monkeypatch.setenv("GUCMAIL_TIMEZONE", "Invalid/Zone")
     monkeypatch.setattr(
-        cli, "_gateway", lambda *_: pytest.fail("Invalid zone resolved credentials")
+        cli.core, "gateway", lambda *_: pytest.fail("Invalid zone resolved credentials")
     )
     result = invoke(tmp_path, [])
     assert result.exit_code != 0 and "zone" in result.output.lower()

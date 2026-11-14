@@ -200,7 +200,7 @@ def test_cli_saved_creation_defaults_and_explicit_overrides_are_credential_free(
     tmp_path, monkeypatch
 ):
     configure(_context(tmp_path))
-    monkeypatch.setattr(cli, "_gateway", lambda *_: pytest.fail("Preview resolved credentials"))
+    monkeypatch.setattr(cli.core, "gateway", lambda *_: pytest.fail("Preview resolved credentials"))
     result = invoke(tmp_path, "calendar", ["--start", NOW.isoformat(), "--dry-run"])
     assert result.exit_code == 0, result.output
     event = json.loads(result.output)["data"]["event"]
@@ -266,7 +266,7 @@ def test_cli_saved_creation_defaults_and_explicit_overrides_are_credential_free(
 )
 def test_invalid_cli_creation_fails_before_credentials(tmp_path, monkeypatch, area, options):
     monkeypatch.setattr(
-        cli, "_gateway", lambda *_: pytest.fail("Invalid create resolved credentials")
+        cli.core, "gateway", lambda *_: pytest.fail("Invalid create resolved credentials")
     )
     result = invoke(tmp_path, area, [*options, "--dry-run"])
     assert result.exit_code == 3, result.output
@@ -277,7 +277,7 @@ def test_invalid_cli_creation_fails_before_credentials(tmp_path, monkeypatch, ar
 )
 def test_cli_creation_needs_confirmation_before_credentials(tmp_path, monkeypatch, area, options):
     monkeypatch.setattr(
-        cli, "_gateway", lambda *_: pytest.fail("Unconfirmed create resolved credentials")
+        cli.core, "gateway", lambda *_: pytest.fail("Unconfirmed create resolved credentials")
     )
     result = invoke(tmp_path, area, options)
     assert result.exit_code == 9, result.output
@@ -312,7 +312,7 @@ class RecordingGateway:
 def test_cli_approved_creation_executes_exact_plan_once(tmp_path, monkeypatch, area, options):
     configure(_context(tmp_path))
     gateway = RecordingGateway()
-    monkeypatch.setattr(cli, "_gateway", lambda *_: gateway)
+    monkeypatch.setattr(cli.core, "gateway", lambda *_: gateway)
     result = invoke(tmp_path, area, options, yes=True)
     assert result.exit_code == 0, result.output
     assert len(gateway.creates) == 1

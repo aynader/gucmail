@@ -50,7 +50,7 @@ def test_saved_attachment_index_preference_populates_searchable_text_without_bod
     tmp_path, monkeypatch
 ):
     gateway = AttachmentGateway()
-    monkeypatch.setattr(cli, "_gateway", lambda ctx: gateway)
+    monkeypatch.setattr(cli.core, "gateway", lambda ctx: gateway)
     env = {
         f"GUCMAIL_{kind.upper()}_DIR": str(tmp_path / kind)
         for kind in ("config", "data", "cache", "log")

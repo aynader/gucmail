@@ -27,8 +27,10 @@ def test_status_preview_and_unconfirmed_apply_do_not_recognize_or_resolve_exchan
     tmp_path, monkeypatch
 ):
     source, backend, service = setup_image(tmp_path)
-    monkeypatch.setattr(module, "OcrService", lambda: service)
-    monkeypatch.setattr(module, "_gateway", lambda *a: pytest.fail("Local OCR resolved Exchange"))
+    monkeypatch.setattr(module.search, "OcrService", lambda: service)
+    monkeypatch.setattr(
+        module.core, "gateway", lambda *a: pytest.fail("Local OCR resolved Exchange")
+    )
     result = invoke(tmp_path, ["ocr", "status"])
     assert result.exit_code == 0, result.output
     assert json.loads(result.output)["data"]["enabled_by_default"] is False
@@ -53,7 +55,7 @@ def test_unavailable_language_or_failed_worker_have_nonzero_secret_safe_exit(
 ):
     source, backend, service = setup_image(tmp_path)
     backend.result = {"status": "failed", "error": "secret-placeholder"}
-    monkeypatch.setattr(module, "OcrService", lambda: service)
+    monkeypatch.setattr(module.search, "OcrService", lambda: service)
     result = invoke(
         tmp_path, ["--yes", "ocr", "extract", str(source), "--language", language, "--apply"]
     )
@@ -62,7 +64,9 @@ def test_unavailable_language_or_failed_worker_have_nonzero_secret_safe_exit(
 
 
 def test_ocr_apply_requires_a_language_and_bounded_arguments(tmp_path, monkeypatch):
-    monkeypatch.setattr(module, "OcrService", lambda: pytest.fail("Invalid CLI args started OCR"))
+    monkeypatch.setattr(
+        module.search, "OcrService", lambda: pytest.fail("Invalid CLI args started OCR")
+    )
     for args in (
         ["ocr", "extract", "file.png"],
         ["ocr", "extract", "file.png", "--language", "en-US", "--timeout", "16"],

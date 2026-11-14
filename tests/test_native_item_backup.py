@@ -699,7 +699,7 @@ def test_native_backup_restore_cli_confirmation_exit_code_and_private_json(
             )
         ]
     )
-    monkeypatch.setattr(cli, "_backup_service", lambda _ctx: service)
+    monkeypatch.setattr(cli.backup, "_backup_service", lambda _ctx: service)
     owner = account()
     fetches = []
 
@@ -721,7 +721,7 @@ def test_native_backup_restore_cli_confirmation_exit_code_and_private_json(
         assert outcome in {"verified", "uncertain"}
         return native
 
-    monkeypatch.setattr(cli, "_gateway", gateway)
+    monkeypatch.setattr(cli.core, "gateway", gateway)
     uploads = []
 
     def upload(provider, *, items):

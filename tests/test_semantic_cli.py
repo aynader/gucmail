@@ -45,7 +45,7 @@ def test_cli_status_preview_and_unconfirmed_actions_never_resolve_gateway(tmp_pa
     def forbidden(*args, **kwargs):
         pytest.fail("Semantic command tried to authenticate or access Exchange")
 
-    monkeypatch.setattr(module, "_gateway", forbidden)
+    monkeypatch.setattr(module.core, "gateway", forbidden)
     status = invoke(tmp_path, ["semantic", "status"])
     assert status.exit_code == 0, status.output
     value = json.loads(status.output)["data"]
@@ -73,7 +73,7 @@ def test_cli_opt_in_actual_query_update_clear_and_disable_are_local(tmp_path, mo
         lambda *args, **kwargs: LocalTopicModel.from_bytes(FIXTURE.read_bytes()),
     )
     monkeypatch.setattr(
-        module, "_gateway", lambda *args: pytest.fail("Semantic operation resolved Exchange")
+        module.core, "gateway", lambda *args: pytest.fail("Semantic operation resolved Exchange")
     )
     # The standard application path is discovered from config path output.
     paths = invoke(tmp_path, ["config", "path"])

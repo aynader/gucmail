@@ -350,7 +350,7 @@ class MailboxMonitor:
         )
         if acquired is None:
             raise WatcherAlreadyRunningError(
-                "GUC Mail monitoring is already running for this account and profile."
+                "gucmail is already watching this mailbox."
             )
         try:
             yield lease_id
@@ -771,7 +771,8 @@ class MailboxMonitor:
                 folder=event_folder,
                 message_reference=reference,
                 sender=message.sender if message else None,
-                subject=message.subject if message else None,
+                # "" (not None) marks a real message whose subject is empty.
+                subject=(message.subject or "") if message else None,
                 importance=message.importance if message else Importance.NORMAL,
                 has_attachments=message.has_attachments if message else False,
                 preview=message.preview if message else None,
@@ -799,7 +800,7 @@ class MailboxMonitor:
             folder=event_folder,
             message_reference=item.reference,
             sender=item.sender,
-            subject=item.subject,
+            subject=item.subject or "",
             importance=item.importance,
             has_attachments=item.has_attachments,
             preview=item.preview,

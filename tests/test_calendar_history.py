@@ -258,7 +258,7 @@ def test_cli_json_human_and_invalid_bound_are_read_only(tmp_path, monkeypatch):
             calls.append((reference, limit))
             return history(reference, limit=limit)
 
-    monkeypatch.setattr(cli, "_gateway", lambda *_: Gateway())
+    monkeypatch.setattr(cli.core, "gateway", lambda *_: Gateway())
     runner = CliRunner()
     result = runner.invoke(
         cli.app,

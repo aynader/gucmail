@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING, Any, Protocol
 
 from gucmail.constants import APP_NAME
 from gucmail.models import NotificationEvent
-from gucmail.notification_providers.core import PayloadPolicy, PrivacyMode
+from gucmail.notification_providers.core import PayloadPolicy, PrivacyMode, privacy_fields
 from gucmail.security import sanitize_terminal
 from gucmail.services.notifications import DeliveryResult, DeliveryState
 
@@ -213,7 +213,7 @@ def discover_windows_toast_backend(
 class WindowsToastSettings:
     enabled: bool = True
     title: str = "GUC Mail"
-    privacy: PrivacyMode = PrivacyMode.SENDER_SUBJECT
+    privacy: PrivacyMode = PrivacyMode.SENDER_AND_SUBJECT
     show_attachment_indicator: bool = True
     show_importance_indicator: bool = True
     sound: ToastSound = ToastSound.DEFAULT
@@ -289,33 +289,38 @@ def _sender(event: NotificationEvent) -> str | None:
 
 
 def _toast_text(event: NotificationEvent, settings: WindowsToastSettings) -> tuple[str, str]:
-    sender = _sender(event)
-    subject = sanitize_terminal(event.subject or "", max_length=300)
-    preview = sanitize_terminal(event.preview or "", max_length=500)
-    if sender is None and event.subject is None and not preview:
-        # The profile's privacy policy withheld sender and subject; never claim the
-        # message has no subject when it was only hidden.
-        title, lines = settings.title, ["A new message arrived."]
-    elif settings.privacy is PrivacyMode.PRIVATE:
-        title, lines = settings.title, ["A new message arrived."]
-    elif settings.privacy is PrivacyMode.SENDER_ONLY:
-        title, lines = settings.title, [f"New email from {sender}" if sender else "New email"]
-    elif settings.privacy is PrivacyMode.METADATA_ONLY:
-        title, lines = settings.title, ["A new mailbox event arrived."]
-        if event.folder:
-            lines.append(f"Folder: {sanitize_terminal(event.folder, max_length=120)}")
-    elif settings.privacy is PrivacyMode.SENDER_SUBJECT:
-        title = sender or settings.title
-        lines = [subject or "(No subject)"]
+    """Decide what a toast shows. Both privacy layers end here.
+
+    A field is shown only if the profile kept it (it is not None) and this provider's
+    privacy setting allows it. None means "hidden"; an empty subject means the message
+    really has no subject, the only case that says "(No subject)".
+    """
+
+    allowed = privacy_fields(settings.privacy)
+    sender = _sender(event) if "sender" in allowed else None
+    subject = event.subject if "subject" in allowed else None
+    preview = event.preview if "preview" in allowed else None
+    folder = event.folder if "folder" in allowed else None
+    title = settings.title
+    if sender and subject is not None:
+        title = sender
+        lines = [sanitize_terminal(subject, max_length=300) or "(No subject)"]
+    elif sender:
+        lines = [f"New message from {sender}"]
+    elif subject:
+        lines = [sanitize_terminal(subject, max_length=300)]
     else:
-        title = sender or settings.title
-        lines = [subject or "(No subject)"]
-        if preview:
-            lines.append(preview)
-    if settings.show_importance_indicator and event.importance.value == "high":
+        lines = ["You have a new message."]
+    if folder and settings.privacy is PrivacyMode.METADATA_ONLY:
+        lines.append(f"In {sanitize_terminal(folder, max_length=120)}")
+    if preview:
+        lines.append(sanitize_terminal(preview, max_length=500))
+    show_importance = settings.show_importance_indicator and "importance" in allowed
+    if show_importance and event.importance.value == "high":
         lines.append("High importance")
-    if settings.show_attachment_indicator and event.has_attachments:
-        lines.append("Includes attachment(s)")
+    show_attachments = settings.show_attachment_indicator and "has_attachments" in allowed
+    if show_attachments and event.has_attachments:
+        lines.append("Has attachments")
     return sanitize_terminal(title, max_length=120), "\n".join(lines)
 
 

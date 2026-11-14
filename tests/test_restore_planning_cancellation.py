@@ -344,8 +344,8 @@ def test_cli_translates_actual_cancelled_planning_to_exit_130_without_a_plan(
         monkeypatch.setenv(f"GUCMAIL_{name}_DIR", str(tmp_path / name))
     monkeypatch.setattr(service, "plan_restore", plan)
     monkeypatch.setattr(OfflineArchive, "_decode_item", item)
-    monkeypatch.setattr(cli, "_backup_service", lambda _: service)
-    monkeypatch.setattr(cli, "_gateway", forbidden)
+    monkeypatch.setattr(cli.backup, "_backup_service", lambda _: service)
+    monkeypatch.setattr(cli.core, "gateway", forbidden)
     result = CliRunner().invoke(cli.app, ["--json", "backup", "restore-plan", identifier])
     assert result.exit_code == 130, result.output
     payload = json.loads(result.stdout)["data"]

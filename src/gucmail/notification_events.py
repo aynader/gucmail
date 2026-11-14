@@ -31,13 +31,31 @@ class MailEventType(StrEnum):
 
 
 class PrivacyMode(StrEnum):
-    """Content disclosure level for one notification provider or history view."""
+    """How much of a new message a notification may show. Used everywhere."""
 
     PRIVATE = "private"
     METADATA_ONLY = "metadata_only"
     SENDER_ONLY = "sender_only"
     SENDER_AND_SUBJECT = "sender_and_subject"
     FULL = "full"
+
+    @classmethod
+    def _missing_(cls, value: object) -> PrivacyMode | None:
+        # Settings saved before 1.2 spelled this one "sender_subject".
+        return cls.SENDER_AND_SUBJECT if value == "sender_subject" else None
+
+    @property
+    def label(self) -> str:
+        return _PRIVACY_LABELS[self]
+
+
+_PRIVACY_LABELS = {
+    PrivacyMode.PRIVATE: "Only \"New message\"",
+    PrivacyMode.METADATA_ONLY: "Folder only",
+    PrivacyMode.SENDER_ONLY: "Sender only",
+    PrivacyMode.SENDER_AND_SUBJECT: "Sender and subject",
+    PrivacyMode.FULL: "Sender, subject and preview",
+}
 
 
 EVENT_PAYLOAD_FIELDS = frozenset(

@@ -102,7 +102,7 @@ def test_cli_saved_order_explicit_override_offset_and_invalid_order_before_gatew
     session.apply()
     gateway = SortGateway()
     runner = CliRunner()
-    monkeypatch.setattr(cli, "_gateway", lambda _ctx: gateway)
+    monkeypatch.setattr(cli.core, "gateway", lambda _ctx: gateway)
     result = runner.invoke(
         cli.app,
         ["--json", "messages", "list", "--limit", "1", "--offset", "1"],
@@ -120,7 +120,9 @@ def test_cli_saved_order_explicit_override_offset_and_invalid_order_before_gatew
         MailSortPreferences.from_settings(SettingsService(context.config_store)).order_by
         == "subject"
     )
-    monkeypatch.setattr(cli, "_gateway", lambda *_: pytest.fail("Invalid order must stay local"))
+    monkeypatch.setattr(
+        cli.core, "gateway", lambda *_: pytest.fail("Invalid order must stay local")
+    )
     invalid = runner.invoke(
         cli.app, ["messages", "list", "--order-by=body"], env=_environment(tmp_path)
     )

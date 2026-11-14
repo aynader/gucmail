@@ -78,6 +78,33 @@ def keyboard_catalog() -> tuple[tuple[KeyboardBinding, ...], tuple[FixedBinding,
     return definitions, fixed
 
 
+# In 1.2 these screens moved out of gucmail.tui.app; shortcuts saved before keep working.
+_MOVED_SCREENS = {
+    "AreaScreen": "shell_widgets",
+    "ComposeScreen": "compose_screen",
+    "ConfirmationScreen": "dialogs",
+    "FolderDetailsScreen": "dialogs",
+    "FolderMoveScreen": "dialogs",
+    "FolderNameScreen": "dialogs",
+    "MessageExportPathScreen": "dialogs",
+    "HelpScreen": "help_screen",
+    "PaletteParameterReviewScreen": "palette_screen",
+    "PaletteScreen": "palette_screen",
+    "PaletteSequencePreviewScreen": "palette_screen",
+    "ReaderModeScreen": "reader",
+    "ReaderScreen": "reader",
+}
+
+
+def _current_binding_id(identifier: str) -> str:
+    prefix = "gucmail.tui.app."
+    if identifier.startswith(prefix):
+        screen = identifier[len(prefix) :].split(":", 1)[0]
+        if screen in _MOVED_SCREENS:
+            return f"gucmail.tui.{_MOVED_SCREENS[screen]}.{identifier[len(prefix) :]}"
+    return identifier
+
+
 def normalize_binding_overrides(value: object) -> dict[str, str]:
     """Accept only known IDs and single keys; an empty key disables one binding."""
     if not isinstance(value, Mapping) or len(value) > 1000:
@@ -87,6 +114,8 @@ def normalize_binding_overrides(value: object) -> dict[str, str]:
     known = {row.binding_id: row for row in keyboard_catalog()[0]}
     result: dict[str, str] = {}
     for identifier, raw in value.items():
+        if isinstance(identifier, str):
+            identifier = _current_binding_id(identifier)
         if not isinstance(identifier, str) or identifier not in known:
             raise ConfigurationError("Unknown keyboard action; refresh the shortcut catalog.")
         # Existing defaults may be bare keys or use protected editing combinations.

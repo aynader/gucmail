@@ -16,6 +16,7 @@ from enum import StrEnum
 from typing import Any, Final, TypeAlias, cast
 
 from gucmail.models import NotificationEvent
+from gucmail.notification_events import PrivacyMode
 from gucmail.security import redact_text, sanitize_terminal
 
 JsonScalar: TypeAlias = str | int | float | bool | None
@@ -30,16 +31,6 @@ class ProviderKind(StrEnum):
     TELEGRAM = "telegram"
     GENERIC_WEBHOOK = "generic_webhook"
     NDJSON = "ndjson"
-
-
-class PrivacyMode(StrEnum):
-    """Disclosure presets which may be overridden by an explicit field allowlist."""
-
-    FULL = "full"
-    SENDER_SUBJECT = "sender_subject"
-    SENDER_ONLY = "sender_only"
-    PRIVATE = "private"
-    METADATA_ONLY = "metadata_only"
 
 
 class ProviderCapability(StrEnum):
@@ -135,7 +126,7 @@ _PRIVACY_FIELDS: Final[dict[PrivacyMode, frozenset[str]]] = {
             "open_hint",
         }
     ),
-    PrivacyMode.SENDER_SUBJECT: frozenset(
+    PrivacyMode.SENDER_AND_SUBJECT: frozenset(
         {
             "event",
             "event_id",
@@ -167,6 +158,11 @@ _PRIVACY_FIELDS: Final[dict[PrivacyMode, frozenset[str]]] = {
 EVENT_PAYLOAD_FIELDS: Final[frozenset[str]] = frozenset().union(*_PRIVACY_FIELDS.values())
 
 
+def privacy_fields(mode: PrivacyMode) -> frozenset[str]:
+    """The event fields a notification at this privacy level may carry."""
+    return _PRIVACY_FIELDS[mode]
+
+
 @dataclass(frozen=True, slots=True)
 class PayloadPolicy:
     """One provider's local disclosure and size policy.
@@ -175,7 +171,7 @@ class PayloadPolicy:
     behavior prevents a future schema field from leaving the machine accidentally.
     """
 
-    privacy: PrivacyMode = PrivacyMode.SENDER_SUBJECT
+    privacy: PrivacyMode = PrivacyMode.SENDER_AND_SUBJECT
     field_allowlist: frozenset[str] | None = None
     redact_email_addresses: bool = True
     expose_external_addresses: bool = False
@@ -431,7 +427,7 @@ _COMMON_PRIVACY = _setting(
     "Privacy",
     SettingValueKind.CHOICE,
     "Controls which mailbox fields are disclosed to this provider.",
-    default=PrivacyMode.SENDER_SUBJECT.value,
+    default=PrivacyMode.SENDER_AND_SUBJECT.value,
     choices=tuple(item.value for item in PrivacyMode),
 )
 _COMMON_ENABLED = _setting(
@@ -616,14 +612,14 @@ PROVIDER_TEMPLATES: Final[tuple[ProviderTemplate, ...]] = (
         ProviderKind.WINDOWS,
         "Windows toast",
         "Local grouped toast with click-to-open activation.",
-        PrivacyMode.SENDER_SUBJECT,
+        PrivacyMode.SENDER_AND_SUBJECT,
     ),
     ProviderTemplate(
         "discord_embed",
         ProviderKind.DISCORD,
         "Discord embed",
         "Mention-safe Discord embed for an incoming webhook.",
-        PrivacyMode.SENDER_SUBJECT,
+        PrivacyMode.SENDER_AND_SUBJECT,
         frozenset({"webhook_url"}),
     ),
     ProviderTemplate(
@@ -639,7 +635,7 @@ PROVIDER_TEMPLATES: Final[tuple[ProviderTemplate, ...]] = (
         ProviderKind.SLACK,
         "Slack-compatible incoming webhook",
         "Conservative plain-text Slack-compatible blocks.",
-        PrivacyMode.SENDER_SUBJECT,
+        PrivacyMode.SENDER_AND_SUBJECT,
         frozenset({"url"}),
     ),
     ProviderTemplate(
@@ -647,7 +643,7 @@ PROVIDER_TEMPLATES: Final[tuple[ProviderTemplate, ...]] = (
         ProviderKind.TEAMS,
         "Teams Adaptive Card",
         "Isolated Teams workflow/webhook Adaptive Card payload.",
-        PrivacyMode.SENDER_SUBJECT,
+        PrivacyMode.SENDER_AND_SUBJECT,
         frozenset({"url"}),
     ),
     ProviderTemplate(
@@ -705,6 +701,7 @@ __all__ = [
     "bounded_json",
     "canonical_json",
     "event_payload",
+    "privacy_fields",
     "provider_metadata",
     "provider_templates",
     "stable_idempotency_key",

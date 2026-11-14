@@ -290,7 +290,17 @@ class PaletteEngine:
                 )
             )
         rows.sort(key=lambda row: (-row[0], row[1]))
-        return tuple(row[2] for row in rows[:limit])
+        # Several commands can share a visible name (e.g. "Search calendar" exists in
+        # Calendar and in Search). Show each name once: the best-ranked one wins.
+        seen: set[str] = set()
+        unique: list[PaletteSuggestion] = []
+        for _score, _command_id, suggestion in rows:
+            label = (suggestion.display_name or suggestion.command.name).casefold()
+            if label in seen:
+                continue
+            seen.add(label)
+            unique.append(suggestion)
+        return tuple(unique[:limit])
 
     def _suggested_candidates(
         self,

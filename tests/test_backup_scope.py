@@ -199,8 +199,8 @@ def test_cli_incremental_keeps_selected_parent_scope(tmp_path, monkeypatch):
     selection = BackupSelection(messages=("one",))
     source = Snapshot((item(),))
     parent = service.create(source, selection=selection)
-    monkeypatch.setattr(cli, "_backup_service", lambda _: service)
-    monkeypatch.setattr(cli, "_gateway", lambda _: source)
+    monkeypatch.setattr(cli.backup, "_backup_service", lambda _: service)
+    monkeypatch.setattr(cli.core, "gateway", lambda _: source)
     env = {
         f"GUCMAIL_{name}_DIR": str(tmp_path / name) for name in ("CONFIG", "DATA", "CACHE", "LOG")
     }

@@ -15,7 +15,7 @@ from test_mailbox_search_scope import mailbox
 @pytest.mark.parametrize("command", [["search"], ["messages", "search"]])
 def test_cli_all_folders_uses_shared_search_and_reports_bounds(tmp_path, monkeypatch, command):
     gateway, _account = mailbox()
-    monkeypatch.setattr(cli, "_gateway", lambda _ctx: gateway)
+    monkeypatch.setattr(cli.core, "gateway", lambda _ctx: gateway)
     result = CliRunner().invoke(
         cli.app,
         [
@@ -43,7 +43,7 @@ def test_cli_all_folders_uses_shared_search_and_reports_bounds(tmp_path, monkeyp
 @pytest.mark.parametrize("conflict", [["--folder", "inbox"], ["--local"], ["--fuzzy"]])
 def test_cli_scope_conflicts_are_rejected_without_gateway(tmp_path, monkeypatch, conflict):
     monkeypatch.setattr(
-        cli, "_gateway", lambda _ctx: pytest.fail("Invalid search resolved credentials")
+        cli.core, "gateway", lambda _ctx: pytest.fail("Invalid search resolved credentials")
     )
     result = CliRunner().invoke(
         cli.app, ["search", "Synthetic", "--all-folders", *conflict], env=_environment(tmp_path)
@@ -60,7 +60,7 @@ def test_cli_help_discloses_bounded_mailbox_scope(tmp_path):
 
 def test_cli_default_folder_search_json_serializes_the_real_service_plan(tmp_path, monkeypatch):
     gateway, _account = mailbox()
-    monkeypatch.setattr(cli, "_gateway", lambda _ctx: gateway)
+    monkeypatch.setattr(cli.core, "gateway", lambda _ctx: gateway)
     result = CliRunner().invoke(
         cli.app,
         ["--json", "--non-interactive", "search", "--subject", "Synthetic"],

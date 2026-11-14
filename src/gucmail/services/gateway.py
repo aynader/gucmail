@@ -14,3 +14,15 @@ class DeferredGateway:
 
     def __getattr__(self, name: str) -> Any:
         return getattr(self._resolver(), name)
+
+
+def resolve(gateway: Any) -> Any:
+    """Return the real provider behind a DeferredGateway.
+
+    Use this before ``isinstance(gateway, SomeProtocol)``. From Python 3.12 those checks
+    ignore ``__getattr__``, so a deferred wrapper never matches a protocol on its own.
+    """
+
+    if isinstance(gateway, DeferredGateway):
+        return gateway._resolver()
+    return gateway

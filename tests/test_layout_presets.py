@@ -130,7 +130,9 @@ def test_locked_load_and_failed_save_are_atomic(tmp_path, monkeypatch):
 
 def test_layout_cli_preview_lifecycle_and_explicit_replacement_stay_local(tmp_path, monkeypatch):
     context = _context(tmp_path)
-    monkeypatch.setattr(cli, "_gateway", lambda *_: pytest.fail("Layouts must not authenticate"))
+    monkeypatch.setattr(
+        cli.core, "gateway", lambda *_: pytest.fail("Layouts must not authenticate")
+    )
     runner = CliRunner()
 
     def invoke(*args):

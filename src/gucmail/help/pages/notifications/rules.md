@@ -40,7 +40,7 @@ preview. Add `--recent --limit 50 --max-folders 10` to deliberately sample recen
 Omit RULE to preview all profile rules. Synthetic mode never resolves mailbox credentials;
 recent mode performs only the bounded summary requests and leaves watcher checkpoints unchanged.
 
-The Routing Matrix tab lists each rule/provider pair. Cycle a destination through Off, Immediate,
+The Routing tab lists each rule/provider pair. Cycle a destination through Off, Immediate,
 and Digest, or disable it explicitly. Saving a route changes future configured watcher behavior;
 simulation remains a dry run.
 

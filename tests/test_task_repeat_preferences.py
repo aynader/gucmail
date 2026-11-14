@@ -181,7 +181,7 @@ def test_cli_repeat_overrides_preview_without_credentials_or_saved_changes(
     context = _context(tmp_path)
     configure(context)
     before = context.paths.config_file.read_bytes()
-    monkeypatch.setattr(cli, "_gateway", lambda *_: pytest.fail("Preview resolved a gateway"))
+    monkeypatch.setattr(cli.core, "gateway", lambda *_: pytest.fail("Preview resolved a gateway"))
     result = invoke(tmp_path, "tasks", ["--start", "2027-01-05", *options, "--dry-run"])
     assert result.exit_code == 0, result.output
     rule = json.loads(result.output)["data"]["task"]["recurrence"]
@@ -219,7 +219,9 @@ def test_invalid_cli_repeat_fails_before_gateway(tmp_path, monkeypatch, options)
     context = _context(tmp_path)
     configure(context)
     before = context.paths.config_file.read_bytes()
-    monkeypatch.setattr(cli, "_gateway", lambda *_: pytest.fail("Invalid plan resolved gateway"))
+    monkeypatch.setattr(
+        cli.core, "gateway", lambda *_: pytest.fail("Invalid plan resolved gateway")
+    )
     result = invoke(tmp_path, "tasks", ["--start", "2027-01-05", *options, "--dry-run"])
     assert result.exit_code == 3, result.output
     assert context.paths.config_file.read_bytes() == before
@@ -232,7 +234,7 @@ def test_approved_cli_create_uses_exact_repeat_once(tmp_path, monkeypatch):
     context = _context(tmp_path)
     configure(context)
     gateway = RecordingGateway()
-    monkeypatch.setattr(cli, "_gateway", lambda *_: gateway)
+    monkeypatch.setattr(cli.core, "gateway", lambda *_: gateway)
     result = invoke(tmp_path, "tasks", ["--start", "2027-01-05", "--repeat-forever"], yes=True)
     assert result.exit_code == 0, result.output
     assert len(gateway.creates) == 1
@@ -254,7 +256,7 @@ def test_cli_repeat_anchor_uses_effective_account_zone(tmp_path, monkeypatch):
     context = _context(tmp_path)
     service = configure(context)
     monkeypatch.setattr(pim_preferences, "datetime", Clock)
-    monkeypatch.setattr(cli, "_gateway", lambda *_: pytest.fail("Preview resolved gateway"))
+    monkeypatch.setattr(cli.core, "gateway", lambda *_: pytest.fail("Preview resolved gateway"))
     service.set("calendar.timezone", "America/Los_Angeles")
     result = invoke(tmp_path, "tasks", ["--dry-run"])
     assert result.exit_code == 0, result.output

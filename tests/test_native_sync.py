@@ -236,7 +236,7 @@ def test_calendar_watch_cli_uses_sync_and_has_a_quiet_baseline(tmp_path, monkeyp
             calls.append(kwargs)
             return PollBatch((), "ready", baseline=True)
 
-    monkeypatch.setattr(cli, "_gateway", lambda _ctx: Gateway())
+    monkeypatch.setattr(cli.core, "gateway", lambda _ctx: Gateway())
     result = CliRunner().invoke(
         cli.app, ["--json", "calendar", "watch"], env=_environment(tmp_path)
     )
@@ -255,7 +255,7 @@ def test_watch_json_remains_parseable_and_failure_has_nonzero_exit(tmp_path, mon
                 raise ConfigurationError("Synthetic failure")
             return PollBatch((MessageSummary("m-1", "Synthetic", None, NOW),), "ready")
 
-    monkeypatch.setattr(cli, "_gateway", lambda _ctx: Gateway())
+    monkeypatch.setattr(cli.core, "gateway", lambda _ctx: Gateway())
     result = CliRunner().invoke(
         cli.app,
         ["--json", "watch", "--strategy", "incremental_sync", "--notify-existing", "--no-webhooks"],

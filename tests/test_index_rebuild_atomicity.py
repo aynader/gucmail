@@ -67,7 +67,7 @@ def test_cli_rebuild_read_failure_preserves_the_previous_usable_index(tmp_path, 
                 raise OSError("Synthetic interruption while loading the second body")
             return summaries[0]
 
-    monkeypatch.setattr(cli, "_gateway", lambda ctx: Gateway())
+    monkeypatch.setattr(cli.core, "gateway", lambda ctx: Gateway())
     result = CliRunner().invoke(
         cli.app,
         ["--json", "--non-interactive", "--yes", "index", "rebuild", "--include-bodies"],
@@ -338,7 +338,7 @@ def test_cli_unconfirmed_rebuild_preserves_data_without_resolving_exchange(tmp_p
     index.upsert(IndexDocument("retained", subject="Preserved reference"))
     before = index.revision()
     monkeypatch.setattr(
-        cli, "_gateway", lambda ctx: pytest.fail("Unconfirmed rebuild resolved Exchange")
+        cli.core, "gateway", lambda ctx: pytest.fail("Unconfirmed rebuild resolved Exchange")
     )
     result = CliRunner().invoke(
         cli.app, ["--json", "--non-interactive", "index", "rebuild"], env=env

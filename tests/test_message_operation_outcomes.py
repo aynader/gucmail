@@ -129,7 +129,7 @@ def test_cli_operation_history_is_local_and_never_resolves_gateway(tmp_path, mon
     def forbidden(*args, **kwargs):
         raise AssertionError("Local operation history must not resolve a gateway")
 
-    monkeypatch.setattr(cli, "_gateway", forbidden)
+    monkeypatch.setattr(cli.core, "gateway", forbidden)
     runner = CliRunner()
     result = runner.invoke(
         cli.app, ["--json", "messages", "operations", "list"], env=_environment(tmp_path)

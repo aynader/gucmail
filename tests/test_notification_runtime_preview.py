@@ -10,7 +10,7 @@ from textual.widgets import Button, Input, Static, TabbedContent, Tabs
 from typer.testing import CliRunner
 
 import gucmail.cli as cli_module
-import gucmail.tui.app as app_module
+import gucmail.tui.app_areas as app_module
 from gucmail.models import Address
 from gucmail.notification_events import EventDisclosurePolicy, NewMailEvent, PrivacyMode
 from gucmail.notification_policies import (
@@ -403,8 +403,10 @@ def test_cli_rule_preview_is_bounded_and_provider_free(tmp_path, monkeypatch, mo
     before = service.profiles.get_profile("campus")
     gateway, calls = _metadata_gateway(monkeypatch)
     resolutions = []
-    monkeypatch.setattr(cli_module, "_notification_service", lambda _ctx: service)
-    monkeypatch.setattr(cli_module, "_gateway", lambda _ctx: resolutions.append(True) or gateway)
+    monkeypatch.setattr(cli_module.notifications, "_notification_service", lambda _ctx: service)
+    monkeypatch.setattr(
+        cli_module.core, "gateway", lambda _ctx: resolutions.append(True) or gateway
+    )
     args = [
         "--json",
         "--non-interactive",

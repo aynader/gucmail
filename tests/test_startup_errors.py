@@ -349,9 +349,9 @@ def test_cli_unknown_state_has_reviewable_preview_and_refuses_apply(
     import gucmail.cli as cli
 
     plan = make_plan(tmp_path)
-    monkeypatch.setattr(cli, "_startup_plan", lambda *args, **kwargs: plan)
+    monkeypatch.setattr(cli.background, "_startup_plan", lambda *args, **kwargs: plan)
     unknown = InstalledStartupSnapshot(False, detail="Access denied", state_known=False)
-    monkeypatch.setattr(cli, "_inspect_startup_snapshot", lambda _: unknown)
+    monkeypatch.setattr(cli.background, "_inspect_startup_snapshot", lambda _: unknown)
     monkeypatch.setattr(
         runtime, "apply_startup_operation", lambda *args: pytest.fail("Unknown startup mutated")
     )
@@ -377,15 +377,15 @@ def test_cli_confirmation_rechecks_same_reviewed_state(tmp_path, monkeypatch):
 
     plan = make_plan(tmp_path)
     state = InstalledStartupSnapshot(False, executable_exists=True)
-    monkeypatch.setattr(cli, "_startup_plan", lambda *args, **kwargs: plan)
-    monkeypatch.setattr(cli, "_inspect_startup_snapshot", lambda _: state)
+    monkeypatch.setattr(cli.background, "_startup_plan", lambda *args, **kwargs: plan)
+    monkeypatch.setattr(cli.background, "_inspect_startup_snapshot", lambda _: state)
     monkeypatch.setattr(runtime, "inspect_startup_snapshot", lambda _: state)
 
     def confirm(*args):
         nonlocal state
         state = replace(state, state_known=False, detail="Access denied after preview")
 
-    monkeypatch.setattr(cli, "_confirm", confirm)
+    monkeypatch.setattr(cli.core, "confirm", confirm)
     monkeypatch.setattr(
         runtime,
         "apply_startup_operation",
@@ -413,7 +413,7 @@ async def test_normal_settings_startup_unknown_refresh_and_cancel(tmp_path, monk
     context = _context(tmp_path)
     # The scheduler subprocess trap must not intercept Python's lazy Windows
     # platform.node() implementation when the root Settings service starts.
-    monkeypatch.setattr("gucmail.tui.app.platform.node", lambda: "synthetic-startup-host")
+    monkeypatch.setattr("platform.node", lambda: "synthetic-startup-host")
     monkeypatch.setattr(
         context.credential_resolver,
         "resolve",

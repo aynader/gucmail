@@ -14,6 +14,7 @@ from typing import Any, Protocol, TypeAlias, runtime_checkable
 
 from gucmail.errors import ConfigurationError
 from gucmail.models import Importance, TaskInfo, to_primitive
+from gucmail.services.gateway import resolve
 from gucmail.services.pim import (
     MAX_PIM_PAGE_SIZE,
     BatchFailure,
@@ -376,8 +377,9 @@ class TaskService:
         if resolved.due_before and resolved.due_after and resolved.due_before < resolved.due_after:
             raise ConfigurationError("Task due-before date cannot precede due-after date.")
         bounded = self._limit(limit)
-        if isinstance(self.gateway, PagedTasksGateway):
-            page = self.gateway.search_tasks_page(
+        gateway = resolve(self.gateway)
+        if isinstance(gateway, PagedTasksGateway):
+            page = gateway.search_tasks_page(
                 resolved,
                 folder_reference=folder_reference or self.default_folder,
                 limit=bounded,

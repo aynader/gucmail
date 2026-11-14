@@ -24,7 +24,7 @@ from test_pim import (
 
 
 def _invoke(tmp_path, monkeypatch, gateway, *arguments: str):
-    monkeypatch.setattr(cli_module, "_gateway", lambda *_args, **_kwargs: gateway)
+    monkeypatch.setattr(cli_module.core, "gateway", lambda *_args, **_kwargs: gateway)
     return CliRunner().invoke(app, list(arguments), env=_environment(tmp_path))
 
 
@@ -138,7 +138,7 @@ def test_outbox_human_list_uses_columns_not_raw_records(tmp_path, monkeypatch):
     def forbidden(*_args, **_kwargs):
         raise AssertionError("Queueing and listing must stay local.")
 
-    monkeypatch.setattr(cli_module, "_gateway", forbidden)
+    monkeypatch.setattr(cli_module.core, "gateway", forbidden)
     runner = CliRunner()
     queued = runner.invoke(
         app,
@@ -219,7 +219,7 @@ def test_backup_restore_apply_with_no_matching_selection_says_nothing_was_restor
     def forbidden(*_args, **_kwargs):
         raise AssertionError("An empty restore must not resolve the mailbox.")
 
-    monkeypatch.setattr(cli_module, "_gateway", forbidden)
+    monkeypatch.setattr(cli_module.core, "gateway", forbidden)
     result = CliRunner().invoke(
         app,
         ["--json", "--yes", "backup", "restore", "qa-restore", "--apply", "--selected", "missing"],

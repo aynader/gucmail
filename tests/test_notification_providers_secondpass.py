@@ -108,7 +108,7 @@ def test_provider_catalog_is_complete_unique_and_self_describing() -> None:
     ("mode", "present", "absent"),
     [
         (PrivacyMode.FULL, {"sender", "subject", "preview"}, set()),
-        (PrivacyMode.SENDER_SUBJECT, {"sender", "subject"}, {"preview"}),
+        (PrivacyMode.SENDER_AND_SUBJECT, {"sender", "subject"}, {"preview"}),
         (PrivacyMode.SENDER_ONLY, {"sender"}, {"subject", "preview", "folder"}),
         (PrivacyMode.PRIVATE, {"event", "event_id"}, {"sender", "subject", "folder"}),
         (
@@ -449,7 +449,7 @@ def test_ndjson_adapter_outputs_one_bounded_line(hostile_event: NotificationEven
     ("privacy", "contains", "omits"),
     [
         (PrivacyMode.FULL, ("Sender", "Important update", "Preview"), ()),
-        (PrivacyMode.SENDER_SUBJECT, ("Sender", "Important update"), ("Preview",)),
+        (PrivacyMode.SENDER_AND_SUBJECT, ("Sender", "Important update"), ("Preview",)),
         (PrivacyMode.SENDER_ONLY, ("Sender",), ("Important update", "Preview")),
         (PrivacyMode.PRIVATE, ("new message",), ("Sender", "Important update", "Preview")),
     ],

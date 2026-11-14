@@ -1231,7 +1231,7 @@ class ProviderEditorScreen(NotificationEditorScreen[ProviderEdit]):
                 )
             yield Label("Privacy mode")
             yield Select(
-                tuple((item.value.replace("_", " ").title(), item.value) for item in PrivacyMode),
+                tuple((item.label, item.value) for item in PrivacyMode),
                 value=privacy.mode.value,
                 allow_blank=False,
                 id="notification-provider-privacy",
@@ -1816,7 +1816,7 @@ class NotificationSettingsScreen(OperationalScreen):
                             id="notification-rule-recent",
                             disabled=self.recent_simulation_source is None,
                         )
-                with TabPane("Quiet Hours", id="notification-quiet-tab"):  # noqa: SIM117
+                with TabPane("Quiet hours", id="notification-quiet-tab"):  # noqa: SIM117
                     with VerticalScroll(classes="notification-pane"):
                         yield DataTable(
                             id="notification-quiet-table",
@@ -1858,7 +1858,7 @@ class NotificationSettingsScreen(OperationalScreen):
                             yield Button(
                                 "Delete", id="notification-digest-delete", variant="warning"
                             )
-                with TabPane("Providers & Privacy", id="notification-provider-tab"):  # noqa: SIM117
+                with TabPane("Destinations", id="notification-provider-tab"):  # noqa: SIM117
                     with VerticalScroll(classes="notification-pane"):
                         yield DataTable(
                             id="notification-provider-table",
@@ -1923,7 +1923,7 @@ class NotificationSettingsScreen(OperationalScreen):
                                 id="notification-webhook-remove",
                                 variant="warning",
                             )
-                with TabPane("Routing Matrix", id="notification-routing-tab"):  # noqa: SIM117
+                with TabPane("Routing", id="notification-routing-tab"):  # noqa: SIM117
                     with VerticalScroll(classes="notification-pane"):
                         yield Static(
                             "Cycle each rule/provider destination: Off → Immediate → Digest → Off.",
@@ -1943,7 +1943,7 @@ class NotificationSettingsScreen(OperationalScreen):
                                 variant="primary",
                             )
                             yield Button("Disable selected route", id="notification-route-off")
-                with TabPane("Import / Export", id="notification-transfer-tab"):  # noqa: SIM117
+                with TabPane("Import/export", id="notification-transfer-tab"):  # noqa: SIM117
                     with VerticalScroll(classes="notification-pane"):
                         with Horizontal(id="notification-transfer-controls"):
                             yield Select(
@@ -2857,13 +2857,8 @@ class NotificationSettingsScreen(OperationalScreen):
         def saved(value: object) -> None:
             updated = cast(MonitoringProfile, value)
             self._selected_profile_id = updated.profile_id.casefold()
-            label = {
-                PrivacyMode.PRIVATE: "previews hidden",
-                PrivacyMode.SENDER_ONLY: "sender only",
-                PrivacyMode.FULL: "full preview",
-            }.get(privacy_mode, privacy_mode.value.replace("_", " "))
             self._set_configuration_notice(
-                f"Notification privacy is now {label} for {clean_cell(updated.name)}."
+                f"Notifications now show: {privacy_mode.label.lower()}."
             )
 
         self._change_local_configuration("Update notification privacy", change, saved)

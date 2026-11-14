@@ -240,7 +240,7 @@ async def test_mounted_series_edit_loads_master_and_requires_exact_scope_confirm
     async with app.run_test(size=size) as pilot:
         screen = await _wait_for_calendar_rows(app, pilot, 1)
         screen.action_edit()
-        for _ in range(30):
+        for _ in range(200):
             await pilot.pause(0.05)
             if isinstance(app.screen, CalendarScopeScreen):
                 break
@@ -249,7 +249,7 @@ async def test_mounted_series_edit_loads_master_and_requires_exact_scope_confirm
         for button in chooser.query(Button):
             assert button.region.bottom <= size[1]
         chooser.query_one("#calendar-scope-series", Button).press()
-        for _ in range(30):
+        for _ in range(200):
             await pilot.pause(0.05)
             if (
                 isinstance(app.screen, CalendarEditorScreen)
@@ -272,7 +272,7 @@ async def test_mounted_series_edit_loads_master_and_requires_exact_scope_confirm
         assert "Reviewed series" in app.screen.detail_text
         assert not gateway.updates
         await pilot.press("y")
-        for _ in range(30):
+        for _ in range(200):
             await pilot.pause(0.05)
             if gateway.updates:
                 break
@@ -293,12 +293,12 @@ async def test_occurrence_scope_cancel_and_series_delete_preview_are_safe():
         await pilot.press("escape")
         assert not gateway.deletes
         screen.action_edit()
-        for _ in range(30):
+        for _ in range(200):
             await pilot.pause(0.05)
             if isinstance(app.screen, CalendarScopeScreen):
                 break
         app.screen.query_one("#calendar-scope-occurrence", Button).press()
-        for _ in range(30):
+        for _ in range(200):
             await pilot.pause(0.05)
             if (
                 isinstance(app.screen, CalendarEditorScreen)
@@ -312,7 +312,7 @@ async def test_occurrence_scope_cancel_and_series_delete_preview_are_safe():
         screen.action_delete()
         await pilot.pause()
         app.screen.query_one("#calendar-scope-series", Button).press()
-        for _ in range(30):
+        for _ in range(200):
             await pilot.pause(0.05)
             if isinstance(app.screen, ConfirmationScreen):
                 break

@@ -133,7 +133,11 @@ def disclosed_event(
     event: NotificationEvent,
     policy: EventDisclosurePolicy,
 ) -> NotificationEvent:
-    """Apply fail-closed profile privacy before a legacy provider sees an event."""
+    """Apply the profile's privacy setting before any provider sees the event.
+
+    Withheld fields become None. A subject that is allowed but genuinely empty becomes ""
+    so the toast can tell "hidden" from "no subject".
+    """
 
     permitted = policy.permitted_fields
     reference = event.message_reference if "message_reference" in permitted else None
@@ -145,7 +149,7 @@ def disclosed_event(
         folder=event.folder if "folder" in permitted else None,
         message_reference=reference,
         sender=event.sender if "sender" in permitted else None,
-        subject=event.subject if "subject" in permitted else None,
+        subject=(event.subject or "") if "subject" in permitted else None,
         importance=event.importance if "importance" in permitted else Importance.NORMAL,
         has_attachments=event.has_attachments if "has_attachments" in permitted else False,
         preview=event.preview if "body_preview" in permitted else None,
@@ -593,7 +597,7 @@ class ProfiledNotificationDispatcher:
             occurred_at=max(item.event.occurred_at for item in ordered),
             account_id=ordered[0].event.account_id,
             folder=next(iter(folders)) if len(folders) == 1 else "Multiple folders",
-            subject=f"{len(ordered)} new mail notification(s)",
+            subject=f"{len(ordered)} new message" + ("" if len(ordered) == 1 else "s"),
             importance=(
                 Importance.HIGH
                 if any(item.event.importance is Importance.HIGH for item in ordered)

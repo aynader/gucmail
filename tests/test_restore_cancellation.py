@@ -55,8 +55,8 @@ def test_cli_interrupted_create_reports_uncertainty_in_partial_result(tmp_path, 
             calls.append(item.reference)
             raise KeyboardInterrupt()
 
-    monkeypatch.setattr(cli, "_backup_service", lambda _ctx: service)
-    monkeypatch.setattr(cli, "_gateway", lambda _ctx: Target())
+    monkeypatch.setattr(cli.backup, "_backup_service", lambda _ctx: service)
+    monkeypatch.setattr(cli.core, "gateway", lambda _ctx: Target())
     result = CliRunner().invoke(
         cli.app,
         ["--json", "--non-interactive", "--yes", "backup", "restore", backup.backup_id, "--apply"],
@@ -359,8 +359,8 @@ def test_cli_interrupt_retains_earlier_success_without_replaying(tmp_path, monke
                 raise KeyboardInterrupt("synthetic-private-interruption")
             return "restored-" + item.reference
 
-    monkeypatch.setattr(cli, "_backup_service", lambda _ctx: service)
-    monkeypatch.setattr(cli, "_gateway", lambda _ctx: Target())
+    monkeypatch.setattr(cli.backup, "_backup_service", lambda _ctx: service)
+    monkeypatch.setattr(cli.core, "gateway", lambda _ctx: Target())
     options = ["--json"] if output == "json" else ["--no-color"]
     result = CliRunner().invoke(
         cli.app,

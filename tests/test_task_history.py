@@ -460,7 +460,9 @@ def test_cli_history_reads_owned_state_without_credentials_or_gateway(tmp_path, 
         monkeypatch.setenv(
             "GUCMAIL_" + name + "_DIR", str(getattr(context.paths, name.lower() + "_dir"))
         )
-    monkeypatch.setattr(cli, "_gateway", lambda *_: pytest.fail("Local history resolved Exchange"))
+    monkeypatch.setattr(
+        cli.core, "gateway", lambda *_: pytest.fail("Local history resolved Exchange")
+    )
     monkeypatch.setattr(
         CredentialResolver,
         "resolve",

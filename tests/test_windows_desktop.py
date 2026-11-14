@@ -52,8 +52,11 @@ def restore_activation_profile_environment():
     # profile. These in-process contract tests must not select that profile for
     # subsequent unrelated CLI tests.
     keys = (
-        "GUCMAIL_CONFIG", "GUCMAIL_CONFIG_DIR", "GUCMAIL_DATA_DIR",
-        "GUCMAIL_CACHE_DIR", "GUCMAIL_LOG_DIR",
+        "GUCMAIL_CONFIG",
+        "GUCMAIL_CONFIG_DIR",
+        "GUCMAIL_DATA_DIR",
+        "GUCMAIL_CACHE_DIR",
+        "GUCMAIL_LOG_DIR",
     )
     before = {key: os.environ.get(key) for key in keys}
     yield
@@ -361,7 +364,7 @@ def test_native_contract_uses_owned_id_sound_group_duration_and_bound_protocol(s
     outcome = provider.notify(_event())
     assert outcome.state is DeliveryState.DELIVERED and "visibility depends" in outcome.detail
     toast = shown[0]
-    assert toast.text_fields == ["GUC Mail", "A new message arrived."]
+    assert toast.text_fields == ["GUC Mail", "You have a new message."]
     assert toast.audio.silent is True and toast.duration == "long"
     assert len(toast.tag) == 32 and len(toast.group) == 24
     assert activation_reference(identity, toast.launch_action) == "m-reference"
@@ -433,7 +436,7 @@ def test_cli_previews_requires_confirmation_and_applies_owned_service(
     import gucmail.cli as cli
 
     identity, registry, service = setup
-    monkeypatch.setattr(cli, "desktop_setup_service", lambda *args: service)
+    monkeypatch.setattr(cli.notifications, "desktop_setup_service", lambda *args: service)
     environment = _environment(tmp_path)
     arguments = ["--json", "--non-interactive", "notifications", "desktop", operation]
     runner = CliRunner()
@@ -455,12 +458,12 @@ def test_cli_confirmation_rechecks_registry_before_writing(setup, tmp_path, monk
     import gucmail.cli as cli
 
     identity, registry, service = setup
-    monkeypatch.setattr(cli, "desktop_setup_service", lambda *args: service)
+    monkeypatch.setattr(cli.notifications, "desktop_setup_service", lambda *args: service)
 
     def confirm(*args, **kwargs):
         registry.error = PermissionError("Denied after review")
 
-    monkeypatch.setattr(cli, "_confirm", confirm)
+    monkeypatch.setattr(cli.core, "confirm", confirm)
     result = CliRunner().invoke(
         cli.app,
         ["--json", "notifications", "desktop", "setup", "--apply"],
@@ -997,7 +1000,9 @@ def test_profile_desktop_factory_ignores_unrelated_invalid_provider_and_keeps_di
 ):
     from tests.test_settings_secondpass import _context
 
-    from gucmail.cli import _profiled_notification_dispatcher
+    from gucmail.cli.core import (
+        profiled_notification_dispatcher as _profiled_notification_dispatcher,
+    )
     from gucmail.notification_events import EventDisclosurePolicy
     from gucmail.notification_policies import MonitoringProfile, ProviderPolicy
     from gucmail.notification_rules import (
@@ -1063,7 +1068,7 @@ def test_profile_desktop_factory_ignores_unrelated_invalid_provider_and_keeps_di
         selected.append(provider_id)
         return Capture()
 
-    monkeypatch.setattr("gucmail.cli.desktop_notification_provider", factory)
+    monkeypatch.setattr("gucmail.cli.core.desktop_notification_provider", factory)
     dispatcher = _profiled_notification_dispatcher(
         context,
         [
@@ -1138,7 +1143,7 @@ def test_privacy_hidden_account_activation_requires_owned_local_mapping(
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize('size', [(120, 35), (80, 24), (70, 20)])
+@pytest.mark.parametrize("size", [(120, 35), (80, 24), (70, 20)])
 async def test_desktop_setup_route_waits_for_actual_notification_read(
     setup, tmp_path, monkeypatch, size
 ):
@@ -1168,27 +1173,30 @@ async def test_desktop_setup_route_waits_for_actual_notification_read(
     def held(repository):
         started.set()
         if not release.wait(20):
-            raise TimeoutError('Synthetic local notification read hold expired')
+            raise TimeoutError("Synthetic local notification read hold expired")
         return inspect(repository)
 
-    monkeypatch.setattr(registry, 'read', counted)
-    monkeypatch.setattr(PersistentMonitoringProfileRepository, 'inspect', held)
+    monkeypatch.setattr(registry, "read", counted)
+    monkeypatch.setattr(PersistentMonitoringProfileRepository, "inspect", held)
     monkeypatch.setattr(
-        'gucmail.services.windows_desktop.desktop_setup_service', lambda *a: service
+        "gucmail.services.windows_desktop.desktop_setup_service", lambda *a: service
     )
-    monkeypatch.setattr(context.credential_resolver, 'resolve',
-                        lambda *a, **kw: pytest.fail('Setup resolved credentials'))
+    monkeypatch.setattr(
+        context.credential_resolver,
+        "resolve",
+        lambda *a, **kw: pytest.fail("Setup resolved credentials"),
+    )
     app = GUCmailApp(context, offline=True)
     try:
         async with app.run_test(size=size) as pilot:
-            app._open_area('notifications')
+            app._open_area("notifications")
             async with asyncio.timeout(15):
                 while not (isinstance(app.screen, NotificationSettingsScreen) and started.is_set()):
                     await asyncio.sleep(0.005)
             screen = app.screen
-            screen.query_one(TabbedContent).active = 'notification-provider-tab'
+            screen.query_one(TabbedContent).active = "notification-provider-tab"
             await pilot.pause()
-            button = screen.query_one('#notification-desktop-setup', Button)
+            button = screen.query_one("#notification-desktop-setup", Button)
             assert screen._operation_active and button.disabled
             button.press()
             await pilot.pause()
@@ -1196,29 +1204,34 @@ async def test_desktop_setup_route_waits_for_actual_notification_read(
             assert not identity.manifest.exists()
             release.set()
             async with asyncio.timeout(15):
-                while (screen._operation_active or button.disabled
-                       or screen.view_state in {ViewState.IDLE, ViewState.LOADING}):
+                while (
+                    screen._operation_active
+                    or button.disabled
+                    or screen.view_state in {ViewState.IDLE, ViewState.LOADING}
+                ):
                     await asyncio.sleep(0.005)
             await pilot.pause()
             assert app.screen is screen and not reads and not registry.calls
             button.focus()
-            await pilot.press('enter')
+            await pilot.press("enter")
             async with asyncio.timeout(15):
-                while not (isinstance(app.screen, DesktopSetupScreen)
-                           and app.screen.view_state is ViewState.READY
-                           and not app.screen._operation_active):
+                while not (
+                    isinstance(app.screen, DesktopSetupScreen)
+                    and app.screen.view_state is ViewState.READY
+                    and not app.screen._operation_active
+                ):
                     await asyncio.sleep(0.005)
             desktop = app.screen
             assert reads and not registry.calls and not identity.manifest.exists()
-            desktop.query_one('#desktop-setup-enable', Button).focus()
-            await pilot.press('enter')
+            desktop.query_one("#desktop-setup-enable", Button).focus()
+            await pilot.press("enter")
             await pilot.pause()
             assert isinstance(app.screen, ConfirmationScreen)
             assert not registry.calls and not identity.manifest.exists()
-            await pilot.press('escape')
+            await pilot.press("escape")
             await pilot.pause()
             assert app.screen is desktop
-            await pilot.press('escape')
+            await pilot.press("escape")
             await pilot.pause()
             assert app.screen is screen
             assert not registry.calls and not identity.manifest.exists()
@@ -1231,10 +1244,9 @@ def test_withheld_sender_and_subject_never_claims_no_subject():
     event = replace(_event(), sender=None, subject=None, preview=None)
     request = build_windows_toast(event)
     assert "(No subject)" not in request.body
-    assert request.body == "A new message arrived."
+    assert request.body == "You have a new message."
 
 
 def test_genuinely_empty_subject_still_says_no_subject():
-    request = build_windows_toast(replace(_event(), subject=None))
+    request = build_windows_toast(replace(_event(), subject=""))
     assert request.body.startswith("(No subject)")
-

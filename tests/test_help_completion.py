@@ -6,7 +6,8 @@ from dataclasses import replace
 import pytest
 from typer.testing import CliRunner
 
-from gucmail.cli import _installed_cli_help_references, _installed_cli_help_syntax, app
+from gucmail.cli import app
+from gucmail.cli.settings import _installed_cli_help_references, _installed_cli_help_syntax
 from gucmail.help import (
     DOCUMENTED_NLP_EXAMPLES,
     HelpRepository,

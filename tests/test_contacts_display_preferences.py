@@ -148,7 +148,7 @@ def test_cli_bare_list_and_search_use_saved_page_sort_without_changing_metadata(
     context = _context(tmp_path)
     configure(context, sort, format)
     gateway = ReadOnlyContacts()
-    monkeypatch.setattr(cli, "_gateway", lambda *_: gateway)
+    monkeypatch.setattr(cli.core, "gateway", lambda *_: gateway)
     original = to_primitive(gateway.contacts)
     exported = export_vcards(gateway.contacts.values())
     before = context.paths.config_file.read_bytes()
@@ -188,7 +188,7 @@ def test_human_name_format_fallback_sanitization_original_json_and_fuzzy_order(
     context = _context(tmp_path)
     configure(context, "company", "family_given")
     gateway = ReadOnlyContacts()
-    monkeypatch.setattr(cli, "_gateway", lambda *_: gateway)
+    monkeypatch.setattr(cli.core, "gateway", lambda *_: gateway)
     result = invoke(tmp_path, ["show", "b"], human=True)
     assert result.exit_code == 0 and "Zulu, Ada" in result.output and "Z Alias" in result.output
     result = invoke(tmp_path, ["list", "--limit", "3"], human=True)
@@ -219,7 +219,7 @@ def test_cli_duplicate_threshold_cutoff_explicit_override_and_no_automatic_mutat
     context = _context(tmp_path)
     service = configure(context, threshold=80)
     gateway = ReadOnlyContacts()
-    monkeypatch.setattr(cli, "_gateway", lambda *_: gateway)
+    monkeypatch.setattr(cli.core, "gateway", lambda *_: gateway)
     before = to_primitive(gateway.contacts)
     result = invoke(tmp_path, ["duplicates"])
     assert result.exit_code == 0, result.output
@@ -260,7 +260,7 @@ def test_invalid_duplicate_threshold_precedes_gateway_and_iterable_access(value)
 def test_cli_invalid_preferences_or_arguments_do_not_resolve_gateway(tmp_path, monkeypatch):
     _context(tmp_path)
     calls = []
-    monkeypatch.setattr(cli, "_gateway", lambda *_: calls.append(True))
+    monkeypatch.setattr(cli.core, "gateway", lambda *_: calls.append(True))
     for arguments in (
         ["duplicates", "--threshold", "0"],
         ["duplicates", "--threshold", "101"],

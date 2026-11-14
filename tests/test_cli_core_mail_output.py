@@ -58,7 +58,7 @@ class FakeGateway:
 @pytest.fixture
 def gateway(monkeypatch: pytest.MonkeyPatch) -> FakeGateway:
     fake = FakeGateway()
-    monkeypatch.setattr(cli_module, "_gateway", lambda _ctx, **_kw: fake)
+    monkeypatch.setattr(cli_module.core, "gateway", lambda _ctx, **_kw: fake)
     return fake
 
 
@@ -93,7 +93,7 @@ def test_human_errors_keep_hostile_markup_literal(tmp_path, monkeypatch) -> None
     def missing(_ctx, **_kw):
         raise ConfigurationError("Folder not found: [/b]x")
 
-    monkeypatch.setattr(cli_module, "_gateway", missing)
+    monkeypatch.setattr(cli_module.core, "gateway", missing)
     result = CliRunner().invoke(app, ["messages", "list"], env=_environment(tmp_path))
     assert result.exit_code == 3
     assert "Folder not found: [/b]x" in result.output
@@ -122,7 +122,7 @@ def test_debug_shows_redacted_detail_in_human_mode(tmp_path, monkeypatch) -> Non
     def explode(_ctx, **_kw):
         raise RuntimeError("boom password=Synthetic-Secret-1")
 
-    monkeypatch.setattr(cli_module, "_gateway", explode)
+    monkeypatch.setattr(cli_module.core, "gateway", explode)
     runner = CliRunner()
     plain = runner.invoke(app, ["messages", "list"], env=_environment(tmp_path))
     debug = runner.invoke(app, ["--debug", "messages", "list"], env=_environment(tmp_path))
@@ -154,7 +154,7 @@ def test_redirected_legacy_code_page_output_never_raises_unicode_errors(monkeypa
     buffer = io.BytesIO()
     stream = io.TextIOWrapper(buffer, encoding="cp1252")
     monkeypatch.setattr(sys, "stdout", stream)
-    cli._tolerate_narrow_console_encoding()
+    cli.main._tolerate_narrow_console_encoding()
     print("▌ Help — ok", file=stream)
     stream.flush()
     assert b"Help" in buffer.getvalue()
@@ -179,8 +179,8 @@ def test_draft_delete_also_moves_its_server_copy_to_deleted_items(tmp_path, monk
         def delete_message(self, reference, permanent=False):
             calls.append(("server-delete", reference, permanent))
 
-    monkeypatch.setattr(cli_module, "_draft_service", lambda _ctx: Drafts())
-    monkeypatch.setattr(cli_module, "_gateway", lambda _ctx, **_kw: Gateway())
+    monkeypatch.setattr(cli_module.core, "draft_service", lambda _ctx: Drafts())
+    monkeypatch.setattr(cli_module.core, "gateway", lambda _ctx, **_kw: Gateway())
     result = CliRunner().invoke(
         app, ["--yes", "--json", "drafts", "delete", "dft-1"], env=_environment(tmp_path)
     )

@@ -20,6 +20,8 @@ import os
 import re
 import socket
 import stat
+import sys
+import threading
 import time
 import zipfile
 from collections.abc import Mapping
@@ -414,6 +416,33 @@ def extract_attachment_text(
 
 extract_text = extract_attachment_text
 
+_TRACKER_LOCK = threading.Lock()
+
+
+def ensure_resource_tracker() -> None:
+    """Start multiprocessing's helper process with a usable stderr.
+
+    On Linux and macOS the helper inherits ``sys.stderr.fileno()``. Inside the TUI, Textual
+    replaces stderr with an object whose fileno() is -1, and every worker start then fails.
+    """
+
+    if os.name == "nt":
+        return
+    try:
+        if sys.stderr is not None and sys.stderr.fileno() >= 0:
+            return
+    except (AttributeError, OSError, ValueError):
+        pass
+    from multiprocessing import resource_tracker
+
+    with _TRACKER_LOCK, open(os.devnull, "w", encoding="utf-8") as sink:
+        previous = sys.stderr
+        sys.stderr = sink
+        try:
+            resource_tracker.ensure_running()
+        finally:
+            sys.stderr = previous
+
 
 def _extract_isolated(
     format_name: str,
@@ -422,6 +451,7 @@ def _extract_isolated(
     *,
     cancel_event: Event | None = None,
 ) -> ExtractionResult:
+    ensure_resource_tracker()
     context = multiprocessing.get_context("spawn")
     receive_connection, send_connection = context.Pipe(duplex=False)
     process = context.Process(

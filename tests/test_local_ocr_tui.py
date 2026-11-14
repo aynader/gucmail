@@ -49,7 +49,7 @@ async def activate(pilot, selector):
 async def test_normal_palette_preview_opt_in_decline_accept_result_and_changed_input(
     tmp_path, monkeypatch, size
 ):
-    import gucmail.tui.app as module
+    import gucmail.tui.app_areas as module
 
     source, backend, service = setup_image(tmp_path)
     monkeypatch.setattr(module, "OcrService", lambda: service)

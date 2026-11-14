@@ -71,7 +71,7 @@ def test_message_mutation_dry_run_requires_no_gateway_or_credentials(
     def forbidden(*_args, **_kwargs):
         raise AssertionError("A local mutation preview must not resolve a gateway or credentials")
 
-    monkeypatch.setattr(cli, "_gateway", forbidden)
+    monkeypatch.setattr(cli.core, "gateway", forbidden)
     result = CliRunner().invoke(
         app, ["--json", "--non-interactive", *arguments, "--dry-run"], env=_environment(tmp_path)
     )
@@ -90,7 +90,7 @@ def test_unconfirmed_message_delete_rejects_before_gateway_resolution(
     def forbidden(*_args, **_kwargs):
         raise AssertionError("Confirmation must precede credential resolution")
 
-    monkeypatch.setattr(cli, "_gateway", forbidden)
+    monkeypatch.setattr(cli.core, "gateway", forbidden)
     arguments = ["--json", "--non-interactive", "messages", "delete", "synthetic-ref"]
     if permanent:
         arguments.append("--permanent")
@@ -115,7 +115,7 @@ def test_confirmed_message_delete_resolves_once_and_executes_exact_previewed_tar
         calls.append("resolve")
         return SyntheticGateway()
 
-    monkeypatch.setattr(cli, "_gateway", resolve)
+    monkeypatch.setattr(cli.core, "gateway", resolve)
     result = CliRunner().invoke(
         app,
         [
@@ -195,7 +195,7 @@ def test_task_reminder_cli_plans_set_and_clear_without_network(
         (),
         {"get_task": lambda _self, _reference: task},
     )()
-    monkeypatch.setattr(cli_module, "_gateway", lambda _ctx: gateway)
+    monkeypatch.setattr(cli_module.core, "gateway", lambda _ctx: gateway)
     runner = CliRunner()
     environment = _environment(tmp_path)
 
@@ -305,7 +305,7 @@ def test_folders_move_supports_offline_preview_and_confirmed_execution(
             )
 
     gateway = FolderGatewayFake()
-    monkeypatch.setattr(cli_module, "_gateway", lambda _ctx: gateway)
+    monkeypatch.setattr(cli_module.core, "gateway", lambda _ctx: gateway)
     runner = CliRunner()
     environment = _environment(tmp_path)
 
@@ -348,7 +348,7 @@ def test_webhook_preview_and_delivery_confirmation_are_network_free(tmp_path, mo
     from gucmail.secret_store import InMemorySecretBackend, SecretStore
 
     webhook_secrets = SecretStore("webhooks", backend=InMemorySecretBackend())
-    monkeypatch.setattr(cli_module, "SecretStore", lambda _namespace: webhook_secrets)
+    monkeypatch.setattr(cli_module.notifications, "SecretStore", lambda _namespace: webhook_secrets)
     added = runner.invoke(
         app,
         ["webhooks", "add", "example", "--url-stdin"],
@@ -361,7 +361,7 @@ def test_webhook_preview_and_delivery_confirmation_are_network_free(tmp_path, mo
         def __init__(self, *_args, **_kwargs) -> None:
             raise AssertionError("default preview must not construct a network provider")
 
-    monkeypatch.setattr(cli_module, "WebhookNotificationProvider", UnexpectedProvider)
+    monkeypatch.setattr(cli_module.notifications, "WebhookNotificationProvider", UnexpectedProvider)
     preview = runner.invoke(
         app,
         ["--json", "webhooks", "test", "example"],

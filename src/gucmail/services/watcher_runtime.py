@@ -49,7 +49,7 @@ class InProcessWatcherLeaseManager:
             existing = self._active.get(clean_scope)
             if existing is not None:
                 raise WatcherAlreadyRunningError(
-                    "GUC Mail monitoring is already running for this account and profile."
+                    "gucmail is already watching this mailbox."
                 )
             lease = WatcherLease(
                 scope=clean_scope,

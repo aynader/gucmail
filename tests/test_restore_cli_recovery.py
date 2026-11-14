@@ -27,7 +27,7 @@ def prepared(tmp_path, monkeypatch):
         calls.append(True)
         return target
 
-    monkeypatch.setattr(cli, "_gateway", gateway)
+    monkeypatch.setattr(cli.core, "gateway", gateway)
     return context, service, archive.backup_id, target, calls
 
 

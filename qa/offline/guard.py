@@ -123,7 +123,7 @@ class Guard:
             name, _mode, flags = args
             if isinstance(name, (str, bytes, os.PathLike)):
                 path = Path(os.fsdecode(name)).resolve()
-                if str(path).rstrip("\\").casefold() in {"\\\\.\\nul", "\\\\?\\nul"}:
+                if str(path).rstrip("\\").casefold() in {"\\\\.\\nul", "\\\\?\\nul", "/dev/null"}:
                     return
                 private = self.inside(path, self.private)
                 write = bool(flags & (os.O_WRONLY | os.O_RDWR | os.O_CREAT | os.O_TRUNC))
@@ -155,10 +155,19 @@ class Guard:
         elif event in {"os.system", "os.startfile", "os.startfile/2", "os.posix_spawn"}:
             self.deny("external_command")
         elif event in {"os.mkdir", "os.remove", "os.rmdir", "os.chmod", "os.utime", "os.rename"}:
-            targets = args[:2] if event == "os.rename" else args[:1]
-            for name in targets:
+            # Each target is paired with its dir_fd (the folder handle a relative name is
+            # opened against). Linux shutil.rmtree deletes that way.
+            if event == "os.rename":
+                targets = [(args[0], args[2]), (args[1], args[3])]
+            else:
+                targets = [(args[0], args[-1])]
+            for name, dir_fd in targets:
                 if isinstance(name, (str, bytes, os.PathLike)):
-                    path = Path(os.fsdecode(name)).resolve()
+                    path = Path(os.fsdecode(name))
+                    if isinstance(dir_fd, int) and dir_fd >= 0 and not path.is_absolute():
+                        with contextlib.suppress(OSError):
+                            path = Path(os.readlink(f"/proc/self/fd/{dir_fd}")) / path
+                    path = path.resolve()
                     if not self.inside(path, self.private) and not self.inside(path, self.output):
                         self.deny("filesystem_mutation_outside_audit")
         elif event in {
@@ -229,6 +238,12 @@ class Guard:
                 str(version.major),
                 f"{version.major}.{version.minor}.{version.build}",
             )
+        else:
+            # On Linux and macOS, platform.processor() runs `uname -p`. Report it as
+            # unknown instead of launching an external command.
+            processor = getattr(platform, "_Processor", None)
+            if processor is not None:
+                processor.from_subprocess = staticmethod(lambda: "")
         original_addresses = socket.getaddrinfo
 
         def numeric_addresses(host, port, family=0, type=0, proto=0, flags=0):

@@ -10,7 +10,8 @@ from typer.core import TyperGroup
 from typer.main import get_command
 from typer.testing import CliRunner
 
-from gucmail.cli import _installed_cli_help_syntax, app
+from gucmail.cli import app
+from gucmail.cli.settings import _installed_cli_help_syntax
 from gucmail.help import HelpRepository
 from gucmail.help.cli_syntax import CliCommandSyntax, CliParameterSyntax, syntax_from_command
 from gucmail.help.validation import validate_help_pages

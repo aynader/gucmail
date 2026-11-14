@@ -23,6 +23,7 @@ from multiprocessing.connection import Connection
 from typing import Any
 
 from gucmail.errors import ConfigurationError, ExitCode, UnsupportedFeatureError
+from gucmail.services.extractors import ensure_resource_tracker
 
 MODEL_VERSION = "local-lsa-v1"
 MAX_TRAINING_CHUNKS = 2_048
@@ -323,6 +324,7 @@ def fit_in_worker(
         tokens(chunk)
     if cancelled and cancelled():
         raise ModelBuildCancelled("Local model build cancelled; existing embeddings are retained.")
+    ensure_resource_tracker()
     context = multiprocessing.get_context("spawn")
     receive, send = context.Pipe(duplex=False)
     process = context.Process(target=_model_worker, args=(send, tuple(chunks), dimensions))

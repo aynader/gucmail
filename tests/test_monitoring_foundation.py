@@ -329,7 +329,7 @@ def test_watcher_lease_rejects_duplicate_scope_and_releases_cleanly() -> None:
     with manager.acquire("account-profile") as lease:
         assert manager.status("account-profile") == lease
         with (
-            pytest.raises(WatcherAlreadyRunningError, match="already running"),
+            pytest.raises(WatcherAlreadyRunningError, match="already watching"),
             manager.acquire("account-profile"),
         ):
             pass
@@ -351,7 +351,7 @@ def test_two_monitors_for_same_account_cannot_overlap(tmp_path) -> None:
     foreground = first.iter_foreground(max_cycles=2)
     next(foreground)
     try:
-        with pytest.raises(WatcherAlreadyRunningError, match="already running"):
+        with pytest.raises(WatcherAlreadyRunningError, match="already watching"):
             second.run_once()
     finally:
         foreground.close()
