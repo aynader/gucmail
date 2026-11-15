@@ -4,7 +4,7 @@
     python qa/test.py tests/test_cli.py -k reply
 
 Everything the run writes goes to one temporary folder that is deleted afterwards.
-The last lines printed are always a summary and the failed tests, if any.
+The last lines printed are always a summary, the failed tests and any guard blocks.
 Use --keep to keep the folder.
 """
 
@@ -36,8 +36,21 @@ def _summary(private: Path, seconds: float) -> list[str]:
     failed = sorted(test for test, outcome in outcomes.items() if outcome == "failed")
     passed = sum(outcome == "passed" for outcome in outcomes.values())
     skipped = sum(outcome == "skipped" for outcome in outcomes.values())
-    lines = [f"SUMMARY {passed} passed, {len(failed)} failed, {skipped} skipped in {seconds:.0f}s"]
+    # A guard block fails the run even when every test passed (a test caught the error).
+    blocked = sorted(
+        {
+            f"BLOCKED {event.get('operation')} in {event.get('test') or 'unknown test'}"
+            for path in private.glob("guard-*.jsonl")
+            for event in map(json.loads, path.read_text(encoding="utf-8").splitlines())
+            if not event.get("expected")
+        }
+    )
+    lines = [
+        f"SUMMARY {passed} passed, {len(failed)} failed, {skipped} skipped, "
+        f"{len(blocked)} blocked in {seconds:.0f}s"
+    ]
     lines += [f"FAILED {test}" for test in failed]
+    lines += blocked
     return lines
 
 

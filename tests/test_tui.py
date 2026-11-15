@@ -1168,7 +1168,7 @@ async def test_activity_palette_executes_every_history_route_and_sanitized_expor
         export_route = catalog_route("activity.export_sanitized_activity_log")
         app._catalog_screen_action(export_route, CommandInvocation(export_route.command_id))
         export_dir = context.paths.data_dir / "exports"
-        for _ in range(80):
+        for _ in range(400):  # slow CI machines need more than 2 s
             await pilot.pause(0.025)
             exports = list(export_dir.glob("gucmail-activity-*.ndjson"))
             if exports:
@@ -1186,7 +1186,24 @@ async def test_activity_palette_executes_every_history_route_and_sanitized_expor
 @pytest.mark.asyncio
 async def test_notification_palette_opens_and_mutates_runtime_configuration(
     tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    import gucmail.tui.app_areas as app_areas
+    from gucmail.services.notification_switch import NotificationSwitch
+    from test_notification_switch import FakeDesktop, FakeOldScheduler, FakeStartup
+
+    # "Turn on notifications" runs the whole setup; keep Task Scheduler and the registry out.
+    monkeypatch.setattr(
+        app_areas,
+        "NotificationSwitch",
+        lambda context: NotificationSwitch(
+            context,
+            startup=FakeStartup(),
+            desktop_setup=FakeDesktop(),
+            old_scheduler=FakeOldScheduler(),
+            send_test=lambda: True,
+        ),
+    )
     context = context_for(tmp_path)
     service = NotificationConfigurationService(context.state)
     service.profiles.save_profile(
@@ -5215,7 +5232,7 @@ async def test_offline_palette_routes_execute_local_workflows_without_exchange(
         assert app.gateway is None
 
         offline_catalog(CommandInvocation("offline.show_offline_status"), CommandContext())
-        for _ in range(80):
+        for _ in range(400):  # slow CI machines need more than 2 s
             await pilot.pause(0.025)
             if isinstance(app.screen, AreaScreen):
                 status_text = str(app.screen.query_one("#area-content", Static).content)
