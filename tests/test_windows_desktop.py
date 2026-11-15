@@ -40,6 +40,7 @@ from gucmail.services.windows_desktop import (
     read_desktop_identity,
 )
 from gucmail.state import StateStore
+from waiting import press_button, rounds, wait_until
 
 EMAIL = "reader@example.test"
 ENDPOINT = "https://exchange.example.test/EWS/Exchange.asmx"
@@ -503,7 +504,7 @@ async def test_normal_notifications_desktop_setup_preview_and_cancel(
     async with app.run_test(size=size) as pilot:
 
         async def wait(predicate):
-            for _ in range(120):
+            for _ in rounds(120):
                 await pilot.pause(0.025)
                 if predicate():
                     return
@@ -604,10 +605,15 @@ async def test_notification_reader_reads_only_target_sanitizes_and_preserves_rea
     )
     app = NotificationReaderApp(context, fingerprint, "m-reference")
     async with app.run_test(size=size) as pilot:
-        for _ in range(120):
-            await pilot.pause(0.025)
-            if "Read-only message" in str(app.query_one("#toast-reader-status", Static).render()):
-                break
+        await wait_until(
+            pilot,
+            lambda: (
+                "Read-only message"
+                in str(app.query_one("#toast-reader-status", Static).render())
+            ),
+            interval=0.025,
+            pause_first=True,
+        )
         content = str(app.query_one("#toast-reader-content", Static).render())
         assert "Read-only message" in str(app.query_one("#toast-reader-status", Static).render())
         assert "Read me" in content and "literal [red]" in content
@@ -618,10 +624,7 @@ async def test_notification_reader_reads_only_target_sanitizes_and_preserves_rea
         )
         assert calls == ["m-reference"]
         await pilot.press("f5")
-        for _ in range(120):
-            await pilot.pause(0.025)
-            if len(calls) == 2:
-                break
+        await wait_until(pilot, lambda: len(calls) == 2, interval=0.025, pause_first=True)
         assert calls == ["m-reference", "m-reference"]
         await pilot.press("escape")
 
@@ -1212,8 +1215,7 @@ async def test_desktop_setup_route_waits_for_actual_notification_read(
                     await asyncio.sleep(0.005)
             await pilot.pause()
             assert app.screen is screen and not reads and not registry.calls
-            button.focus()
-            await pilot.press("enter")
+            await press_button(pilot, button)
             async with asyncio.timeout(15):
                 while not (
                     isinstance(app.screen, DesktopSetupScreen)
@@ -1223,16 +1225,15 @@ async def test_desktop_setup_route_waits_for_actual_notification_read(
                     await asyncio.sleep(0.005)
             desktop = app.screen
             assert reads and not registry.calls and not identity.manifest.exists()
-            desktop.query_one("#desktop-setup-enable", Button).focus()
-            await pilot.press("enter")
-            await pilot.pause()
+            await press_button(pilot, desktop.query_one("#desktop-setup-enable", Button))
+            await wait_until(pilot, lambda: isinstance(app.screen, ConfirmationScreen))
             assert isinstance(app.screen, ConfirmationScreen)
             assert not registry.calls and not identity.manifest.exists()
             await pilot.press("escape")
-            await pilot.pause()
+            await wait_until(pilot, lambda: app.screen is desktop)
             assert app.screen is desktop
             await pilot.press("escape")
-            await pilot.pause()
+            await wait_until(pilot, lambda: app.screen is screen)
             assert app.screen is screen
             assert not registry.calls and not identity.manifest.exists()
     finally:

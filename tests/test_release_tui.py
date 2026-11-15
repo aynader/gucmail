@@ -10,6 +10,7 @@ from textual.widgets import Button, Input, Static
 from gucmail.tui.app import ComposeScreen, ConfirmationScreen, GUCmailApp
 from gucmail.tui.area_common import OperationalScreen, ViewState
 from test_tui_visual_regressions import _context
+from waiting import wait_until
 
 
 @pytest.mark.asyncio
@@ -74,19 +75,19 @@ async def test_timeout_retry_requires_explicit_read_permission(retry_safe):
             "Synthetic operation",
             operation,
             lambda _: None,
-            timeout_seconds=0.15,
+            timeout_seconds=1.0,  # long enough for a busy machine to start the work
             retry_safe=retry_safe,
         )
-        for _ in range(30):
-            if screen.view_state is ViewState.ERROR:
-                break
-            await pilot.pause(0.02)
+        await wait_until(pilot, lambda: screen.view_state is ViewState.ERROR, interval=0.02)
         assert started.is_set()
         assert screen.view_state is ViewState.ERROR
-        assert "0.15 seconds" in str(screen.query_one("#area-state", Static).content)
+        assert "1 seconds" in str(screen.query_one("#area-state", Static).content)
         assert screen.query_one("#area-retry", Button).display is retry_safe
         screen.action_retry()
-        await pilot.pause(0.05)
+        if retry_safe:
+            await wait_until(pilot, lambda: len(calls) == 2)
+        else:
+            await pilot.pause(0.3)  # a wrong retry would have started by now
         assert len(calls) == (2 if retry_safe else 1)
 
 
@@ -108,10 +109,7 @@ async def test_pending_write_cannot_be_superseded_or_repeated(stop):
         await app.push_screen(screen)
         try:
             screen._begin_operation("Save", write, completed.append)
-            for _ in range(50):
-                if started.is_set():
-                    break
-                await pilot.pause(0.02)
+            await wait_until(pilot, lambda: started.is_set(), interval=0.02)
             assert started.is_set() and screen.mutation_pending
             if stop == "cancel":
                 screen.action_cancel_operation()
@@ -127,10 +125,7 @@ async def test_pending_write_cannot_be_superseded_or_repeated(stop):
             assert "still running" in str(screen.query_one("#area-state", Static).content)
         finally:
             release.set()
-        for _ in range(50):
-            if not screen.mutation_pending:
-                break
-            await pilot.pause(0.02)
+        await wait_until(pilot, lambda: not screen.mutation_pending, interval=0.02)
         assert not screen.mutation_pending
         assert completed == (["saved"] if stop == "refresh" else [])
         screen._begin_operation(
@@ -154,10 +149,7 @@ async def test_cancelled_unstarted_write_releases_guard_without_executing(stop):
             screen.action_cancel_operation()
         else:
             screen._operation_timed_out(screen._operation_generation, "Queued save")
-        for _ in range(50):
-            if not screen.mutation_pending:
-                break
-            await pilot.pause(0.02)
+        await wait_until(pilot, lambda: not screen.mutation_pending, interval=0.02)
         assert not screen.mutation_pending and not calls
         screen._begin_operation("Fresh save", lambda *_: calls.append("fresh"), lambda _: None)
         await app.workers.wait_for_complete()

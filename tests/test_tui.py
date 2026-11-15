@@ -119,6 +119,7 @@ from gucmail.tui.settings_screen import SettingsScreen, SettingsTransferScreen
 from gucmail.tui.shortcuts_screen import ShortcutsScreen
 from gucmail.tui.storage_screen import CleanupPlanScreen, StorageScreen
 from gucmail.tui.write_coordinator import app_write_coordinator
+from waiting import rounds, wait_until
 
 
 class FakeGateway:
@@ -518,10 +519,7 @@ async def test_reader_preferences_execute_ask_external_and_narrow_fallback(
     detail = FakeGateway().show_message("m-demo")
 
     async with app.run_test(size=(79, 26)) as pilot:
-        for _ in range(30):
-            if app.ui.selected_reference == "m-demo":
-                break
-            await pilot.pause(0.05)
+        await wait_until(pilot, lambda: app.ui.selected_reference == "m-demo", interval=0.05)
         assert app.ui.selected_reference == "m-demo"
 
         app._render_message(detail, mode="auto")
@@ -598,10 +596,7 @@ async def test_layout_palette_executes_every_required_local_command(tmp_path: Pa
     app = GUCmailApp(context, gateway=FakeGateway())
 
     async with app.run_test(size=(140, 40)) as pilot:
-        for _ in range(30):
-            if app.ui.selected_reference == "m-demo":
-                break
-            await pilot.pause(0.05)
+        await wait_until(pilot, lambda: app.ui.selected_reference == "m-demo", interval=0.05)
         assert app.ui.selected_reference == "m-demo"
 
         original_ratio = app._message_ratio
@@ -647,10 +642,9 @@ async def test_layout_palette_executes_every_required_local_command(tmp_path: Pa
         app._palette_catalog_handler(
             CommandInvocation("layout.open_floating_reader"), app._palette_context()
         )
-        for _ in range(30):
-            await pilot.pause(0.05)
-            if app.query("#floating-reader"):
-                break
+        await wait_until(
+            pilot, lambda: app.query("#floating-reader"), interval=0.05, pause_first=True
+        )
         assert isinstance(app.query_one("#floating-reader"), FloatingReader)
         app._palette_catalog_handler(
             CommandInvocation("layout.close_floating_reader"), app._palette_context()
@@ -758,12 +752,15 @@ async def test_every_help_palette_route_opens_its_real_interactive_destination(
             CommandInvocation.from_mapping("help.search", {"query": "webhhok discord"}),
             app._palette_context(),
         )
-        for _ in range(30):
-            await pilot.pause(0.025)
-            if (
-                isinstance(app.screen, HelpScreen) and app.screen.is_mounted
-            ) and app.screen._result_page_ids:
-                break
+        await wait_until(
+            pilot,
+            lambda: (
+                (isinstance(app.screen, HelpScreen) and app.screen.is_mounted)
+                and app.screen._result_page_ids
+            ),
+            interval=0.025,
+            pause_first=True,
+        )
         assert isinstance(app.screen, HelpScreen)
         assert app.screen.query_one("#help-search", Input).value == "webhhok discord"
         assert app.screen._result_page_ids[0] == "integrations.discord"
@@ -840,12 +837,15 @@ async def test_every_help_palette_route_opens_its_real_interactive_destination(
                 return None
 
         await app.screen.help_link_clicked(LinkEvent("command:help.open"))  # type: ignore[arg-type]
-        for _ in range(40):
-            await pilot.pause(0.025)
-            if (
-                isinstance(app.screen, PaletteScreen) and app.screen.is_mounted
-            ) and app.screen.query_one("#palette-input", Input).value:
-                break
+        await wait_until(
+            pilot,
+            lambda: (
+                (isinstance(app.screen, PaletteScreen) and app.screen.is_mounted)
+                and app.screen.query_one("#palette-input", Input).value
+            ),
+            interval=0.025,
+            pause_first=True,
+        )
         assert isinstance(app.screen, PaletteScreen)
         assert app.screen.query_one("#palette-input", Input).value == "help.open"
         app.screen.dismiss(None)
@@ -857,12 +857,15 @@ async def test_every_help_palette_route_opens_its_real_interactive_destination(
         await app.screen.help_link_clicked(  # type: ignore[arg-type]
             LinkEvent("setting:storage.prohibit_send_mb")
         )
-        for _ in range(80):
-            await pilot.pause(0.025)
-            if (
-                isinstance(app.screen, SettingsScreen) and app.screen.is_mounted
-            ) and app.screen._selected_setting_id == "storage.prohibit_send_mb":
-                break
+        await wait_until(
+            pilot,
+            lambda: (
+                (isinstance(app.screen, SettingsScreen) and app.screen.is_mounted)
+                and app.screen._selected_setting_id == "storage.prohibit_send_mb"
+            ),
+            interval=0.025,
+            pause_first=True,
+        )
         assert isinstance(app.screen, SettingsScreen)
         assert app.screen._selected_setting_id == "storage.prohibit_send_mb"
 
@@ -1153,7 +1156,7 @@ async def test_activity_palette_executes_every_history_route_and_sanitized_expor
                 handlers[command_id](invocation, app._palette_context())
             else:
                 app._palette_catalog_handler(invocation, app._palette_context())
-            for _ in range(60):
+            for _ in rounds(60):
                 await pilot.pause(0.025)
                 if isinstance(app.screen, ActivityScreen):
                     selected = app.screen.query_one("#activity-category", Select).value
@@ -1168,7 +1171,7 @@ async def test_activity_palette_executes_every_history_route_and_sanitized_expor
         export_route = catalog_route("activity.export_sanitized_activity_log")
         app._catalog_screen_action(export_route, CommandInvocation(export_route.command_id))
         export_dir = context.paths.data_dir / "exports"
-        for _ in range(400):  # slow CI machines need more than 2 s
+        for _ in rounds(400):  # slow CI machines need more than 2 s
             await pilot.pause(0.025)
             exports = list(export_dir.glob("gucmail-activity-*.ndjson"))
             if exports:
@@ -1216,7 +1219,7 @@ async def test_notification_palette_opens_and_mutates_runtime_configuration(
     async with app.run_test(size=(140, 42)) as pilot:
 
         async def settings_idle() -> None:
-            for _ in range(500):
+            for _ in rounds(500):
                 await pilot.pause(0.02)
                 screen = app.screen
                 if (
@@ -1232,15 +1235,19 @@ async def test_notification_palette_opens_and_mutates_runtime_configuration(
         handlers["notifications.settings"](
             CommandInvocation("notifications.settings"), app._palette_context()
         )
-        for _ in range(40):
-            await pilot.pause(0.025)
-            if isinstance(app.screen, NotificationSettingsScreen) and app.screen.is_mounted:
-                break
+        await wait_until(
+            pilot,
+            lambda: (
+                isinstance(app.screen, NotificationSettingsScreen) and app.screen.is_mounted
+            ),
+            interval=0.025,
+            pause_first=True,
+        )
         assert isinstance(app.screen, NotificationSettingsScreen)
 
         enable = catalog_route("notifications.enable_desktop_notifications")
         app._catalog_screen_action(enable, CommandInvocation(enable.command_id))
-        for _ in range(40):
+        for _ in rounds(40):
             await pilot.pause(0.025)
             metadata = service.providers.get_provider("desktop")
             if metadata is not None and metadata.enabled:
@@ -1251,7 +1258,7 @@ async def test_notification_palette_opens_and_mutates_runtime_configuration(
 
         full = catalog_route("notifications.show_full_preview")
         app._catalog_screen_action(full, CommandInvocation(full.command_id))
-        for _ in range(40):
+        for _ in rounds(40):
             await pilot.pause(0.025)
             active = service.profiles.active_profile()
             if (
@@ -1269,7 +1276,7 @@ async def test_notification_palette_opens_and_mutates_runtime_configuration(
         handlers["notifications.history"](
             CommandInvocation("notifications.history"), app._palette_context()
         )
-        for _ in range(40):
+        for _ in rounds(40):
             await pilot.pause(0.025)
             if isinstance(app.screen, ActivityScreen):
                 value = app.screen.query_one("#activity-category", Select).value
@@ -1378,10 +1385,14 @@ async def test_backup_palette_routes_preserve_kind_folder_search_and_cluster_sco
     async def invoke_create(command_id: str) -> BackupScreen:
         route = catalog_route(command_id)
         app._catalog_screen_action(route, CommandInvocation(route.command_id))
-        for _ in range(80):
-            if isinstance(app.screen, OperationalConfirmationScreen) and app.screen.is_mounted:
-                break
-            await pilot.pause(0.03)
+        await wait_until(
+            pilot,
+            lambda: (
+                isinstance(app.screen, OperationalConfirmationScreen)
+                and app.screen.is_mounted
+            ),
+            interval=0.03,
+        )
         assert isinstance(app.screen, OperationalConfirmationScreen)
         backup = next(
             screen for screen in reversed(app.screen_stack) if isinstance(screen, BackupScreen)
@@ -1397,10 +1408,9 @@ async def test_backup_palette_routes_preserve_kind_folder_search_and_cluster_sco
         await pilot.pause()
 
     async with app.run_test(size=(120, 35)) as pilot:
-        for _ in range(40):
-            if app.query_one("#message-table", DataTable).row_count:
-                break
-            await pilot.pause(0.03)
+        await wait_until(
+            pilot, lambda: app.query_one("#message-table", DataTable).row_count, interval=0.03
+        )
 
         full = await invoke_create("backup.create_full_backup")
         assert full._parse_request().kind == "full"
@@ -1408,10 +1418,11 @@ async def test_backup_palette_routes_preserve_kind_folder_search_and_cluster_sco
 
         route = catalog_route("backup.create_incremental_backup")
         app._catalog_screen_action(route, CommandInvocation(route.command_id))
-        for _ in range(80):
-            if isinstance(app.screen, BackupScreen) and app.screen._repository_loaded:
-                break
-            await pilot.pause(0.03)
+        await wait_until(
+            pilot,
+            lambda: isinstance(app.screen, BackupScreen) and app.screen._repository_loaded,
+            interval=0.03,
+        )
         assert isinstance(app.screen, BackupScreen)
         assert "Select a complete archive" in str(
             app.screen.query_one("#area-state", Static).render()
@@ -1652,10 +1663,9 @@ async def test_tui_startup_navigation_help_and_palette(tmp_path: Path) -> None:
         assert str(app.query_one("#brand-u", Static).content) == "U"
         assert str(app.query_one("#brand-c", Static).content) == "C"
         assert str(app.query_one("#brand-name", Static).content) == " Mail CLI"
-        for _ in range(20):
-            if app.query_one("#message-table").row_count == 1:  # type: ignore[attr-defined]
-                break
-            await pilot.pause(0.05)
+        await wait_until(
+            pilot, lambda: app.query_one("#message-table").row_count == 1, interval=0.05
+        )
         assert app.query_one("#message-table").row_count == 1  # type: ignore[attr-defined]
         assert "Send limit ?/92 MiB" in str(app.query_one("#account-bar", Static).content)
         await pilot.press("?")
@@ -1668,10 +1678,12 @@ async def test_tui_startup_navigation_help_and_palette(tmp_path: Path) -> None:
         assert "teacher@example.test" in app.screen.person_candidates
         await pilot.press("escape")
         app._open_area("settings")
-        for _ in range(20):
-            await pilot.pause(0.05)
-            if app.screen.query_one("#settings-form", SettingsForm).row_count:
-                break
+        await wait_until(
+            pilot,
+            lambda: app.screen.query_one("#settings-form", SettingsForm).row_count,
+            interval=0.05,
+            pause_first=True,
+        )
         assert isinstance(app.screen, SettingsScreen)
         assert app.screen.query_one("#settings-form", SettingsForm).row_count > 0
         await pilot.press("escape")
@@ -1766,7 +1778,7 @@ async def test_palette_custom_launcher_grouping_previews_and_frequency(tmp_path:
         await pilot.pause()
         interpretation = str(screen.query_one("#palette-explanation", Static).content)
         assert interpretation.startswith("→ Make Preview Wider")
-        for _ in range(80):
+        for _ in rounds(80):
             items = tuple(screen.query(".palette-item"))
             if items and all(item.query("Label") for item in items):
                 break
@@ -1774,7 +1786,7 @@ async def test_palette_custom_launcher_grouping_previews_and_frequency(tmp_path:
         labels = "\n".join(
             str(item.query_one("Label").content) for item in screen.query(".palette-item")
         )
-        for _ in range(40):
+        for _ in rounds(40):
             if "Frequent x3" in labels:
                 break
             await pilot.pause(0.025)
@@ -1832,10 +1844,7 @@ async def test_palette_renders_secondpass_short_families_and_executes_tomorrow_c
     }
 
     async with app.run_test(size=(100, 30)) as pilot:
-        for _ in range(30):
-            if app.ui.online:
-                break
-            await pilot.pause(0.05)
+        await wait_until(pilot, lambda: app.ui.online, interval=0.05)
         assert app.ui.online
         await pilot.press("ctrl+k")
         assert isinstance(app.screen, PaletteScreen)
@@ -1862,10 +1871,12 @@ async def test_palette_renders_secondpass_short_families_and_executes_tomorrow_c
         assert isinstance(app.screen, ConfirmationScreen)
         assert "Create Event Tomorrow" in app.screen._dialog_title
         app.screen.dismiss(True)
-        for _ in range(50):
-            await pilot.pause(0.05)
-            if isinstance(app.screen, CalendarEditorScreen) and app.screen.is_mounted:
-                break
+        await wait_until(
+            pilot,
+            lambda: isinstance(app.screen, CalendarEditorScreen) and app.screen.is_mounted,
+            interval=0.05,
+            pause_first=True,
+        )
         assert isinstance(app.screen, CalendarEditorScreen)
         expected_day = (datetime.now(ZoneInfo("Africa/Cairo")) + timedelta(days=1)).date()
         start = app.screen.query_one("#calendar-edit-start", Input).value
@@ -1905,10 +1916,12 @@ async def test_appearance_palette_executes_browser_and_durable_accessibility_act
         app._palette_catalog_handler(
             CommandInvocation(open_route.command_id), app._palette_context()
         )
-        for _ in range(40):
-            await pilot.pause(0.025)
-            if isinstance(app.screen, ThemeBrowserScreen) and app.screen.is_mounted:
-                break
+        await wait_until(
+            pilot,
+            lambda: isinstance(app.screen, ThemeBrowserScreen) and app.screen.is_mounted,
+            interval=0.025,
+            pause_first=True,
+        )
         assert isinstance(app.screen, ThemeBrowserScreen)
 
         search_route = catalog_route("appearance.search_themes")
@@ -1918,10 +1931,11 @@ async def test_appearance_palette_executes_browser_and_durable_accessibility_act
         )
         await pilot.pause()
         assert app.screen.query_one("#theme-search", Input).value == "defalt drk"
-        for _ in range(40):
-            if app.screen._selected_theme_id == "builtin.default-dark":
-                break
-            await pilot.pause(0.025)
+        await wait_until(
+            pilot,
+            lambda: app.screen._selected_theme_id == "builtin.default-dark",
+            interval=0.025,
+        )
         assert app.screen._selected_theme_id == "builtin.default-dark"
 
         favorite_route = catalog_route("appearance.favorite_theme")
@@ -2079,10 +2093,9 @@ async def test_mail_bounded_selection_bulk_export_backup_and_external_open(
     monkeypatch.setattr("gucmail.tui.app_mail._open_file_with_registered_handler", opened.append)
 
     async with app.run_test(size=(120, 35)) as pilot:
-        for _ in range(30):
-            if app.query_one("#message-table").row_count == 3:  # type: ignore[attr-defined]
-                break
-            await pilot.pause(0.05)
+        await wait_until(
+            pilot, lambda: app.query_one("#message-table").row_count == 3, interval=0.05
+        )
         assert app.query_one("#message-table").row_count == 3  # type: ignore[attr-defined]
 
         select_unread = catalog_route("mail.select_unread")
@@ -2120,10 +2133,7 @@ async def test_mail_bounded_selection_bulk_export_backup_and_external_open(
         assert "m-one" in app.screen.detail and "m-three" in app.screen.detail
         assert "m-two" not in app.screen.detail
         app.screen.dismiss(True)
-        for _ in range(30):
-            if len(gateway.marked) == 2:
-                break
-            await pilot.pause(0.05)
+        await wait_until(pilot, lambda: len(gateway.marked) == 2, interval=0.05)
         assert gateway.marked == [("m-one", True), ("m-three", True)]
 
         app._selected_message_references = {"m-one", "m-three"}
@@ -2137,10 +2147,7 @@ async def test_mail_bounded_selection_bulk_export_backup_and_external_open(
         await pilot.pause()
         assert isinstance(app.screen, ConfirmationScreen)
         app.screen.dismiss(True)
-        for _ in range(40):
-            if len(tuple(destination.glob("*.eml"))) == 2:
-                break
-            await pilot.pause(0.05)
+        await wait_until(pilot, lambda: len(tuple(destination.glob("*.eml"))) == 2, interval=0.05)
         exported = tuple(destination.glob("*.eml"))
         assert len(exported) == 2
         assert all(path.read_bytes().startswith(b"Subject: m-") for path in exported)
@@ -2302,52 +2309,44 @@ async def test_mail_folder_navigation_opens_adjacent_and_returns_to_real_history
     gateway = NavigationGateway()
     app = GUCmailApp(context_for(tmp_path), gateway=gateway)
     async with app.run_test(size=(120, 35)) as pilot:
-        for _ in range(30):
-            if gateway.loaded_folders:
-                break
-            await pilot.pause(0.05)
+        await wait_until(pilot, lambda: gateway.loaded_folders, interval=0.05)
 
         open_sent = CommandInvocation("mail.open_sent")
         app._palette_handlers()["mail.open_sent"](open_sent, app._palette_context())
-        for _ in range(30):
-            if app.ui.folder == "sent":
-                break
-            await pilot.pause(0.05)
+        await wait_until(pilot, lambda: app.ui.folder == "sent", interval=0.05)
         assert app.ui.folder == "sent"
 
         open_archive = CommandInvocation("mail.open_archive")
         app._palette_handlers()["mail.open_archive"](open_archive, app._palette_context())
-        for _ in range(30):
-            if app.ui.folder == "archive" and not app.ui.busy:
-                break
-            await pilot.pause(0.05)
+        await wait_until(
+            pilot, lambda: app.ui.folder == "archive" and not app.ui.busy, interval=0.05
+        )
         assert app.ui.folder == "archive"
         assert not app.ui.busy
 
         app._catalog_application_action(catalog_route("mail.return_to_last_location"))
-        for _ in range(30):
-            if app.ui.folder == "sent":
-                break
-            await pilot.pause(0.05)
+        await wait_until(pilot, lambda: app.ui.folder == "sent", interval=0.05)
         assert app.ui.folder == "sent"
         assert app._folder_location_history == ["inbox", "sent"]
 
         tree = app.query_one("#folder-tree")
         tree.root.expand()
-        for _ in range(30):
-            if "sent" in app._folder_nodes and "archive" in app._folder_nodes:
-                break
-            await pilot.pause(0.05)
+        await wait_until(
+            pilot,
+            lambda: "sent" in app._folder_nodes and "archive" in app._folder_nodes,
+            interval=0.05,
+        )
         tree.select_node(tree.get_node_by_id(app._folder_nodes["sent"]))
         await pilot.pause()
         app._catalog_direct(
             catalog_route("mail.open_next_folder"),
             CommandInvocation("mail.open_next_folder"),
         )
-        for _ in range(30):
-            if app.ui.folder != "sent" and gateway.loaded_folders[-1] == app.ui.folder:
-                break
-            await pilot.pause(0.05)
+        await wait_until(
+            pilot,
+            lambda: app.ui.folder != "sent" and gateway.loaded_folders[-1] == app.ui.folder,
+            interval=0.05,
+        )
         assert app.ui.folder in {"inbox", "archive"}
         assert gateway.loaded_folders[-1] == app.ui.folder
 
@@ -2362,17 +2361,15 @@ async def test_mail_reader_detail_source_and_copy_routes_honor_their_intents(
     monkeypatch.setattr(app, "copy_to_clipboard", copied.append)
 
     async with app.run_test(size=(120, 35)) as pilot:
-        for _ in range(30):
-            if app.ui.selected_reference == "m-demo":
-                break
-            await pilot.pause(0.05)
+        await wait_until(pilot, lambda: app.ui.selected_reference == "m-demo", interval=0.05)
 
         full = catalog_route("mail.open_selected_message_in_reader")
         app._catalog_direct(full, CommandInvocation(full.command_id))
-        for _ in range(30):
-            if isinstance(app.screen, ReaderScreen) and app.screen.is_mounted:
-                break
-            await pilot.pause(0.05)
+        await wait_until(
+            pilot,
+            lambda: isinstance(app.screen, ReaderScreen) and app.screen.is_mounted,
+            interval=0.05,
+        )
         assert isinstance(app.screen, ReaderScreen)
         assert "Hello" in str(app.screen.query_one("#reader-screen-content", Static).content)
         app.screen.dismiss(None)
@@ -2380,10 +2377,11 @@ async def test_mail_reader_detail_source_and_copy_routes_honor_their_intents(
 
         details = catalog_route("mail.open_message_details")
         app._catalog_direct(details, CommandInvocation(details.command_id))
-        for _ in range(30):
-            if isinstance(app.screen, ReaderScreen) and app.screen.is_mounted:
-                break
-            await pilot.pause(0.05)
+        await wait_until(
+            pilot,
+            lambda: isinstance(app.screen, ReaderScreen) and app.screen.is_mounted,
+            interval=0.05,
+        )
         assert isinstance(app.screen, ReaderScreen)
         rendered = str(app.screen.query_one("#reader-screen-content", Static).content)
         assert "Local reference: m-demo" in rendered
@@ -2469,39 +2467,41 @@ async def test_every_mail_palette_command_is_executable_and_core_handlers_mutate
             ("mail.open_archive", "archive"),
         ):
             handlers[command_id](CommandInvocation(command_id), app._palette_context())
-            for _ in range(30):
-                if app.ui.folder == folder and not app.ui.busy:
-                    break
-                await pilot.pause(0.05)
+            await wait_until(
+                pilot, lambda: app.ui.folder == folder and not app.ui.busy, interval=0.05  # noqa: B023 - wait_until runs it right away
+            )
             assert app.ui.folder == folder
 
         handlers["mail.open_unread"](CommandInvocation("mail.open_unread"), app._palette_context())
-        for _ in range(30):
-            if gateway.searches and gateway.searches[-1].is_read is False:
-                break
-            await pilot.pause(0.05)
+        await wait_until(
+            pilot,
+            lambda: gateway.searches and gateway.searches[-1].is_read is False,
+            interval=0.05,
+        )
         assert gateway.searches[-1].is_read is False
 
         handlers["mail.open_flagged"](
             CommandInvocation("mail.open_flagged"), app._palette_context()
         )
-        for _ in range(30):
-            if gateway.searches and gateway.searches[-1].flagged is True:
-                break
-            await pilot.pause(0.05)
+        await wait_until(
+            pilot,
+            lambda: gateway.searches and gateway.searches[-1].flagged is True,
+            interval=0.05,
+        )
         assert gateway.searches[-1].flagged is True
 
         app.ui.selected_reference = "message-inbox"
         for command_id in ("mail.mark_read", "mail.mark_unread", "mail.flag", "mail.unflag"):
             expected = len(gateway.read_changes) + len(gateway.flag_changes) + 1
             handlers[command_id](CommandInvocation(command_id), app._palette_context())
-            for _ in range(30):
-                if (
-                    len(gateway.read_changes) + len(gateway.flag_changes) >= expected
+            await wait_until(
+                pilot,
+                lambda: (
+                    len(gateway.read_changes) + len(gateway.flag_changes) >= expected  # noqa: B023 - wait_until runs it right away
                     and not app_write_coordinator(app).pending
-                ):
-                    break
-                await pilot.pause(0.05)
+                ),
+                interval=0.05,
+            )
             app.ui.selected_reference = "message-inbox"
 
     assert gateway.read_changes == [("message-inbox", True), ("message-inbox", False)]
@@ -2524,10 +2524,7 @@ async def test_compose_prefill_routes_use_contact_sender_and_selected_recipients
 
     app = GUCmailApp(context_for(tmp_path), gateway=RecipientGateway())
     async with app.run_test(size=(120, 35)) as pilot:
-        for _ in range(30):
-            if app.ui.selected_reference == "m-demo":
-                break
-            await pilot.pause(0.05)
+        await wait_until(pilot, lambda: app.ui.selected_reference == "m-demo", interval=0.05)
 
         sender = catalog_route("compose.compose_to_selected_sender")
         app._catalog_application_action(sender, CommandInvocation(sender.command_id))
@@ -2550,10 +2547,11 @@ async def test_compose_prefill_routes_use_contact_sender_and_selected_recipients
 
         recipients = catalog_route("compose.compose_to_selected_recipients")
         app._catalog_application_action(recipients, CommandInvocation(recipients.command_id))
-        for _ in range(30):
-            if isinstance(app.screen, ComposeScreen) and app.screen.is_mounted:
-                break
-            await pilot.pause(0.05)
+        await wait_until(
+            pilot,
+            lambda: isinstance(app.screen, ComposeScreen) and app.screen.is_mounted,
+            interval=0.05,
+        )
         assert isinstance(app.screen, ComposeScreen)
         assert app.screen.query_one("#compose-to", Input).value == (
             "peer@example.test, other@example.test"
@@ -2600,14 +2598,15 @@ async def test_compose_current_draft_save_modes_duplicate_discard_and_handler_co
 
         duplicate = catalog_route("compose.duplicate_current_draft")
         app._catalog_open(duplicate, CommandInvocation(duplicate.command_id))
-        for _ in range(30):
-            if (
+        await wait_until(
+            pilot,
+            lambda: (
                 isinstance(app.screen, ComposeScreen)
                 and app.screen is not composer
                 and app.screen.is_mounted
-            ):
-                break
-            await pilot.pause(0.05)
+            ),
+            interval=0.05,
+        )
         assert isinstance(app.screen, ComposeScreen)
         await _ready_composer_for_editing(pilot)
         assert app.screen.draft.reference != "dft-current"
@@ -2625,10 +2624,11 @@ async def test_compose_current_draft_save_modes_duplicate_discard_and_handler_co
             await _ready_composer_for_editing(pilot)
             route = catalog_route(command_id)
             app._catalog_direct(route, CommandInvocation(route.command_id))
-            for _ in range(30):
-                if captured and captured[-1].get("save_mode") == mode:
-                    break
-                await pilot.pause(0.05)
+            await wait_until(
+                pilot,
+                lambda: captured and captured[-1].get("save_mode") == mode,  # noqa: B023 - wait_until runs it right away
+                interval=0.05,
+            )
             assert captured[-1]["save_mode"] == mode
 
         service = DraftService(
@@ -2647,10 +2647,7 @@ async def test_compose_current_draft_save_modes_duplicate_discard_and_handler_co
         assert isinstance(app.screen, ConfirmationScreen)
         assert "dft-discard" in app.screen.detail
         app.screen.dismiss(True)
-        for _ in range(30):
-            if not service.exists("dft-discard"):
-                break
-            await pilot.pause(0.05)
+        await wait_until(pilot, lambda: not service.exists("dft-discard"), interval=0.05)
         assert not service.exists("dft-discard")
         assert not service.recovery_path("dft-discard").exists()
 
@@ -2660,10 +2657,11 @@ async def test_compose_current_draft_save_modes_duplicate_discard_and_handler_co
             "compose.recover_draft", {"reference": "dft-recover"}
         )
         app._palette_handlers()["compose.recover_draft"](invocation, app._palette_context())
-        for _ in range(30):
-            if isinstance(app.screen, ComposeScreen) and app.screen.is_mounted:
-                break
-            await pilot.pause(0.05)
+        await wait_until(
+            pilot,
+            lambda: isinstance(app.screen, ComposeScreen) and app.screen.is_mounted,
+            interval=0.05,
+        )
         assert isinstance(app.screen, ComposeScreen)
         await _ready_composer_for_editing(pilot)
         assert app.screen.query_one("#compose-subject", Input).value == "Recovered through palette"
@@ -2730,29 +2728,37 @@ async def test_pim_cross_area_actions_open_composer_and_related_mail(tmp_path: P
     app = GUCmailApp(context_for(tmp_path), gateway=FakeGateway())
     async with app.run_test(size=(120, 35)) as pilot:
         app._open_area("contacts")
-        for _ in range(20):
-            await pilot.pause(0.05)
-            if (
-                isinstance(app.screen, ContactsScreen) and app.screen.is_mounted
-            ) and app.screen.query_one("#contacts-table").row_count:
-                break
+        await wait_until(
+            pilot,
+            lambda: (
+                (isinstance(app.screen, ContactsScreen) and app.screen.is_mounted)
+                and app.screen.query_one("#contacts-table").row_count
+            ),
+            interval=0.05,
+            pause_first=True,
+        )
         assert isinstance(app.screen, ContactsScreen)
         app.screen.action_compose()
-        for _ in range(20):
-            await pilot.pause(0.05)
-            if isinstance(app.screen, ComposeScreen) and app.screen.is_mounted:
-                break
+        await wait_until(
+            pilot,
+            lambda: isinstance(app.screen, ComposeScreen) and app.screen.is_mounted,
+            interval=0.05,
+            pause_first=True,
+        )
         assert isinstance(app.screen, ComposeScreen)
         assert app.screen.query_one("#compose-to", Input).value == "contact@example.test"
         app.screen.dismiss(None)
 
         app._open_area("contacts")
-        for _ in range(20):
-            await pilot.pause(0.05)
-            if (
-                isinstance(app.screen, ContactsScreen) and app.screen.is_mounted
-            ) and app.screen.query_one("#contacts-table").row_count:
-                break
+        await wait_until(
+            pilot,
+            lambda: (
+                (isinstance(app.screen, ContactsScreen) and app.screen.is_mounted)
+                and app.screen.query_one("#contacts-table").row_count
+            ),
+            interval=0.05,
+            pause_first=True,
+        )
         assert isinstance(app.screen, ContactsScreen)
         app.screen.post_message(
             PimActionRequested(
@@ -2762,32 +2768,42 @@ async def test_pim_cross_area_actions_open_composer_and_related_mail(tmp_path: P
                 payload={"addresses": ("contact@example.test",)},
             )
         )
-        for _ in range(40):
-            await pilot.pause(0.05)
-            if app.screen is app.screen_stack[0] and "Correspondence with" in str(
-                app.query_one("#status-bar", Static).content
-            ):
-                break
+        await wait_until(
+            pilot,
+            lambda: (
+                app.screen is app.screen_stack[0]
+                and "Correspondence with" in str(app.query_one("#status-bar", Static).content)
+            ),
+            interval=0.05,
+            pause_first=True,
+        )
         assert app.screen is app.screen_stack[0]
         assert app.query_one("#message-table").row_count == 1
 
         app._open_area("calendar")
-        for _ in range(20):
-            await pilot.pause(0.05)
-            if (
-                isinstance(app.screen, CalendarScreen) and app.screen.is_mounted
-            ) and app.screen.query_one("#calendar-table").row_count:
-                break
+        await wait_until(
+            pilot,
+            lambda: (
+                (isinstance(app.screen, CalendarScreen) and app.screen.is_mounted)
+                and app.screen.query_one("#calendar-table").row_count
+            ),
+            interval=0.05,
+            pause_first=True,
+        )
         assert isinstance(app.screen, CalendarScreen)
         app.screen.post_message(PimActionRequested("calendar", "related_messages", ("event-demo",)))
         # The preceding contact search already populated this table. Wait for
         # this calendar request's result before checking its unchanged assertions.
-        for _ in range(100):
-            await pilot.pause(0.05)
-            if app.screen is app.screen_stack[0] and "Related mail for Synthetic lecture" in str(
-                app.query_one("#status-bar", Static).content
-            ):
-                break
+        await wait_until(
+            pilot,
+            lambda: (
+                app.screen is app.screen_stack[0]
+                and "Related mail for Synthetic lecture"
+                in str(app.query_one("#status-bar", Static).content)
+            ),
+            interval=0.05,
+            pause_first=True,
+        )
         assert app.screen is app.screen_stack[0]
         assert app.query_one("#message-table").row_count == 1
         assert "Related mail for Synthetic lecture" in str(
@@ -2801,21 +2817,26 @@ async def test_contact_palette_routes_execute_contextual_and_cross_area_actions(
 ) -> None:
     app = GUCmailApp(context_for(tmp_path), gateway=FakeGateway())
     async with app.run_test(size=(120, 35)) as pilot:
-        for _ in range(30):
-            await pilot.pause(0.05)
-            if app.ui.selected_reference == "m-demo":
-                break
+        await wait_until(
+            pilot,
+            lambda: app.ui.selected_reference == "m-demo",
+            interval=0.05,
+            pause_first=True,
+        )
 
         app._palette_contacts_search(
             CommandInvocation.from_mapping("contacts.search", {"query": "Synthetic"}),
             CommandContext(),
         )
-        for _ in range(30):
-            await pilot.pause(0.05)
-            if (
-                isinstance(app.screen, ContactsScreen) and app.screen.is_mounted
-            ) and app.screen.query_one("#contacts-search", Input).value == "Synthetic":
-                break
+        await wait_until(
+            pilot,
+            lambda: (
+                (isinstance(app.screen, ContactsScreen) and app.screen.is_mounted)
+                and app.screen.query_one("#contacts-search", Input).value == "Synthetic"
+            ),
+            interval=0.05,
+            pause_first=True,
+        )
         assert isinstance(app.screen, ContactsScreen)
         assert app.screen.query_one("#contacts-search", Input).value == "Synthetic"
         app.pop_screen()
@@ -2828,16 +2849,18 @@ async def test_contact_palette_routes_execute_contextual_and_cross_area_actions(
                 directory_route.command_id, {"query": "directory@example.test"}
             ),
         )
-        for _ in range(30):
-            await pilot.pause(0.05)
-            if (
+        await wait_until(
+            pilot,
+            lambda: (
                 (isinstance(app.screen, ContactsScreen) and app.screen.is_mounted)
                 and "lookup completed"
                 in str(app.screen.query_one("#area-state", Static).content).casefold()
                 and "Directory Result"
                 in str(app.screen.query_one("#contacts-detail", Static).content)
-            ):
-                break
+            ),
+            interval=0.05,
+            pause_first=True,
+        )
         assert isinstance(app.screen, ContactsScreen)
         assert app.screen.query_one("#contacts-search", Input).value == "directory@example.test"
         assert "Directory Result" in str(app.screen.query_one("#contacts-detail", Static).content)
@@ -2846,12 +2869,15 @@ async def test_contact_palette_routes_execute_contextual_and_cross_area_actions(
 
         search_route = catalog_route("contacts.open_sender_contact")
         app._catalog_open(search_route, CommandInvocation(search_route.command_id))
-        for _ in range(30):
-            await pilot.pause(0.05)
-            if (
-                isinstance(app.screen, ContactsScreen) and app.screen.is_mounted
-            ) and app.screen.query_one("#contacts-search", Input).value:
-                break
+        await wait_until(
+            pilot,
+            lambda: (
+                (isinstance(app.screen, ContactsScreen) and app.screen.is_mounted)
+                and app.screen.query_one("#contacts-search", Input).value
+            ),
+            interval=0.05,
+            pause_first=True,
+        )
         assert isinstance(app.screen, ContactsScreen)
         assert app.screen.query_one("#contacts-search", Input).value == "teacher@example.test"
         app.pop_screen()
@@ -2859,10 +2885,12 @@ async def test_contact_palette_routes_execute_contextual_and_cross_area_actions(
 
         add_route = catalog_route("contacts.add_sender_to_contacts")
         app._catalog_open(add_route, CommandInvocation(add_route.command_id))
-        for _ in range(30):
-            await pilot.pause(0.05)
-            if isinstance(app.screen, ContactEditorScreen) and app.screen.is_mounted:
-                break
+        await wait_until(
+            pilot,
+            lambda: isinstance(app.screen, ContactEditorScreen) and app.screen.is_mounted,
+            interval=0.05,
+            pause_first=True,
+        )
         assert isinstance(app.screen, ContactEditorScreen)
         assert app.screen.query_one("#contact-edit-name", Input).value == "Course Team"
         assert app.screen.query_one("#contact-edit-emails", Input).value == "teacher@example.test"
@@ -2873,12 +2901,15 @@ async def test_contact_palette_routes_execute_contextual_and_cross_area_actions(
 
         history_route = catalog_route("contacts.show_recent_recipients")
         app._catalog_open(history_route, CommandInvocation(history_route.command_id))
-        for _ in range(30):
-            await pilot.pause(0.05)
-            if (
-                isinstance(app.screen, CorrespondentsScreen) and app.screen.is_mounted
-            ) and app.screen.query_one("#correspondents-table").row_count:
-                break
+        await wait_until(
+            pilot,
+            lambda: (
+                (isinstance(app.screen, CorrespondentsScreen) and app.screen.is_mounted)
+                and app.screen.query_one("#correspondents-table").row_count
+            ),
+            interval=0.05,
+            pause_first=True,
+        )
         assert isinstance(app.screen, CorrespondentsScreen)
         assert app.screen.order == "recent"
         assert app.screen.query_one("#correspondents-table").row_count == 1
@@ -2886,19 +2917,24 @@ async def test_contact_palette_routes_execute_contextual_and_cross_area_actions(
         await pilot.pause()
 
         app._open_area("contacts")
-        for _ in range(30):
-            await pilot.pause(0.05)
-            if (
-                isinstance(app.screen, ContactsScreen) and app.screen.is_mounted
-            ) and app.screen.query_one("#contacts-table").row_count:
-                break
+        await wait_until(
+            pilot,
+            lambda: (
+                (isinstance(app.screen, ContactsScreen) and app.screen.is_mounted)
+                and app.screen.query_one("#contacts-table").row_count
+            ),
+            interval=0.05,
+            pause_first=True,
+        )
         assert isinstance(app.screen, ContactsScreen)
         meeting_route = catalog_route("contacts.schedule_meeting_with_contact")
         app._catalog_screen_action(meeting_route, CommandInvocation(meeting_route.command_id))
-        for _ in range(40):
-            await pilot.pause(0.05)
-            if isinstance(app.screen, CalendarEditorScreen) and app.screen.is_mounted:
-                break
+        await wait_until(
+            pilot,
+            lambda: isinstance(app.screen, CalendarEditorScreen) and app.screen.is_mounted,
+            interval=0.05,
+            pause_first=True,
+        )
         assert isinstance(app.screen, CalendarEditorScreen)
         assert (
             app.screen.query_one("#calendar-edit-required", Input).value == "contact@example.test"
@@ -2933,17 +2969,21 @@ async def test_calendar_palette_executes_availability_proposal_and_message_hando
     monkeypatch.setattr(CalendarAvailabilityScreen, "__init__", workday_init)
     app = GUCmailApp(context_for(tmp_path), gateway=FakeGateway())
     async with app.run_test(size=(120, 35)) as pilot:
-        for _ in range(30):
-            await pilot.pause(0.05)
-            if app.ui.selected_reference == "m-demo":
-                break
+        await wait_until(
+            pilot,
+            lambda: app.ui.selected_reference == "m-demo",
+            interval=0.05,
+            pause_first=True,
+        )
 
         create_route = catalog_route("calendar.create_event_from_selected_email")
         app._catalog_open(create_route, CommandInvocation(create_route.command_id))
-        for _ in range(40):
-            await pilot.pause(0.05)
-            if isinstance(app.screen, CalendarEditorScreen) and app.screen.is_mounted:
-                break
+        await wait_until(
+            pilot,
+            lambda: isinstance(app.screen, CalendarEditorScreen) and app.screen.is_mounted,
+            interval=0.05,
+            pause_first=True,
+        )
         assert isinstance(app.screen, CalendarEditorScreen)
         assert (
             app.screen.query_one("#calendar-edit-subject", Input).value
@@ -2956,10 +2996,12 @@ async def test_calendar_palette_executes_availability_proposal_and_message_hando
         await pilot.pause()
         assert isinstance(app.screen, CalendarScreen)
 
-        for _ in range(30):
-            await pilot.pause(0.05)
-            if app.screen.query_one("#calendar-table").row_count:
-                break
+        await wait_until(
+            pilot,
+            lambda: app.screen.query_one("#calendar-table").row_count,
+            interval=0.05,
+            pause_first=True,
+        )
 
         availability_route = catalog_route("calendar.check_availability")
         app._catalog_screen_action(
@@ -2972,12 +3014,17 @@ async def test_calendar_palette_executes_availability_proposal_and_message_hando
             app.screen.query_one("#availability-attendees", Input).value == "student@example.test"
         )
         app.screen.query_one("#availability-check", Button).press()
-        for _ in range(40):
-            await pilot.pause(0.05)
-            if (isinstance(app.screen, CalendarScreen) and app.screen.is_mounted) and str(
-                app.screen.query_one("#calendar-detail", Static).content
-            ).startswith("Availability · "):
-                break
+        await wait_until(
+            pilot,
+            lambda: (
+                (isinstance(app.screen, CalendarScreen) and app.screen.is_mounted)
+                and str(app.screen.query_one("#calendar-detail", Static).content).startswith(
+                    "Availability · "
+                )
+            ),
+            interval=0.05,
+            pause_first=True,
+        )
         assert isinstance(app.screen, CalendarScreen)
         assert "student@example.test" in str(
             app.screen.query_one("#calendar-detail", Static).content
@@ -2988,14 +3035,16 @@ async def test_calendar_palette_executes_availability_proposal_and_message_hando
         await pilot.pause()
         assert isinstance(app.screen, CalendarAvailabilityScreen)
         app.screen.query_one("#availability-check", Button).press()
-        for _ in range(40):
-            await pilot.pause(0.05)
-            if (
-                isinstance(app.screen, CalendarScreen) and app.screen.is_mounted
-            ) and "First common free slot" in str(
-                app.screen.query_one("#calendar-detail", Static).content
-            ):
-                break
+        await wait_until(
+            pilot,
+            lambda: (
+                (isinstance(app.screen, CalendarScreen) and app.screen.is_mounted)
+                and "First common free slot"
+                in str(app.screen.query_one("#calendar-detail", Static).content)
+            ),
+            interval=0.05,
+            pause_first=True,
+        )
         assert "First common free slot" in str(
             app.screen.query_one("#calendar-detail", Static).content
         )
@@ -3045,22 +3094,26 @@ async def test_calendar_free_time_never_confirms_incomplete_or_out_of_window_res
     app = GUCmailApp(context_for(tmp_path), gateway=FakeGateway())
     async with app.run_test(size=(120, 35)) as pilot:
         app._open_area("calendar")
-        for _ in range(60):
-            await pilot.pause(0.025)
-            if isinstance(app.screen, CalendarScreen) and app.screen._highlighted:
-                break
+        await wait_until(
+            pilot,
+            lambda: isinstance(app.screen, CalendarScreen) and app.screen._highlighted,
+            interval=0.025,
+            pause_first=True,
+        )
         screen = app.screen
         assert isinstance(screen, CalendarScreen)
         screen.action_find_free_time()
         await pilot.pause()
         assert isinstance(app.screen, CalendarAvailabilityScreen)
         app.screen.query_one("#availability-check", Button).press()
-        for _ in range(80):
-            await pilot.pause(0.025)
-            if str(screen.query_one("#calendar-detail", Static).content).startswith(
+        await wait_until(
+            pilot,
+            lambda: str(screen.query_one("#calendar-detail", Static).content).startswith(
                 "Availability · "
-            ):
-                break
+            ),
+            interval=0.025,
+            pause_first=True,
+        )
         detail = str(screen.query_one("#calendar-detail", Static).content)
         assert detail.startswith("Availability · ")
         assert "First common free slot" not in detail
@@ -3090,13 +3143,21 @@ async def test_calendar_palette_views_apply_visible_anchor_and_local_date(
                 app._catalog_open(route, invocation)
             else:
                 app._catalog_screen_action(route, invocation)
-            for _ in range(50):
-                await pilot.pause(0.05)
-                if (isinstance(app.screen, CalendarScreen) and app.screen.is_mounted) and (
-                    app.screen.query_one("#calendar-view", Select).value == expected_view
-                    and (expected_anchor is None or app.screen.anchor_date == expected_anchor)
-                ):
-                    break
+            await wait_until(
+                pilot,
+                lambda: (
+                    (isinstance(app.screen, CalendarScreen) and app.screen.is_mounted)
+                    and (
+                        app.screen.query_one("#calendar-view", Select).value == expected_view  # noqa: B023 - wait_until runs it right away
+                        and (
+                            expected_anchor is None  # noqa: B023 - wait_until runs it right away
+                            or app.screen.anchor_date == expected_anchor  # noqa: B023 - wait_until runs it right away
+                        )
+                    )
+                ),
+                interval=0.05,
+                pause_first=True,
+            )
             assert isinstance(app.screen, CalendarScreen)
             assert app.screen.query_one("#calendar-view", Select).value == expected_view
             if expected_anchor is not None:
@@ -3112,12 +3173,15 @@ async def test_calendar_palette_views_apply_visible_anchor_and_local_date(
                 {"when": datetime(2026, 8, 30, 23, 30, tzinfo=UTC)},
             ),
         )
-        for _ in range(50):
-            await pilot.pause(0.05)
-            if (
-                isinstance(app.screen, CalendarScreen) and app.screen.is_mounted
-            ) and app.screen.anchor_date == datetime(2026, 8, 31).date():
-                break
+        await wait_until(
+            pilot,
+            lambda: (
+                (isinstance(app.screen, CalendarScreen) and app.screen.is_mounted)
+                and app.screen.anchor_date == datetime(2026, 8, 31).date()
+            ),
+            interval=0.05,
+            pause_first=True,
+        )
         assert isinstance(app.screen, CalendarScreen)
         assert app.screen.anchor_date == datetime(2026, 8, 31).date()
 
@@ -3145,20 +3209,22 @@ async def test_calendar_palette_queues_selection_actions_and_prefills_attendees(
                 {"person": "guest@example.test"},
             ),
         )
-        for _ in range(30):
-            await pilot.pause(0.05)
-            if (
+        await wait_until(
+            pilot,
+            lambda: (
                 started.is_set()
                 and (isinstance(app.screen, CalendarScreen) and app.screen.is_mounted)
                 and app.screen._pending_action is not None
-            ):
-                break
+            ),
+            interval=0.05,
+            pause_first=True,
+        )
         assert isinstance(app.screen, CalendarScreen)
         assert app.screen._pending_action is not None
         release.set()
-        for _ in range(60):
-            await pilot.pause(0.05)
-            if (
+        await wait_until(
+            pilot,
+            lambda: (
                 isinstance(app.screen, CalendarEditorScreen)
                 and app.screen.is_mounted
                 and (
@@ -3166,8 +3232,10 @@ async def test_calendar_palette_queues_selection_actions_and_prefills_attendees(
                     == "student@example.test, guest@example.test"
                 )
                 and app.screen.query_one("#calendar-edit-required", Input).has_focus
-            ):
-                break
+            ),
+            interval=0.05,
+            pause_first=True,
+        )
         assert isinstance(app.screen, CalendarEditorScreen)
         assert app.screen.query_one("#calendar-edit-required", Input).value == (
             "student@example.test, guest@example.test"
@@ -3185,14 +3253,16 @@ async def test_calendar_palette_queues_selection_actions_and_prefills_attendees(
                 {"person": "student@example.test"},
             ),
         )
-        for _ in range(50):
-            await pilot.pause(0.05)
-            if (
+        await wait_until(
+            pilot,
+            lambda: (
                 isinstance(app.screen, CalendarEditorScreen)
                 and app.screen.is_mounted
                 and (app.screen.query_one("#calendar-edit-required", Input).value == "")
-            ):
-                break
+            ),
+            interval=0.05,
+            pause_first=True,
+        )
         assert isinstance(app.screen, CalendarEditorScreen)
         assert app.screen.query_one("#calendar-edit-required", Input).value == ""
         app.screen.dismiss(None)
@@ -3219,20 +3289,25 @@ async def test_calendar_palette_executes_crud_response_editor_and_interchange_ro
     app = GUCmailApp(context_for(tmp_path), gateway=FakeGateway())
     async with app.run_test(size=(120, 35)) as pilot:
         app._open_area("calendar")
-        for _ in range(50):
-            await pilot.pause(0.05)
-            if (
-                isinstance(app.screen, CalendarScreen) and app.screen.is_mounted
-            ) and app.screen.query_one("#calendar-table", DataTable).row_count == 1:
-                break
+        await wait_until(
+            pilot,
+            lambda: (
+                (isinstance(app.screen, CalendarScreen) and app.screen.is_mounted)
+                and app.screen.query_one("#calendar-table", DataTable).row_count == 1
+            ),
+            interval=0.05,
+            pause_first=True,
+        )
         assert isinstance(app.screen, CalendarScreen)
 
         create = catalog_route("calendar.create_event")
         app._catalog_screen_action(create, CommandInvocation(create.command_id))
-        for _ in range(30):
-            await pilot.pause(0.05)
-            if isinstance(app.screen, CalendarEditorScreen) and app.screen.is_mounted:
-                break
+        await wait_until(
+            pilot,
+            lambda: isinstance(app.screen, CalendarEditorScreen) and app.screen.is_mounted,
+            interval=0.05,
+            pause_first=True,
+        )
         assert isinstance(app.screen, CalendarEditorScreen)
         assert "Create event" in str(app.screen.query_one("#calendar-editor-title").render())
         app.screen.dismiss(None)
@@ -3246,12 +3321,15 @@ async def test_calendar_palette_executes_crud_response_editor_and_interchange_ro
         ):
             route = catalog_route(command_id)
             app._catalog_screen_action(route, CommandInvocation(route.command_id))
-            for _ in range(40):
-                await pilot.pause(0.05)
-                if (isinstance(app.screen, CalendarEditorScreen) and app.screen.is_mounted) and (
-                    selector is None or app.screen.query_one(selector).has_focus
-                ):
-                    break
+            await wait_until(
+                pilot,
+                lambda: (
+                    (isinstance(app.screen, CalendarEditorScreen) and app.screen.is_mounted)
+                    and (selector is None or app.screen.query_one(selector).has_focus)  # noqa: B023 - wait_until runs it right away
+                ),
+                interval=0.05,
+                pause_first=True,
+            )
             assert isinstance(app.screen, CalendarEditorScreen)
             if selector is not None:
                 assert app.screen.query_one(selector).has_focus
@@ -3265,10 +3343,14 @@ async def test_calendar_palette_executes_crud_response_editor_and_interchange_ro
         ):
             route = catalog_route(command_id)
             app._catalog_screen_action(route, CommandInvocation(route.command_id))
-            for _ in range(30):
-                await pilot.pause(0.05)
-                if isinstance(app.screen, MeetingResponseScreen) and app.screen.is_mounted:
-                    break
+            await wait_until(
+                pilot,
+                lambda: (
+                    isinstance(app.screen, MeetingResponseScreen) and app.screen.is_mounted
+                ),
+                interval=0.05,
+                pause_first=True,
+            )
             assert isinstance(app.screen, MeetingResponseScreen)
             assert app.screen.query_one("#meeting-response-value", Select).value == response
             app.screen.dismiss(None)
@@ -3310,17 +3392,21 @@ async def test_calendar_palette_executes_crud_response_editor_and_interchange_ro
 async def test_task_palette_creates_from_message_and_edits_reminder(tmp_path: Path) -> None:
     app = GUCmailApp(context_for(tmp_path), gateway=FakeGateway())
     async with app.run_test(size=(120, 35)) as pilot:
-        for _ in range(30):
-            await pilot.pause(0.05)
-            if app.ui.selected_reference == "m-demo":
-                break
+        await wait_until(
+            pilot,
+            lambda: app.ui.selected_reference == "m-demo",
+            interval=0.05,
+            pause_first=True,
+        )
 
         create_route = catalog_route("tasks.create_task_from_message")
         app._catalog_open(create_route, CommandInvocation(create_route.command_id))
-        for _ in range(40):
-            await pilot.pause(0.05)
-            if isinstance(app.screen, TaskEditorScreen) and app.screen.is_mounted:
-                break
+        await wait_until(
+            pilot,
+            lambda: isinstance(app.screen, TaskEditorScreen) and app.screen.is_mounted,
+            interval=0.05,
+            pause_first=True,
+        )
         assert isinstance(app.screen, TaskEditorScreen)
         assert "Create task" in str(app.screen.query_one("#task-editor-title", Static).content)
         assert (
@@ -3337,21 +3423,25 @@ async def test_task_palette_creates_from_message_and_edits_reminder(tmp_path: Pa
 
         assert isinstance(app.screen, TasksScreen)
         app.screen.action_refresh()
-        for _ in range(30):
-            await pilot.pause(0.05)
-            if app.screen.query_one("#tasks-table").row_count:
-                break
+        await wait_until(
+            pilot,
+            lambda: app.screen.query_one("#tasks-table").row_count,
+            interval=0.05,
+            pause_first=True,
+        )
         assert app.screen.query_one("#tasks-table").row_count == 1
         reminder_route = catalog_route("tasks.add_reminder")
         app._catalog_screen_action(reminder_route, CommandInvocation(reminder_route.command_id))
-        for _ in range(40):
-            await pilot.pause(0.05)
-            if (
+        await wait_until(
+            pilot,
+            lambda: (
                 (isinstance(app.screen, TaskEditorScreen) and app.screen.is_mounted)
                 and app.focused is not None
                 and app.focused.id == "task-edit-reminder"
-            ):
-                break
+            ),
+            interval=0.05,
+            pause_first=True,
+        )
         assert isinstance(app.screen, TaskEditorScreen)
         assert app.focused is not None
         assert app.focused.id == "task-edit-reminder"
@@ -3362,17 +3452,21 @@ async def test_base_task_palette_create_search_and_complete_execute(tmp_path: Pa
     app = GUCmailApp(context_for(tmp_path), gateway=FakeGateway())
     async with app.run_test(size=(120, 35)) as pilot:
         app._palette_task_create(CommandInvocation("tasks.create"), CommandContext())
-        for _ in range(30):
-            await pilot.pause(0.05)
-            if isinstance(app.screen, TaskEditorScreen) and app.screen.is_mounted:
-                break
+        await wait_until(
+            pilot,
+            lambda: isinstance(app.screen, TaskEditorScreen) and app.screen.is_mounted,
+            interval=0.05,
+            pause_first=True,
+        )
         assert isinstance(app.screen, TaskEditorScreen)
         app.screen.dismiss(None)
 
-        for _ in range(30):
-            await pilot.pause(0.05)
-            if isinstance(app.screen, TasksScreen) and app.screen.is_mounted:
-                break
+        await wait_until(
+            pilot,
+            lambda: isinstance(app.screen, TasksScreen) and app.screen.is_mounted,
+            interval=0.05,
+            pause_first=True,
+        )
         assert isinstance(app.screen, TasksScreen)
 
         search_route = catalog_route("tasks.search_tasks")
@@ -3383,22 +3477,30 @@ async def test_base_task_palette_create_search_and_complete_execute(tmp_path: Pa
                 {"query": "Synthetic follow-up"},
             ),
         )
-        for _ in range(30):
-            await pilot.pause(0.05)
-            if app.screen.query_one("#tasks-search", Input).value == "Synthetic follow-up":
-                break
+        await wait_until(
+            pilot,
+            lambda: (
+                app.screen.query_one("#tasks-search", Input).value == "Synthetic follow-up"
+            ),
+            interval=0.05,
+            pause_first=True,
+        )
         assert app.screen.query_one("#tasks-search", Input).value == "Synthetic follow-up"
 
-        for _ in range(30):
-            await pilot.pause(0.05)
-            if app.screen.query_one("#tasks-table").row_count:
-                break
+        await wait_until(
+            pilot,
+            lambda: app.screen.query_one("#tasks-table").row_count,
+            interval=0.05,
+            pause_first=True,
+        )
         assert app.screen.query_one("#tasks-table").row_count == 1
         app._palette_task_complete(CommandInvocation("tasks.complete"), CommandContext())
-        for _ in range(30):
-            await pilot.pause(0.05)
-            if app.screen.__class__.__name__ == "ConfirmationScreen":
-                break
+        await wait_until(
+            pilot,
+            lambda: app.screen.__class__.__name__ == "ConfirmationScreen",
+            interval=0.05,
+            pause_first=True,
+        )
         assert app.screen.__class__.__name__ == "ConfirmationScreen"
 
 
@@ -3425,19 +3527,19 @@ async def test_draft_attachment_workspace_executes_palette_handoffs_and_safe_sav
     async with app.run_test(size=(120, 35)) as pilot:
         route = catalog_route("drafts.show_unsynchronized_drafts")
         app._catalog_open(route, CommandInvocation(route.command_id))
-        for _ in range(40):
-            await pilot.pause(0.05)
-            if (
-                isinstance(app.screen, DraftAttachmentScreen) and app.screen.is_mounted
-            ) and app.screen.query_one("#draft-table").row_count:
-                break
+        await wait_until(
+            pilot,
+            lambda: (
+                (isinstance(app.screen, DraftAttachmentScreen) and app.screen.is_mounted)
+                and app.screen.query_one("#draft-table").row_count
+            ),
+            interval=0.05,
+            pause_first=True,
+        )
         assert isinstance(app.screen, DraftAttachmentScreen)
         assert app.screen.query_one("#draft-location", Select).value == "local"
         assert app.screen.query_one("#draft-table").row_count == 1
-        for _ in range(40):
-            if not app.screen._operation_active:
-                break
-            await pilot.pause(0.05)
+        await wait_until(pilot, lambda: not app.screen._operation_active, interval=0.05)
         assert not app.screen._operation_active
 
         app.screen.query_one("#attachment-destination", Input).value = str(tmp_path)
@@ -3446,20 +3548,25 @@ async def test_draft_attachment_workspace_executes_palette_handoffs_and_safe_sav
             export_draft_route,
             CommandInvocation(export_draft_route.command_id),
         )
-        for _ in range(40):
-            await pilot.pause(0.05)
-            if (
-                tmp_path / "dft-workspace.draft.json"
-            ).exists() and not app.screen._operation_active:
-                break
+        await wait_until(
+            pilot,
+            lambda: (
+                (tmp_path / "dft-workspace.draft.json").exists()
+                and not app.screen._operation_active
+            ),
+            interval=0.05,
+            pause_first=True,
+        )
         assert (tmp_path / "dft-workspace.draft.json").is_file()
 
         delete_route = catalog_route("drafts.delete_draft")
         app._catalog_screen_action(delete_route, CommandInvocation(delete_route.command_id))
-        for _ in range(30):
-            await pilot.pause(0.05)
-            if app.screen.__class__.__name__ == "ConfirmationScreen":
-                break
+        await wait_until(
+            pilot,
+            lambda: app.screen.__class__.__name__ == "ConfirmationScreen",
+            interval=0.05,
+            pause_first=True,
+        )
         assert app.screen.__class__.__name__ == "ConfirmationScreen"
         app.screen.dismiss(False)
         await pilot.pause()
@@ -3467,10 +3574,12 @@ async def test_draft_attachment_workspace_executes_palette_handoffs_and_safe_sav
 
         send_route = catalog_route("drafts.send_draft")
         app._catalog_screen_action(send_route, CommandInvocation(send_route.command_id))
-        for _ in range(40):
-            await pilot.pause(0.05)
-            if isinstance(app.screen, ConfirmationScreen) and app.screen.is_mounted:
-                break
+        await wait_until(
+            pilot,
+            lambda: isinstance(app.screen, ConfirmationScreen) and app.screen.is_mounted,
+            interval=0.05,
+            pause_first=True,
+        )
         assert isinstance(app.screen, ConfirmationScreen)
         app.screen.dismiss(False)
         await pilot.pause()
@@ -3482,13 +3591,18 @@ async def test_draft_attachment_workspace_executes_palette_handoffs_and_safe_sav
             CommandInvocation.from_mapping("attachments.open", {"reference": "m-demo"}),
             CommandContext(),
         )
-        for _ in range(40):
-            await pilot.pause(0.05)
-            if (isinstance(app.screen, DraftAttachmentScreen) and app.screen.is_mounted) and (
-                app.screen.query_one("#attachment-table").row_count
-                and not app.screen._operation_active
-            ):
-                break
+        await wait_until(
+            pilot,
+            lambda: (
+                (isinstance(app.screen, DraftAttachmentScreen) and app.screen.is_mounted)
+                and (
+                    app.screen.query_one("#attachment-table").row_count
+                    and not app.screen._operation_active
+                )
+            ),
+            interval=0.05,
+            pause_first=True,
+        )
         assert isinstance(app.screen, DraftAttachmentScreen)
         assert app.screen.query_one("#attachment-table").row_count == 1
         app.screen.query_one("#attachment-destination", Input).value = str(tmp_path)
@@ -3502,13 +3616,15 @@ async def test_draft_attachment_workspace_executes_palette_handoffs_and_safe_sav
                 metadata_route,
                 CommandInvocation.from_mapping(command_id, {"reference": "m-demo"}),
             )
-            for _ in range(30):
-                await pilot.pause(0.05)
-                if (
+            await wait_until(
+                pilot,
+                lambda: (
                     app.screen.query_one("#attachment-table").row_count == 1
                     and not app.screen._operation_active
-                ):
-                    break
+                ),
+                interval=0.05,
+                pause_first=True,
+            )
             assert app.screen.query_one("#attachment-table").row_count == 1
 
         hash_route = catalog_route("attachments.hash_attachment")
@@ -3529,10 +3645,12 @@ async def test_draft_attachment_workspace_executes_palette_handoffs_and_safe_sav
 
         export_route = catalog_route("attachments.export_attachment_list")
         app._catalog_screen_action(export_route, CommandInvocation(export_route.command_id))
-        for _ in range(40):
-            await pilot.pause(0.05)
-            if (tmp_path / "m-demo.attachments.json").exists():
-                break
+        await wait_until(
+            pilot,
+            lambda: (tmp_path / "m-demo.attachments.json").exists(),
+            interval=0.05,
+            pause_first=True,
+        )
         assert (tmp_path / "m-demo.attachments.json").is_file()
 
         save_as_route = catalog_route("attachments.save_attachment_as")
@@ -3563,7 +3681,7 @@ async def test_draft_attachment_workspace_executes_palette_handoffs_and_safe_sav
             ),
             app._palette_context(),
         )
-        for _ in range(60):
+        for _ in rounds(60):
             await pilot.pause(0.05)
             new_downloads = set(tmp_path.glob("notes*.txt")) - existing_downloads
             if new_downloads:
@@ -3605,12 +3723,15 @@ async def test_draft_palette_uses_local_search_age_and_durable_duplicate(
             CommandInvocation("drafts.open_drafts"),
             app._palette_context(),
         )
-        for _ in range(40):
-            await pilot.pause(0.05)
-            if (isinstance(app.screen, DraftAttachmentScreen) and app.screen.is_mounted) and (
-                app.screen.query_one("#draft-table").row_count == 2
-            ):
-                break
+        await wait_until(
+            pilot,
+            lambda: (
+                (isinstance(app.screen, DraftAttachmentScreen) and app.screen.is_mounted)
+                and (app.screen.query_one("#draft-table").row_count == 2)
+            ),
+            interval=0.05,
+            pause_first=True,
+        )
         assert isinstance(app.screen, DraftAttachmentScreen)
         assert app.screen.query_one("#draft-table").row_count == 2
         assert app.screen.query_one("#draft-age", Select).value == ""
@@ -3622,13 +3743,18 @@ async def test_draft_palette_uses_local_search_age_and_durable_duplicate(
             search_route,
             CommandInvocation.from_mapping(search_route.command_id, {"query": "Current"}),
         )
-        for _ in range(40):
-            await pilot.pause(0.05)
-            if (isinstance(app.screen, DraftAttachmentScreen) and app.screen.is_mounted) and (
-                app.screen.query_one("#draft-filter", Input).value == "Current"
-                and app.screen.query_one("#draft-table").row_count == 1
-            ):
-                break
+        await wait_until(
+            pilot,
+            lambda: (
+                (isinstance(app.screen, DraftAttachmentScreen) and app.screen.is_mounted)
+                and (
+                    app.screen.query_one("#draft-filter", Input).value == "Current"
+                    and app.screen.query_one("#draft-table").row_count == 1
+                )
+            ),
+            interval=0.05,
+            pause_first=True,
+        )
         assert isinstance(app.screen, DraftAttachmentScreen)
         assert app.screen.query_one("#draft-table").row_count == 1
         assert "Current project" in str(app.screen.query_one("#draft-detail", Static).content)
@@ -3637,13 +3763,18 @@ async def test_draft_palette_uses_local_search_age_and_durable_duplicate(
 
         old_route = catalog_route("drafts.show_old_drafts")
         app._catalog_open(old_route, CommandInvocation(old_route.command_id))
-        for _ in range(40):
-            await pilot.pause(0.05)
-            if (isinstance(app.screen, DraftAttachmentScreen) and app.screen.is_mounted) and (
-                app.screen.query_one("#draft-age", Select).value == "30"
-                and app.screen.query_one("#draft-table").row_count == 1
-            ):
-                break
+        await wait_until(
+            pilot,
+            lambda: (
+                (isinstance(app.screen, DraftAttachmentScreen) and app.screen.is_mounted)
+                and (
+                    app.screen.query_one("#draft-age", Select).value == "30"
+                    and app.screen.query_one("#draft-table").row_count == 1
+                )
+            ),
+            interval=0.05,
+            pause_first=True,
+        )
         assert isinstance(app.screen, DraftAttachmentScreen)
         assert app.screen.query_one("#draft-table").row_count == 1
         assert "Old thesis" in str(app.screen.query_one("#draft-detail", Static).content)
@@ -3678,11 +3809,16 @@ async def test_draft_palette_uses_local_search_age_and_durable_duplicate(
 
         new_route = catalog_route("drafts.new_draft")
         app._catalog_application_action(new_route, CommandInvocation(new_route.command_id))
-        for _ in range(150):
-            await pilot.pause(0.02)
-            if (isinstance(app.screen, ComposeScreen) and app.screen._status_checked
-                    and not app.screen._attempt_pending):
-                break
+        await wait_until(
+            pilot,
+            lambda: (
+                isinstance(app.screen, ComposeScreen)
+                and app.screen._status_checked
+                and not app.screen._attempt_pending
+            ),
+            interval=0.02,
+            pause_first=True,
+        )
         assert isinstance(app.screen, ComposeScreen)
         assert app.screen._status_checked and not app.screen._attempt_pending
         app.screen.query_one("#compose-subject", Input).value = "Created by draft command"
@@ -3690,10 +3826,12 @@ async def test_draft_palette_uses_local_search_age_and_durable_duplicate(
             CommandInvocation("draft.save"),
             app._palette_context(),
         )
-        for _ in range(40):
-            await pilot.pause(0.05)
-            if len(service.list()) == 4 and not isinstance(app.screen, ComposeScreen):
-                break
+        await wait_until(
+            pilot,
+            lambda: len(service.list()) == 4 and not isinstance(app.screen, ComposeScreen),
+            interval=0.05,
+            pause_first=True,
+        )
         assert len(service.list()) == 4
 
         service.write_recovery(
@@ -3708,12 +3846,16 @@ async def test_draft_palette_uses_local_search_age_and_durable_duplicate(
         await pilot.pause()
 
         app._catalog_open(edit_route, CommandInvocation(edit_route.command_id))
-        for _ in range(30):
-            await pilot.pause(0.05)
-            if (
-                isinstance(app.screen, DraftAttachmentScreen) and app.screen.is_mounted
-            ) and "Select a draft" in str(app.screen.query_one("#area-state", Static).content):
-                break
+        await wait_until(
+            pilot,
+            lambda: (
+                (isinstance(app.screen, DraftAttachmentScreen) and app.screen.is_mounted)
+                and "Select a draft"
+                in str(app.screen.query_one("#area-state", Static).content)
+            ),
+            interval=0.05,
+            pause_first=True,
+        )
         assert isinstance(app.screen, DraftAttachmentScreen)
         assert "Select a draft" in str(app.screen.query_one("#area-state", Static).content)
 
@@ -3783,20 +3925,22 @@ async def test_attachment_storage_palette_runs_exact_analyses_on_synthetic_data(
 
     async with app.run_test(size=(120, 35)) as pilot:
         app.push_screen(screen)
-        for _ in range(30):
-            if screen.is_mounted and screen._snapshot is not None:
-                break
-            await pilot.pause(0.05)
+        await wait_until(
+            pilot, lambda: screen.is_mounted and screen._snapshot is not None, interval=0.05
+        )
         assert screen._snapshot is not None
 
         app._palette_handlers()["storage.largest_attachments"](
             CommandInvocation("attachments.show_largest_attachments"),
             app._palette_context(),
         )
-        for _ in range(40):
-            if screen._analysis and screen._analysis.analysis_id == "largest-attachments":
-                break
-            await pilot.pause(0.05)
+        await wait_until(
+            pilot,
+            lambda: (
+                screen._analysis and screen._analysis.analysis_id == "largest-attachments"
+            ),
+            interval=0.05,
+        )
         assert screen._analysis is not None
         assert screen._analysis.analysis_id == "largest-attachments"
         assert [row.size_bytes for row in screen._analysis.rows] == [2_048, 2_048]
@@ -3806,10 +3950,13 @@ async def test_attachment_storage_palette_runs_exact_analyses_on_synthetic_data(
             duplicate_route,
             CommandInvocation(duplicate_route.command_id),
         )
-        for _ in range(40):
-            if screen._analysis and screen._analysis.analysis_id == "duplicate-attachments":
-                break
-            await pilot.pause(0.05)
+        await wait_until(
+            pilot,
+            lambda: (
+                screen._analysis and screen._analysis.analysis_id == "duplicate-attachments"
+            ),
+            interval=0.05,
+        )
         assert screen._analysis is not None
         assert screen._analysis.analysis_id == "duplicate-attachments"
         assert len(screen._analysis.rows) == 1
@@ -3822,10 +3969,11 @@ async def test_attachment_storage_palette_runs_exact_analyses_on_synthetic_data(
             statistics_route,
             CommandInvocation(statistics_route.command_id),
         )
-        for _ in range(40):
-            if screen._analysis and screen._analysis.analysis_id == "attachment-types":
-                break
-            await pilot.pause(0.05)
+        await wait_until(
+            pilot,
+            lambda: screen._analysis and screen._analysis.analysis_id == "attachment-types",
+            interval=0.05,
+        )
         assert screen._analysis is not None
         assert screen._analysis.analysis_id == "attachment-types"
         assert screen._analysis.rows[0].label == ".pdf"
@@ -3888,7 +4036,7 @@ async def test_storage_palette_executes_each_analysis_focus_export_and_cleanup_p
     screen = StorageScreen(backend, analysis_limit=20)
 
     async def wait_ready(predicate, description: str) -> None:  # type: ignore[no-untyped-def]
-        for _ in range(500):
+        for _ in rounds(500):
             if not screen._operation_active and predicate():
                 await pilot.pause()
                 return
@@ -4014,12 +4162,14 @@ async def test_storage_open_and_quota_palette_routes_mount_the_real_offline_work
             CommandInvocation("storage.open"),
             app._palette_context(),
         )
-        for _ in range(80):
-            if (
-                isinstance(app.screen, StorageScreen) and app.screen.is_mounted
-            ) and app.screen._snapshot is not None:
-                break
-            await pilot.pause(0.03)
+        await wait_until(
+            pilot,
+            lambda: (
+                (isinstance(app.screen, StorageScreen) and app.screen.is_mounted)
+                and app.screen._snapshot is not None
+            ),
+            interval=0.03,
+        )
         assert isinstance(app.screen, StorageScreen)
         assert app.screen._snapshot is not None
         assert not app.screen._snapshot.total_capacity_is_fallback
@@ -4029,7 +4179,7 @@ async def test_storage_open_and_quota_palette_routes_mount_the_real_offline_work
 
         route = catalog_route("storage.show_mailbox_quota")
         app._catalog_open(route, CommandInvocation(route.command_id))
-        for _ in range(80):
+        for _ in rounds(80):
             if isinstance(app.screen, StorageScreen) and app.screen._snapshot is not None:
                 detail = str(app.screen.query_one("#storage-detail", Static).render())
                 if "Server-reported total capacity" in detail:
@@ -4046,7 +4196,7 @@ async def test_storage_open_and_quota_palette_routes_mount_the_real_offline_work
         app._palette_catalog_handler(
             CommandInvocation(diagnostics_route.command_id), app._palette_context()
         )
-        for _ in range(80):
+        for _ in rounds(80):
             if isinstance(app.screen, StorageScreen) and app.screen._snapshot is not None:
                 detail = str(app.screen.query_one("#storage-detail", Static).render())
                 if "Capacity source:" in detail:
@@ -4097,7 +4247,7 @@ async def test_cleanup_plan_palette_routes_create_preview_and_execute_only_after
     async def open_plan(command_id: str) -> CleanupPlanScreen:
         route = catalog_route(command_id)
         app._catalog_screen_action(route, CommandInvocation(route.command_id))
-        for _ in range(120):
+        for _ in rounds(120):
             current = app.screen
             if (
                 isinstance(current, CleanupPlanScreen)
@@ -4110,10 +4260,7 @@ async def test_cleanup_plan_palette_routes_create_preview_and_execute_only_after
 
     async with app.run_test(size=(120, 35)) as pilot:
         app.push_screen(storage)
-        for _ in range(80):
-            if storage._snapshot is not None:
-                break
-            await pilot.pause(0.03)
+        await wait_until(pilot, lambda: storage._snapshot is not None, interval=0.03)
         assert storage._snapshot is not None
 
         for command_id in (
@@ -4135,17 +4282,18 @@ async def test_cleanup_plan_palette_routes_create_preview_and_execute_only_after
         assert not execute.disabled
         execute.focus()
         await pilot.press("enter")
-        for _ in range(80):
-            if isinstance(app.screen, OperationalConfirmationScreen) and app.screen.is_mounted:
-                break
-            await pilot.pause(0.03)
+        await wait_until(
+            pilot,
+            lambda: (
+                isinstance(app.screen, OperationalConfirmationScreen)
+                and app.screen.is_mounted
+            ),
+            interval=0.03,
+        )
         assert isinstance(app.screen, OperationalConfirmationScreen)
         assert moved == []
         await pilot.press("y")
-        for _ in range(120):
-            if moved == ["cleanup-large", "cleanup-small"]:
-                break
-            await pilot.pause(0.03)
+        await wait_until(pilot, lambda: moved == ["cleanup-large", "cleanup-small"], interval=0.03)
         assert moved == ["cleanup-large", "cleanup-small"]
 
 
@@ -4198,30 +4346,38 @@ async def test_draft_palette_schedule_creates_durable_reviewed_job(tmp_path: Pat
 
     async with app.run_test(size=(120, 35)) as pilot:
         app._open_area("drafts")
-        for _ in range(40):
-            await pilot.pause(0.05)
-            if (
-                isinstance(app.screen, DraftAttachmentScreen) and app.screen.is_mounted
-            ) and app.screen.query_one("#draft-table").row_count:
-                break
+        await wait_until(
+            pilot,
+            lambda: (
+                (isinstance(app.screen, DraftAttachmentScreen) and app.screen.is_mounted)
+                and app.screen.query_one("#draft-table").row_count
+            ),
+            interval=0.05,
+            pause_first=True,
+        )
         assert isinstance(app.screen, DraftAttachmentScreen)
 
         route = catalog_route("drafts.schedule_draft")
         app._catalog_screen_action(route, CommandInvocation(route.command_id))
-        for _ in range(30):
-            await pilot.pause(0.05)
-            if isinstance(app.screen, DraftScheduleScreen) and app.screen.is_mounted:
-                break
+        await wait_until(
+            pilot,
+            lambda: isinstance(app.screen, DraftScheduleScreen) and app.screen.is_mounted,
+            interval=0.05,
+            pause_first=True,
+        )
         assert isinstance(app.screen, DraftScheduleScreen)
         app.screen.query_one("#draft-schedule-expression", Input).value = "tomorrow 09:00"
         app.screen._finish()
 
-        for _ in range(60):
-            await pilot.pause(0.05)
-            if (
-                isinstance(app.screen, ScheduledScreen) and app.screen.is_mounted
-            ) and app.screen.query_one("#scheduled-table").row_count:
-                break
+        await wait_until(
+            pilot,
+            lambda: (
+                (isinstance(app.screen, ScheduledScreen) and app.screen.is_mounted)
+                and app.screen.query_one("#scheduled-table").row_count
+            ),
+            interval=0.05,
+            pause_first=True,
+        )
         assert isinstance(app.screen, ScheduledScreen)
         assert app.screen.query_one("#scheduled-table").row_count == 1
         records = app._scheduler_service().list(draft_reference="dft-schedule", limit=10)
@@ -4271,12 +4427,15 @@ async def test_scheduled_palette_pauses_and_resumes_selected_recurring_rule(
 
     async with app.run_test(size=(120, 35)) as pilot:
         app._open_area("scheduled")
-        for _ in range(40):
-            await pilot.pause(0.05)
-            if (
-                isinstance(app.screen, ScheduledScreen) and app.screen.is_mounted
-            ) and app.screen.query_one("#scheduled-table").row_count:
-                break
+        await wait_until(
+            pilot,
+            lambda: (
+                (isinstance(app.screen, ScheduledScreen) and app.screen.is_mounted)
+                and app.screen.query_one("#scheduled-table").row_count
+            ),
+            interval=0.05,
+            pause_first=True,
+        )
         assert isinstance(app.screen, ScheduledScreen)
 
         pause_route = catalog_route("scheduled.pause_recurring_message")
@@ -4284,14 +4443,16 @@ async def test_scheduled_palette_pauses_and_resumes_selected_recurring_rule(
         await pilot.pause()
         assert isinstance(app.screen, OperationalConfirmationScreen)
         app.screen.dismiss(True)
-        for _ in range(40):
-            await pilot.pause(0.05)
-            if (
+        await wait_until(
+            pilot,
+            lambda: (
                 recurring.get(rule.reference).state is RecurringState.PAUSED
                 and (isinstance(app.screen, ScheduledScreen) and app.screen.is_mounted)
                 and not app.screen._operation_active
-            ):
-                break
+            ),
+            interval=0.05,
+            pause_first=True,
+        )
         assert recurring.get(rule.reference).state is RecurringState.PAUSED
         await pilot.pause(0.1)
 
@@ -4300,10 +4461,12 @@ async def test_scheduled_palette_pauses_and_resumes_selected_recurring_rule(
         await pilot.pause()
         assert isinstance(app.screen, OperationalConfirmationScreen)
         app.screen.dismiss(True)
-        for _ in range(40):
-            await pilot.pause(0.05)
-            if recurring.get(rule.reference).state is RecurringState.ACTIVE:
-                break
+        await wait_until(
+            pilot,
+            lambda: recurring.get(rule.reference).state is RecurringState.ACTIVE,
+            interval=0.05,
+            pause_first=True,
+        )
         assert recurring.get(rule.reference).state is RecurringState.ACTIVE
 
 
@@ -4343,13 +4506,18 @@ async def test_scheduled_palette_views_duplicate_send_run_and_pause(
     async with app.run_test(size=(120, 35)) as pilot:
         next_route = catalog_route("scheduled.show_next_scheduled_message")
         app._catalog_open(next_route, CommandInvocation(next_route.command_id))
-        for _ in range(40):
-            await pilot.pause(0.05)
-            if (isinstance(app.screen, ScheduledScreen) and app.screen.is_mounted) and (
-                app.screen.query_one("#scheduled-window", Select).value == "next"
-                and app.screen.query_one("#scheduled-table").row_count == 1
-            ):
-                break
+        await wait_until(
+            pilot,
+            lambda: (
+                (isinstance(app.screen, ScheduledScreen) and app.screen.is_mounted)
+                and (
+                    app.screen.query_one("#scheduled-window", Select).value == "next"
+                    and app.screen.query_one("#scheduled-table").row_count == 1
+                )
+            ),
+            interval=0.05,
+            pause_first=True,
+        )
         assert isinstance(app.screen, ScheduledScreen)
         assert app.screen.query_one("#scheduled-window", Select).value == "next"
         assert "Future palette message" in str(
@@ -4364,13 +4532,15 @@ async def test_scheduled_palette_views_duplicate_send_run_and_pause(
                 {"when": "in 3 days"},
             ),
         )
-        for _ in range(40):
-            await pilot.pause(0.05)
-            if (
+        await wait_until(
+            pilot,
+            lambda: (
                 len(app._scheduler_service().list(limit=10)) == 2
                 and not app.screen._operation_active
-            ):
-                break
+            ),
+            interval=0.05,
+            pause_first=True,
+        )
         assert len(app._scheduler_service().list(limit=10)) == 2
         assert not app.screen._operation_active
 
@@ -4379,34 +4549,40 @@ async def test_scheduled_palette_views_duplicate_send_run_and_pause(
         await pilot.pause()
         assert isinstance(app.screen, OperationalConfirmationScreen)
         app.screen.dismiss(True)
-        for _ in range(60):
-            await pilot.pause(0.05)
-            if gateway.sent_subjects:
-                break
+        await wait_until(pilot, lambda: gateway.sent_subjects, interval=0.05, pause_first=True)
         assert gateway.sent_subjects == ["Future palette message"]
-        for _ in range(60):
-            await pilot.pause(0.05)
-            if (
-                isinstance(app.screen, ScheduledScreen) and app.screen.is_mounted
-            ) and not app.screen._operation_active:
-                break
+        await wait_until(
+            pilot,
+            lambda: (
+                (isinstance(app.screen, ScheduledScreen) and app.screen.is_mounted)
+                and not app.screen._operation_active
+            ),
+            interval=0.05,
+            pause_first=True,
+        )
         assert not app.screen._operation_active
 
         assert isinstance(app.screen, ScheduledScreen)
         pause_route = catalog_route("scheduled.pause_scheduler")
         app._catalog_screen_action(pause_route, CommandInvocation(pause_route.command_id))
-        for _ in range(40):
-            await pilot.pause(0.05)
-            if app._scheduler_service().is_paused() and not app.screen._operation_active:
-                break
+        await wait_until(
+            pilot,
+            lambda: app._scheduler_service().is_paused() and not app.screen._operation_active,
+            interval=0.05,
+            pause_first=True,
+        )
         assert app._scheduler_service().is_paused()
         assert not app.screen._operation_active
         resume_route = catalog_route("scheduled.resume_scheduler")
         app._catalog_screen_action(resume_route, CommandInvocation(resume_route.command_id))
-        for _ in range(40):
-            await pilot.pause(0.05)
-            if not app._scheduler_service().is_paused() and not app.screen._operation_active:
-                break
+        await wait_until(
+            pilot,
+            lambda: (
+                not app._scheduler_service().is_paused() and not app.screen._operation_active
+            ),
+            interval=0.05,
+            pause_first=True,
+        )
         assert not app._scheduler_service().is_paused()
         assert not app.screen._operation_active
 
@@ -4429,18 +4605,20 @@ async def test_scheduled_palette_views_duplicate_send_run_and_pause(
         await pilot.pause()
         assert isinstance(app.screen, OperationalConfirmationScreen)
         app.screen.dismiss(True)
-        for _ in range(60):
-            await pilot.pause(0.05)
-            if len(gateway.sent_subjects) == 2:
-                break
+        await wait_until(
+            pilot, lambda: len(gateway.sent_subjects) == 2, interval=0.05, pause_first=True
+        )
         assert gateway.sent_subjects == ["Future palette message", "Due palette message"]
 
-        for _ in range(40):
-            await pilot.pause(0.05)
-            if (
-                isinstance(app.screen, ScheduledScreen) and app.screen.is_mounted
-            ) and not app.screen._operation_active:
-                break
+        await wait_until(
+            pilot,
+            lambda: (
+                (isinstance(app.screen, ScheduledScreen) and app.screen.is_mounted)
+                and not app.screen._operation_active
+            ),
+            interval=0.05,
+            pause_first=True,
+        )
         assert isinstance(app.screen, ScheduledScreen)
         app.pop_screen()
         await pilot.pause()
@@ -4461,12 +4639,15 @@ async def test_scheduled_palette_views_duplicate_send_run_and_pause(
         ):
             route = catalog_route(command_id)
             app._catalog_open(route, CommandInvocation(route.command_id))
-            for _ in range(30):
-                await pilot.pause(0.05)
-                if (isinstance(app.screen, ScheduledScreen) and app.screen.is_mounted) and (
-                    app.screen.query_one(selector, Select).value == expected
-                ):
-                    break
+            await wait_until(
+                pilot,
+                lambda: (
+                    (isinstance(app.screen, ScheduledScreen) and app.screen.is_mounted)
+                    and (app.screen.query_one(selector, Select).value == expected)  # noqa: B023 - wait_until runs it right away
+                ),
+                interval=0.05,
+                pause_first=True,
+            )
             assert isinstance(app.screen, ScheduledScreen)
             assert app.screen.query_one(selector, Select).value == expected
             app.pop_screen()
@@ -4474,12 +4655,17 @@ async def test_scheduled_palette_views_duplicate_send_run_and_pause(
 
         status_route = catalog_route("scheduled.open_scheduler_status")
         app._catalog_open(status_route, CommandInvocation(status_route.command_id))
-        for _ in range(30):
-            await pilot.pause(0.05)
-            if (isinstance(app.screen, ScheduledScreen) and app.screen.is_mounted) and str(
-                app.screen.query_one("#scheduled-summary", Static).content
-            ).startswith("Running"):
-                break
+        await wait_until(
+            pilot,
+            lambda: (
+                (isinstance(app.screen, ScheduledScreen) and app.screen.is_mounted)
+                and str(
+                    app.screen.query_one("#scheduled-summary", Static).content
+                ).startswith("Running")
+            ),
+            interval=0.05,
+            pause_first=True,
+        )
         assert isinstance(app.screen, ScheduledScreen)
         assert "Running" in str(app.screen.query_one("#scheduled-summary", Static).content)
 
@@ -4502,10 +4688,12 @@ async def test_schedule_current_draft_base_handler_reaches_review(tmp_path: Path
             ),
             app._palette_context(),
         )
-        for _ in range(60):
-            await pilot.pause(0.05)
-            if isinstance(app.screen, DraftScheduleScreen) and app.screen.is_mounted:
-                break
+        await wait_until(
+            pilot,
+            lambda: isinstance(app.screen, DraftScheduleScreen) and app.screen.is_mounted,
+            interval=0.05,
+            pause_first=True,
+        )
         assert isinstance(app.screen, DraftScheduleScreen)
         assert app.screen.query_one("#draft-schedule-expression", Input).value == "in 2 days"
 
@@ -4558,10 +4746,12 @@ async def test_palette_mutation_parameters_can_be_edited_before_confirmation(
         )
         assert "When: in 2 days" in app.screen.detail
         app.screen.dismiss(True)
-        for _ in range(60):
-            await pilot.pause(0.05)
-            if isinstance(app.screen, DraftScheduleScreen) and app.screen.is_mounted:
-                break
+        await wait_until(
+            pilot,
+            lambda: isinstance(app.screen, DraftScheduleScreen) and app.screen.is_mounted,
+            interval=0.05,
+            pause_first=True,
+        )
         assert isinstance(app.screen, DraftScheduleScreen)
         assert app.screen.query_one("#draft-schedule-expression", Input).value == "in 2 days"
 
@@ -4587,18 +4777,22 @@ async def test_context_aware_palette_executes_selected_object_workflows(tmp_path
     app = GUCmailApp(context, gateway=FakeGateway())
 
     async with app.run_test(size=(120, 35)) as pilot:
-        for _ in range(80):
-            await pilot.pause(0.025)
-            if app.ui.online and app.ui.selected_reference == "m-demo":
-                break
+        await wait_until(
+            pilot,
+            lambda: app.ui.online and app.ui.selected_reference == "m-demo",
+            interval=0.025,
+            pause_first=True,
+        )
 
         mail_context = app._palette_context()
         assert mail_context.get("selected_message") == "m-demo"
         app._palette_catalog_handler(CommandInvocation("compose.reply"), mail_context)
-        for _ in range(80):
-            await pilot.pause(0.025)
-            if isinstance(app.screen, ComposeScreen) and app.screen.is_mounted:
-                break
+        await wait_until(
+            pilot,
+            lambda: isinstance(app.screen, ComposeScreen) and app.screen.is_mounted,
+            interval=0.025,
+            pause_first=True,
+        )
         assert isinstance(app.screen, ComposeScreen)
         await pilot.pause()
         assert app.screen.query_one("#compose-subject", Input).value.startswith("Re:")
@@ -4606,12 +4800,15 @@ async def test_context_aware_palette_executes_selected_object_workflows(tmp_path
         await pilot.pause()
 
         app._open_area("calendar")
-        for _ in range(80):
-            await pilot.pause(0.025)
-            if (
-                isinstance(app.screen, CalendarScreen) and app.screen.is_mounted
-            ) and app._palette_context().get("selected_event"):
-                break
+        await wait_until(
+            pilot,
+            lambda: (
+                (isinstance(app.screen, CalendarScreen) and app.screen.is_mounted)
+                and app._palette_context().get("selected_event")
+            ),
+            interval=0.025,
+            pause_first=True,
+        )
         assert isinstance(app.screen, CalendarScreen)
         event_context = app._palette_context()
         assert event_context.get("selected_event") == "event-demo"
@@ -4624,34 +4821,42 @@ async def test_context_aware_palette_executes_selected_object_workflows(tmp_path
         await pilot.pause()
 
         app._open_area("contacts")
-        for _ in range(80):
-            await pilot.pause(0.025)
-            if (
-                isinstance(app.screen, ContactsScreen) and app.screen.is_mounted
-            ) and app._palette_context().get("selected_contact"):
-                break
+        await wait_until(
+            pilot,
+            lambda: (
+                (isinstance(app.screen, ContactsScreen) and app.screen.is_mounted)
+                and app._palette_context().get("selected_contact")
+            ),
+            interval=0.025,
+            pause_first=True,
+        )
         assert isinstance(app.screen, ContactsScreen)
         contact_context = app._palette_context()
         assert contact_context.get("selected_contact") == "contact@example.test"
         app._palette_catalog_handler(
             CommandInvocation("contacts.compose_to_contact"), contact_context
         )
-        for _ in range(80):
-            await pilot.pause(0.025)
-            if isinstance(app.screen, ComposeScreen) and app.screen.is_mounted:
-                break
+        await wait_until(
+            pilot,
+            lambda: isinstance(app.screen, ComposeScreen) and app.screen.is_mounted,
+            interval=0.025,
+            pause_first=True,
+        )
         assert isinstance(app.screen, ComposeScreen)
         assert app.screen.query_one("#compose-to", Input).value == "contact@example.test"
         app.screen.dismiss(None)
         await pilot.pause()
 
         app._open_area("drafts")
-        for _ in range(80):
-            await pilot.pause(0.025)
-            if (
-                isinstance(app.screen, DraftAttachmentScreen) and app.screen.is_mounted
-            ) and app._palette_context().get("current_draft"):
-                break
+        await wait_until(
+            pilot,
+            lambda: (
+                (isinstance(app.screen, DraftAttachmentScreen) and app.screen.is_mounted)
+                and app._palette_context().get("current_draft")
+            ),
+            interval=0.025,
+            pause_first=True,
+        )
         assert isinstance(app.screen, DraftAttachmentScreen)
         draft_context = app._palette_context()
         assert draft_context.get("current_draft") == "context-draft"
@@ -4674,28 +4879,46 @@ async def test_context_aware_palette_executes_selected_object_workflows(tmp_path
         await pilot.pause()
 
         app._open_area("backups")
-        for _ in range(80):
-            await pilot.pause(0.025)
-            if (
-                isinstance(app.screen, BackupScreen) and app.screen.is_mounted
-            ) and app._palette_context().get("current_backup"):
-                break
+        await wait_until(
+            pilot,
+            lambda: (
+                (isinstance(app.screen, BackupScreen) and app.screen.is_mounted)
+                and app._palette_context().get("current_backup")
+            ),
+            interval=0.025,
+            pause_first=True,
+        )
         assert isinstance(app.screen, BackupScreen)
         backup_context = app._palette_context()
         assert backup_context.get("current_backup") == "context-backup"
         app._palette_catalog_handler(
             CommandInvocation("search.search_backups", original_text="search"), backup_context
         )
-        for _ in range(80):
-            await pilot.pause(0.025)
-            if (
-                isinstance(app.screen, LocalSearchScreen) and app.screen.is_mounted
-            ) and app.screen.selected_backup_id == "context-backup":
-                break
+        await wait_until(
+            pilot,
+            lambda: (
+                (isinstance(app.screen, LocalSearchScreen) and app.screen.is_mounted)
+                and app.screen.selected_backup_id == "context-backup"
+            ),
+            interval=0.025,
+            pause_first=True,
+        )
         assert isinstance(app.screen, LocalSearchScreen)
         assert app.screen.selected_backup_id == "context-backup"
         assert app.screen.query_one("#local-search-mode", Select).value == "backups"
         assert app.screen.query_one("#local-search-query", Input).value == ""
+
+
+def _sequence_preview_rows(app) -> int | None:
+    """Rows in the palette's sequence preview; None until the preview has built its content.
+
+    The preview becomes the current screen a moment before its widgets are mounted.
+    """
+    screen = app.screen
+    if not isinstance(screen, PaletteSequencePreviewScreen):
+        return None
+    tables = screen.query("#sequence-results")
+    return tables.first(DataTable).row_count if tables else None
 
 
 @pytest.mark.asyncio
@@ -4713,19 +4936,18 @@ async def test_palette_executes_only_allowlisted_chains_after_real_preview(
         mark_app.screen.query_one(
             "#palette-input", Input
         ).value = "find unread emails from student affairs and mark them read"
-        for _ in range(20):
-            await pilot.pause(0.025)
-            if mark_app.screen._sequence is not None:
-                break
+        await wait_until(
+            pilot,
+            lambda: mark_app.screen._sequence is not None,
+            interval=0.025,
+            pause_first=True,
+        )
         assert "Bounded sequence" in str(
             mark_app.screen.query_one("#palette-explanation", Static).content
         )
         assert not mark_gateway.marked
         await pilot.press("enter")
-        for _ in range(80):
-            await pilot.pause(0.025)
-            if isinstance(mark_app.screen, PaletteSequencePreviewScreen):
-                break
+        await wait_until(pilot, lambda: _sequence_preview_rows(mark_app) == 1, pause_first=True)
         assert isinstance(mark_app.screen, PaletteSequencePreviewScreen)
         assert mark_app.screen.query_one("#sequence-results", DataTable).row_count == 1
         assert "Matched: 1 bounded" in str(
@@ -4740,10 +4962,7 @@ async def test_palette_executes_only_allowlisted_chains_after_real_preview(
         assert "Exact local references" in mark_app.screen.detail
         assert not mark_gateway.marked
         mark_app.screen.dismiss(True)
-        for _ in range(80):
-            await pilot.pause(0.025)
-            if mark_gateway.marked:
-                break
+        await wait_until(pilot, lambda: mark_gateway.marked, interval=0.025, pause_first=True)
         assert mark_gateway.marked == [("m-demo", True)]
         assert mark_gateway.search_queries[-1].sender == "Student Affairs"
         assert mark_gateway.search_queries[-1].is_read is False
@@ -4760,15 +4979,16 @@ async def test_palette_executes_only_allowlisted_chains_after_real_preview(
         backup_app.screen.query_one(
             "#palette-input", Input
         ).value = "find emails larger than 5 MB and then back them up"
-        for _ in range(20):
-            await pilot.pause(0.025)
-            if backup_app.screen._sequence is not None:
-                break
+        await wait_until(
+            pilot,
+            lambda: backup_app.screen._sequence is not None,
+            interval=0.025,
+            pause_first=True,
+        )
         await pilot.press("enter")
-        for _ in range(80):
-            await pilot.pause(0.025)
-            if isinstance(backup_app.screen, PaletteSequencePreviewScreen):
-                break
+        await wait_until(
+            pilot, lambda: _sequence_preview_rows(backup_app) is not None, pause_first=True
+        )
         assert isinstance(backup_app.screen, PaletteSequencePreviewScreen)
         summary = str(backup_app.screen.query_one("#sequence-summary", Static).content)
         assert "Matched: 1 bounded" in summary
@@ -4777,10 +4997,12 @@ async def test_palette_executes_only_allowlisted_chains_after_real_preview(
         await pilot.pause()
         await pilot.wait_for_scheduled_animations()
         await pilot.click("#sequence-continue")
-        for _ in range(80):
-            await pilot.pause(0.025)
-            if isinstance(backup_app.screen, BackupScreen):
-                break
+        await wait_until(
+            pilot,
+            lambda: isinstance(backup_app.screen, BackupScreen),
+            interval=0.025,
+            pause_first=True,
+        )
         assert isinstance(backup_app.screen, BackupScreen)
         assert backup_app.screen.selected_messages == ("m-demo",)
         assert backup_app.screen.query_one("#backup-destination", Input).value == str(
@@ -4792,10 +5014,14 @@ async def test_palette_executes_only_allowlisted_chains_after_real_preview(
         await pilot.pause()
         assert isinstance(backup_app.screen, OperationalConfirmationScreen)
         backup_app.screen.dismiss(True)
-        for _ in range(120):
-            await pilot.pause(0.025)
-            if BackupService(backup_destination, state=backup_context.state).list(limit=10):
-                break
+        await wait_until(
+            pilot,
+            lambda: BackupService(backup_destination, state=backup_context.state).list(
+                limit=10
+            ),
+            interval=0.025,
+            pause_first=True,
+        )
         records = BackupService(backup_destination, state=backup_context.state).list(limit=10)
         assert len(records) == 1
         assert records[0].item_count == 1
@@ -4812,15 +5038,16 @@ async def test_palette_executes_only_allowlisted_chains_after_real_preview(
         attachment_app.screen.query_one(
             "#palette-input", Input
         ).value = "find all PDFs from Ahmed then save them to Downloads"
-        for _ in range(20):
-            await pilot.pause(0.025)
-            if attachment_app.screen._sequence is not None:
-                break
+        await wait_until(
+            pilot,
+            lambda: attachment_app.screen._sequence is not None,
+            interval=0.025,
+            pause_first=True,
+        )
         await pilot.press("enter")
-        for _ in range(80):
-            await pilot.pause(0.025)
-            if isinstance(attachment_app.screen, PaletteSequencePreviewScreen):
-                break
+        await wait_until(
+            pilot, lambda: _sequence_preview_rows(attachment_app) == 1, pause_first=True
+        )
         assert isinstance(attachment_app.screen, PaletteSequencePreviewScreen)
         assert attachment_app.screen.query_one("#sequence-results", DataTable).row_count == 1
         assert not attachment_destination.exists()
@@ -4835,10 +5062,7 @@ async def test_palette_executes_only_allowlisted_chains_after_real_preview(
         assert "safely rename" in attachment_app.screen.detail
         attachment_app.screen.dismiss(True)
         downloaded = attachment_destination / "synthetic-report.pdf"
-        for _ in range(120):
-            await pilot.pause(0.025)
-            if downloaded.exists():
-                break
+        await wait_until(pilot, lambda: downloaded.exists(), interval=0.025, pause_first=True)
         assert downloaded.read_bytes() == b"synthetic pdf"
         assert attachment_gateway.search_queries[-1].sender == "Ahmed"
         assert attachment_gateway.search_queries[-1].attachment_name == ".pdf"
@@ -4907,19 +5131,24 @@ async def test_composer_palette_controls_execute_real_draft_fields_and_handoffs(
     monkeypatch.setattr("gucmail.tui.app_compose.ExternalDraftEditor", FakeEditor)
     app = GUCmailApp(context, gateway=FakeGateway())
     async with app.run_test(size=(120, 35)) as pilot:
-        for _ in range(30):
-            await pilot.pause(0.05)
-            if app.ui.selected_reference == "m-demo":
-                break
+        await wait_until(
+            pilot,
+            lambda: app.ui.selected_reference == "m-demo",
+            interval=0.05,
+            pause_first=True,
+        )
 
         forward_route = catalog_route("compose.forward_as_attachment")
         app._catalog_screen_action(forward_route, CommandInvocation(forward_route.command_id))
-        for _ in range(40):
-            await pilot.pause(0.05)
-            if (
-                isinstance(app.screen, ComposeScreen) and app.screen.is_mounted
-            ) and app.screen.query_one("#compose-attachments", Input).value:
-                break
+        await wait_until(
+            pilot,
+            lambda: (
+                (isinstance(app.screen, ComposeScreen) and app.screen.is_mounted)
+                and app.screen.query_one("#compose-attachments", Input).value
+            ),
+            interval=0.05,
+            pause_first=True,
+        )
         assert isinstance(app.screen, ComposeScreen)
         await _ready_composer_for_editing(pilot)
         mime_path = Path(app.screen.query_one("#compose-attachments", Input).value)
@@ -4954,10 +5183,15 @@ async def test_composer_palette_controls_execute_real_draft_fields_and_handoffs(
 
         editor_route = catalog_route("compose.open_external_editor")
         app._catalog_screen_action(editor_route, CommandInvocation(editor_route.command_id))
-        for _ in range(40):
-            await pilot.pause(0.05)
-            if app.screen.query_one("#compose-body", TextArea).text == "Externally edited body":
-                break
+        await wait_until(
+            pilot,
+            lambda: (
+                app.screen.query_one("#compose-body", TextArea).text
+                == "Externally edited body"
+            ),
+            interval=0.05,
+            pause_first=True,
+        )
         assert app.screen.query_one("#compose-body-mode", Select).value == "plain"
         assert app.screen.query_one("#compose-body", TextArea).text == "Externally edited body"
         await _ready_composer_for_editing(pilot)
@@ -4968,20 +5202,25 @@ async def test_composer_palette_controls_execute_real_draft_fields_and_handoffs(
 
         delay_route = catalog_route("compose.send_after_delay")
         app._catalog_screen_action(delay_route, CommandInvocation(delay_route.command_id))
-        for _ in range(40):
-            await pilot.pause(0.05)
-            if isinstance(app.screen, DraftScheduleScreen) and app.screen.is_mounted:
-                break
+        await wait_until(
+            pilot,
+            lambda: isinstance(app.screen, DraftScheduleScreen) and app.screen.is_mounted,
+            interval=0.05,
+            pause_first=True,
+        )
         assert isinstance(app.screen, DraftScheduleScreen)
         assert app.screen.query_one("#draft-schedule-expression", Input).value == "in 10 minutes"
         app.screen.query_one("#draft-schedule-expression", Input).value = "in 30 minutes"
         app.screen._finish()
-        for _ in range(60):
-            await pilot.pause(0.05)
-            if (
-                isinstance(app.screen, ScheduledScreen) and app.screen.is_mounted
-            ) and app.screen.query_one("#scheduled-table").row_count:
-                break
+        await wait_until(
+            pilot,
+            lambda: (
+                (isinstance(app.screen, ScheduledScreen) and app.screen.is_mounted)
+                and app.screen.query_one("#scheduled-table").row_count
+            ),
+            interval=0.05,
+            pause_first=True,
+        )
         assert isinstance(app.screen, ScheduledScreen)
         records = app._scheduler_service().list(limit=10)
         assert len(records) == 1
@@ -4994,15 +5233,17 @@ async def test_composer_palette_controls_execute_real_draft_fields_and_handoffs(
             reschedule_route,
             CommandInvocation(reschedule_route.command_id),
         )
-        for _ in range(40):
-            await pilot.pause(0.05)
-            if (
+        await wait_until(
+            pilot,
+            lambda: (
                 app._scheduler_service().list(limit=1)[0].message.scheduled_for != before
                 and app.screen.view_state is ViewState.READY
                 and not app.screen._operation_active
                 and not app.screen.mutation_pending
-            ):
-                break
+            ),
+            interval=0.05,
+            pause_first=True,
+        )
         assert app._scheduler_service().list(limit=1)[0].message.scheduled_for != before
         assert app.screen.view_state is ViewState.READY and not app.screen.mutation_pending
 
@@ -5011,18 +5252,18 @@ async def test_composer_palette_controls_execute_real_draft_fields_and_handoffs(
         await pilot.pause()
         assert isinstance(app.screen, OperationalConfirmationScreen)
         app.screen.dismiss(True)
-        for _ in range(40):
-            await pilot.pause(0.05)
-            # Durable cancellation precedes the worker/UI acknowledgement. Do
-            # not hand off to another mutation while its shared guard is held.
-            if (
+        await wait_until(
+            pilot,
+            lambda: (
                 app._scheduler_service().list(limit=1)[0].message.state.value == "cancelled"
                 and app.screen.view_state is ViewState.READY
                 and not app.screen._operation_active
                 and not app.screen.mutation_pending
                 and not app_write_coordinator(app).pending
-            ):
-                break
+            ),
+            interval=0.05,
+            pause_first=True,
+        )
         assert app._scheduler_service().list(limit=1)[0].message.state.value == "cancelled"
         assert app.screen.view_state is ViewState.READY
         assert not app.screen._operation_active and not app.screen.mutation_pending
@@ -5034,10 +5275,12 @@ async def test_composer_palette_controls_execute_real_draft_fields_and_handoffs(
         ):
             route = catalog_route(command_id)
             app._catalog_screen_action(route, CommandInvocation(route.command_id))
-            for _ in range(40):
-                await pilot.pause(0.05)
-                if isinstance(app.screen, DraftScheduleScreen) and app.screen.is_mounted:
-                    break
+            await wait_until(
+                pilot,
+                lambda: isinstance(app.screen, DraftScheduleScreen) and app.screen.is_mounted,
+                interval=0.05,
+                pause_first=True,
+            )
             assert isinstance(app.screen, DraftScheduleScreen)
             await pilot.pause()
             assert app.screen.query_one("#draft-schedule-expression", Input).value == expected
@@ -5071,10 +5314,12 @@ async def test_palette_saved_search_browser_executes_exact_query_and_records_run
         )
         await search_worker.wait()
         await pilot.pause()
-        for _ in range(30):
-            await pilot.pause(0.05)
-            if app.query_one("#message-table").row_count == 1:
-                break
+        await wait_until(
+            pilot,
+            lambda: app.query_one("#message-table").row_count == 1,
+            interval=0.05,
+            pause_first=True,
+        )
         assert app.query_one("#message-table").row_count == 1
         assert app._current_search_text == 'from:"teacher@example.test" AND unread:true'
         assert context.state.list_search_history(limit=1)[0]["source"] == "palette"
@@ -5086,7 +5331,7 @@ async def test_palette_saved_search_browser_executes_exact_query_and_records_run
         assert app.screen.query_one("#saved-search-table").row_count == 1
 
         app.screen.action_run()
-        for _ in range(30):
+        for _ in rounds(30):
             await pilot.pause(0.05)
             current_record = context.state.get_search_record("Unread from teacher")
             if (
@@ -5106,10 +5351,12 @@ async def test_palette_saved_search_browser_executes_exact_query_and_records_run
         app._current_search_text = "unread:true"
         create_route = catalog_route("search.save_current_search")
         app._catalog_open(create_route, CommandInvocation(create_route.command_id))
-        for _ in range(10):
-            await pilot.pause(0.05)
-            if isinstance(app.screen, SavedSearchEditorScreen) and app.screen.is_mounted:
-                break
+        await wait_until(
+            pilot,
+            lambda: isinstance(app.screen, SavedSearchEditorScreen) and app.screen.is_mounted,
+            interval=0.05,
+            pause_first=True,
+        )
         assert isinstance(app.screen, SavedSearchEditorScreen)
         await pilot.pause()
         assert app.screen.query_one("#saved-search-editor-query", TextArea).text == "unread:true"
@@ -5167,7 +5414,7 @@ async def test_catalog_local_search_route_executes_federated_offline_sources(
             original_text="search all data for enrollment",
         )
         app._catalog_screen_action(route, invocation)
-        for _ in range(80):
+        for _ in rounds(80):
             await pilot.pause(0.025)
             if isinstance(app.screen, LocalSearchScreen):
                 table = app.screen.query_one("#local-search-table")
@@ -5232,7 +5479,7 @@ async def test_offline_palette_routes_execute_local_workflows_without_exchange(
         assert app.gateway is None
 
         offline_catalog(CommandInvocation("offline.show_offline_status"), CommandContext())
-        for _ in range(400):  # slow CI machines need more than 2 s
+        for _ in rounds(400):  # slow CI machines need more than 2 s
             await pilot.pause(0.025)
             if isinstance(app.screen, AreaScreen):
                 status_text = str(app.screen.query_one("#area-content", Static).content)
@@ -5251,7 +5498,7 @@ async def test_offline_palette_routes_execute_local_workflows_without_exchange(
             CommandInvocation.from_mapping("offline.search_offline_mail", {"query": "enrollment"}),
             CommandContext(),
         )
-        for _ in range(100):
+        for _ in rounds(100):
             await pilot.pause(0.025)
             if isinstance(app.screen, LocalSearchScreen):
                 results = app.screen.query_one("#local-search-table", DataTable)
@@ -5267,14 +5514,16 @@ async def test_offline_palette_routes_execute_local_workflows_without_exchange(
         await pilot.pause()
 
         offline_catalog(CommandInvocation("offline.open_latest_backup_offline"), CommandContext())
-        for _ in range(160):
-            await pilot.pause(0.025)
-            if (
+        await wait_until(
+            pilot,
+            lambda: (
                 (isinstance(app.screen, BackupBrowseScreen) and app.screen.is_mounted)
                 and app.screen.query("#backup-browse-table")
                 and app.screen.query_one("#backup-browse-table", DataTable).row_count == 2
-            ):
-                break
+            ),
+            interval=0.025,
+            pause_first=True,
+        )
         assert isinstance(app.screen, BackupBrowseScreen)
         assert app.screen.query_one("#backup-browse-table", DataTable).row_count == 2
         assert app.screen.backup_id == "zzz-latest-complete"
@@ -5291,14 +5540,16 @@ async def test_offline_palette_routes_execute_local_workflows_without_exchange(
             ),
             CommandContext(),
         )
-        for _ in range(160):
-            await pilot.pause(0.025)
-            if (
+        await wait_until(
+            pilot,
+            lambda: (
                 (isinstance(app.screen, BackupFolderBrowseScreen) and app.screen.is_mounted)
                 and app.screen.query("#backup-folder-table")
                 and app.screen.query_one("#backup-folder-table", DataTable).row_count == 2
-            ):
-                break
+            ),
+            interval=0.025,
+            pause_first=True,
+        )
         assert isinstance(app.screen, BackupFolderBrowseScreen)
         assert app.screen.backup_id == "zzz-latest-complete"
         assert app.screen.query_one("#backup-folder-table", DataTable).row_count == 2
@@ -5308,14 +5559,16 @@ async def test_offline_palette_routes_execute_local_workflows_without_exchange(
         assert "Inbox/Projects" in detail
 
         app.screen.action_open_folder()
-        for _ in range(160):
-            await pilot.pause(0.025)
-            if (
+        await wait_until(
+            pilot,
+            lambda: (
                 (isinstance(app.screen, BackupBrowseScreen) and app.screen.is_mounted)
                 and app.screen.query("#backup-browse-table")
                 and app.screen.query_one("#backup-browse-table", DataTable).row_count == 1
-            ):
-                break
+            ),
+            interval=0.025,
+            pause_first=True,
+        )
         assert isinstance(app.screen, BackupBrowseScreen)
         assert app.screen.query_one("#backup-browse-table", DataTable).row_count == 1
         assert tuple(item.reference for item in app.screen.items) == ("latest-project",)
@@ -5355,12 +5608,15 @@ async def test_palette_attachment_fuzzy_and_exact_searches_execute_local_index(
             ),
             CommandContext(),
         )
-        for _ in range(80):
-            await pilot.pause(0.025)
-            if (
-                isinstance(app.screen, LocalSearchScreen) and app.screen.is_mounted
-            ) and app.screen.query_one("#local-search-table").row_count == 1:
-                break
+        await wait_until(
+            pilot,
+            lambda: (
+                (isinstance(app.screen, LocalSearchScreen) and app.screen.is_mounted)
+                and app.screen.query_one("#local-search-table").row_count == 1
+            ),
+            interval=0.025,
+            pause_first=True,
+        )
         assert isinstance(app.screen, LocalSearchScreen)
         assert app.screen.query_one("#local-search-mode", Select).value == "attachments"
         assert app.screen.query_one("#local-search-table").row_count == 1
@@ -5384,12 +5640,15 @@ async def test_palette_attachment_fuzzy_and_exact_searches_execute_local_index(
             ),
             CommandContext(),
         )
-        for _ in range(80):
-            await pilot.pause(0.025)
-            if (
-                isinstance(app.screen, LocalSearchScreen) and app.screen.is_mounted
-            ) and app.screen.query_one("#local-search-table").row_count == 1:
-                break
+        await wait_until(
+            pilot,
+            lambda: (
+                (isinstance(app.screen, LocalSearchScreen) and app.screen.is_mounted)
+                and app.screen.query_one("#local-search-table").row_count == 1
+            ),
+            interval=0.025,
+            pause_first=True,
+        )
         assert isinstance(app.screen, LocalSearchScreen)
         assert app.screen.query_one("#local-search-table").row_count == 1
 
@@ -5403,12 +5662,15 @@ async def test_palette_attachment_fuzzy_and_exact_searches_execute_local_index(
                 {"query": "student enrollment confirmation"},
             ),
         )
-        for _ in range(80):
-            await pilot.pause(0.025)
-            if (
-                isinstance(app.screen, LocalSearchScreen) and app.screen.is_mounted
-            ) and app.screen.query_one("#local-search-table").row_count == 2:
-                break
+        await wait_until(
+            pilot,
+            lambda: (
+                (isinstance(app.screen, LocalSearchScreen) and app.screen.is_mounted)
+                and app.screen.query_one("#local-search-table").row_count == 2
+            ),
+            interval=0.025,
+            pause_first=True,
+        )
         assert isinstance(app.screen, LocalSearchScreen)
         assert app.screen.query_one("#local-search-exact", Checkbox).value
         assert not app.screen.query_one("#local-search-fuzzy", Checkbox).value
@@ -5609,7 +5871,7 @@ async def test_cleanup_old_drafts_route_opens_the_persisted_local_age_view(
 
     async with app.run_test(size=(100, 30)) as pilot:
         app._catalog_open(route, CommandInvocation(route.command_id))
-        for _ in range(80):
+        for _ in rounds(80):
             if isinstance(app.screen, DraftAttachmentScreen) and len(
                 app.screen.query("#draft-age")
             ):
@@ -5637,12 +5899,16 @@ async def test_search_category_routes_execute_calendar_contacts_and_tasks(
             ),
             CommandContext(),
         )
-        for _ in range(40):
-            await pilot.pause(0.05)
-            if (
-                isinstance(app.screen, CalendarScreen) and app.screen.is_mounted
-            ) and app.screen.query_one("#calendar-search", Input).value == "Synthetic lecture":
-                break
+        await wait_until(
+            pilot,
+            lambda: (
+                (isinstance(app.screen, CalendarScreen) and app.screen.is_mounted)
+                and app.screen.query_one("#calendar-search", Input).value
+                == "Synthetic lecture"
+            ),
+            interval=0.05,
+            pause_first=True,
+        )
         assert isinstance(app.screen, CalendarScreen)
         assert app.screen.query_one("#calendar-search", Input).value == "Synthetic lecture"
         app.screen.dismiss(None)
@@ -5655,12 +5921,16 @@ async def test_search_category_routes_execute_calendar_contacts_and_tasks(
             ),
             CommandContext(),
         )
-        for _ in range(40):
-            await pilot.pause(0.05)
-            if (
-                isinstance(app.screen, ContactsScreen) and app.screen.is_mounted
-            ) and app.screen.query_one("#contacts-search", Input).value == "Synthetic Contact":
-                break
+        await wait_until(
+            pilot,
+            lambda: (
+                (isinstance(app.screen, ContactsScreen) and app.screen.is_mounted)
+                and app.screen.query_one("#contacts-search", Input).value
+                == "Synthetic Contact"
+            ),
+            interval=0.05,
+            pause_first=True,
+        )
         assert isinstance(app.screen, ContactsScreen)
         assert app.screen.query_one("#contacts-search", Input).value == "Synthetic Contact"
         app.screen.dismiss(None)
@@ -5671,12 +5941,16 @@ async def test_search_category_routes_execute_calendar_contacts_and_tasks(
             tasks,
             CommandInvocation.from_mapping(tasks.command_id, {"query": "Synthetic follow-up"}),
         )
-        for _ in range(40):
-            await pilot.pause(0.05)
-            if (
-                isinstance(app.screen, TasksScreen) and app.screen.is_mounted
-            ) and app.screen.query_one("#tasks-search", Input).value == "Synthetic follow-up":
-                break
+        await wait_until(
+            pilot,
+            lambda: (
+                (isinstance(app.screen, TasksScreen) and app.screen.is_mounted)
+                and app.screen.query_one("#tasks-search", Input).value
+                == "Synthetic follow-up"
+            ),
+            interval=0.05,
+            pause_first=True,
+        )
         assert isinstance(app.screen, TasksScreen)
         assert app.screen.query_one("#tasks-search", Input).value == "Synthetic follow-up"
 
@@ -5691,26 +5965,34 @@ async def test_settings_opens_real_theme_and_branding_browsers(tmp_path: Path) -
         app.screen.query_one("#settings-more", Button).press()
         await pilot.pause()
         app.screen.query_one("#settings-browse-themes", Button).press()
-        for _ in range(40):
-            await pilot.pause(0.025)
-            if (
-                isinstance(app.screen, ThemeBrowserScreen) and app.screen.is_mounted
-            ) and app.screen.query("#theme-category #label"):
-                break
+        await wait_until(
+            pilot,
+            lambda: (
+                (isinstance(app.screen, ThemeBrowserScreen) and app.screen.is_mounted)
+                and app.screen.query("#theme-category #label")
+            ),
+            interval=0.025,
+            pause_first=True,
+        )
         assert isinstance(app.screen, ThemeBrowserScreen)
         await pilot.press("escape")
-        for _ in range(40):
-            await pilot.pause(0.025)
-            if isinstance(app.screen, SettingsScreen) and app.screen.is_mounted:
-                break
+        await wait_until(
+            pilot,
+            lambda: isinstance(app.screen, SettingsScreen) and app.screen.is_mounted,
+            interval=0.025,
+            pause_first=True,
+        )
         assert isinstance(app.screen, SettingsScreen)
         app.screen.query_one("#settings-browse-branding", Button).press()
-        for _ in range(40):
-            await pilot.pause(0.025)
-            if (
-                isinstance(app.screen, BrandingBrowserScreen) and app.screen.is_mounted
-            ) and app.screen.query("#branding-category #label"):
-                break
+        await wait_until(
+            pilot,
+            lambda: (
+                (isinstance(app.screen, BrandingBrowserScreen) and app.screen.is_mounted)
+                and app.screen.query("#branding-category #label")
+            ),
+            interval=0.025,
+            pause_first=True,
+        )
         assert isinstance(app.screen, BrandingBrowserScreen)
 
 
@@ -5727,12 +6009,15 @@ async def test_settings_palette_search_categories_transfer_and_confirmed_resets(
 
     async with app.run_test(size=(140, 42)) as pilot:
         handlers["settings.open"](CommandInvocation("settings.open"), app._palette_context())
-        for _ in range(40):
-            await pilot.pause(0.025)
-            if (
-                isinstance(app.screen, SettingsScreen) and app.screen.is_mounted
-            ) and app.screen.query_one("#settings-form", SettingsForm).row_count:
-                break
+        await wait_until(
+            pilot,
+            lambda: (
+                (isinstance(app.screen, SettingsScreen) and app.screen.is_mounted)
+                and app.screen.query_one("#settings-form", SettingsForm).row_count
+            ),
+            interval=0.025,
+            pause_first=True,
+        )
         assert isinstance(app.screen, SettingsScreen)
 
         handlers["settings.search"](
@@ -5777,7 +6062,7 @@ async def test_settings_palette_search_categories_transfer_and_confirmed_resets(
         app._palette_catalog_handler(
             CommandInvocation(export_route.command_id), app._palette_context()
         )
-        for _ in range(40):
+        for _ in rounds(40):
             await pilot.pause(0.025)
             if isinstance(app.screen, SettingsTransferScreen):
                 payload = app.screen.query_one("#settings-transfer-payload", TextArea).text
@@ -5795,10 +6080,12 @@ async def test_settings_palette_search_categories_transfer_and_confirmed_resets(
         app._palette_catalog_handler(
             CommandInvocation(import_route.command_id), app._palette_context()
         )
-        for _ in range(40):
-            await pilot.pause(0.025)
-            if isinstance(app.screen, SettingsTransferScreen) and app.screen.is_mounted:
-                break
+        await wait_until(
+            pilot,
+            lambda: isinstance(app.screen, SettingsTransferScreen) and app.screen.is_mounted,
+            interval=0.025,
+            pause_first=True,
+        )
         assert isinstance(app.screen, SettingsTransferScreen)
         assert app.screen.query_one("#settings-transfer-mode", Select).value == "import"
         assert not app.screen.query_one("#settings-generate-export", Button).display
@@ -5814,16 +6101,23 @@ async def test_settings_palette_search_categories_transfer_and_confirmed_resets(
             json.dumps(import_payload)
         )
         assert await pilot.click("#settings-preview-import")
-        for _ in range(40):
-            await pilot.pause(0.025)
-            if not app.screen.query_one("#settings-apply-import", Button).disabled:
-                break
+        await wait_until(
+            pilot,
+            lambda: not app.screen.query_one("#settings-apply-import", Button).disabled,
+            interval=0.025,
+            pause_first=True,
+        )
         assert not app.screen.query_one("#settings-apply-import", Button).disabled
         assert await pilot.click("#settings-apply-import")
-        for _ in range(40):
-            await pilot.pause(0.025)
-            if isinstance(app.screen, OperationalConfirmationScreen) and app.screen.is_mounted:
-                break
+        await wait_until(
+            pilot,
+            lambda: (
+                isinstance(app.screen, OperationalConfirmationScreen)
+                and app.screen.is_mounted
+            ),
+            interval=0.025,
+            pause_first=True,
+        )
         assert isinstance(app.screen, OperationalConfirmationScreen)
         import_screen = next(
             screen for screen in app.screen_stack if isinstance(screen, SettingsTransferScreen)
@@ -5834,10 +6128,12 @@ async def test_settings_palette_search_categories_transfer_and_confirmed_resets(
         if import_worker is not None:
             await import_worker.wait()
         await pilot.pause()
-        for _ in range(40):
-            await pilot.pause(0.025)
-            if service.value("appearance.density").effective_value == "spacious":
-                break
+        await wait_until(
+            pilot,
+            lambda: service.value("appearance.density").effective_value == "spacious",
+            interval=0.025,
+            pause_first=True,
+        )
         assert service.value("appearance.density").effective_value == "spacious", (
             type(app.screen).__name__,
             str(app.screen.query_one("#area-state", Static).content),
@@ -5850,14 +6146,17 @@ async def test_settings_palette_search_categories_transfer_and_confirmed_resets(
         app.screen.action_close()
         await pilot.pause()
         assert isinstance(app.screen, SettingsScreen)
-        for _ in range(60):
-            await pilot.pause(0.025)
-            if (
+        await wait_until(
+            pilot,
+            lambda: (
                 not app.screen._operation_active
                 and app.screen._catalog is not None
-                and app.screen._catalog.revision == context.config_store.load_document().revision
-            ):
-                break
+                and app.screen._catalog.revision
+                == context.config_store.load_document().revision
+            ),
+            interval=0.025,
+            pause_first=True,
+        )
         reset_setting = catalog_route("settings.reset_setting")
         app._catalog_screen_action(
             reset_setting,
@@ -5866,31 +6165,41 @@ async def test_settings_palette_search_categories_transfer_and_confirmed_resets(
                 {"setting": "appearance.density"},
             ),
         )
-        for _ in range(40):
-            await pilot.pause(0.025)
-            if isinstance(app.screen, OperationalConfirmationScreen) and app.screen.is_mounted:
-                break
+        await wait_until(
+            pilot,
+            lambda: (
+                isinstance(app.screen, OperationalConfirmationScreen)
+                and app.screen.is_mounted
+            ),
+            interval=0.025,
+            pause_first=True,
+        )
         assert isinstance(app.screen, OperationalConfirmationScreen)
         assert await pilot.click("#operational-confirm-yes")
         await pilot.pause()
         await app.workers.wait_for_complete()
-        for _ in range(40):
-            await pilot.pause(0.025)
-            if service.value("appearance.density").effective_value == "theme":
-                break
+        await wait_until(
+            pilot,
+            lambda: service.value("appearance.density").effective_value == "theme",
+            interval=0.025,
+            pause_first=True,
+        )
         assert service.value("appearance.density").effective_value == "theme", (
             type(app.screen).__name__,
             str(app.screen.query_one("#area-state", Static).content),
         )
-        for _ in range(40):
-            await pilot.pause(0.025)
-            if (
+        await wait_until(
+            pilot,
+            lambda: (
                 (isinstance(app.screen, SettingsScreen) and app.screen.is_mounted)
                 and not app.screen._operation_active
                 and app.screen._catalog is not None
-                and app.screen._catalog.revision == context.config_store.load_document().revision
-            ):
-                break
+                and app.screen._catalog.revision
+                == context.config_store.load_document().revision
+            ),
+            interval=0.025,
+            pause_first=True,
+        )
 
         reset_category = catalog_route("settings.reset_category")
         app._catalog_screen_action(
@@ -5900,18 +6209,25 @@ async def test_settings_palette_search_categories_transfer_and_confirmed_resets(
                 {"settings_category": "Appearance"},
             ),
         )
-        for _ in range(40):
-            await pilot.pause(0.025)
-            if isinstance(app.screen, OperationalConfirmationScreen) and app.screen.is_mounted:
-                break
+        await wait_until(
+            pilot,
+            lambda: (
+                isinstance(app.screen, OperationalConfirmationScreen)
+                and app.screen.is_mounted
+            ),
+            interval=0.025,
+            pause_first=True,
+        )
         assert isinstance(app.screen, OperationalConfirmationScreen)
         assert await pilot.click("#operational-confirm-yes")
         await pilot.pause()
         await app.workers.wait_for_complete()
-        for _ in range(40):
-            await pilot.pause(0.025)
-            if service.value("appearance.banner_visible").effective_value is True:
-                break
+        await wait_until(
+            pilot,
+            lambda: service.value("appearance.banner_visible").effective_value is True,
+            interval=0.025,
+            pause_first=True,
+        )
         assert service.value("appearance.banner_visible").effective_value is True
 
         handlers["notifications.settings"](
@@ -6093,10 +6409,12 @@ async def test_tui_opens_service_backed_pim_screens(tmp_path: Path) -> None:
     async with app.run_test(size=(120, 35)) as pilot:
         for area, screen_type, table_selector in cases:
             app._open_area(area)
-            for _ in range(30):
-                await pilot.pause(0.05)
-                if app.screen.query_one(table_selector).row_count:  # type: ignore[attr-defined]
-                    break
+            await wait_until(
+                pilot,
+                lambda: app.screen.query_one(table_selector).row_count,  # noqa: B023 - wait_until runs it right away
+                interval=0.05,
+                pause_first=True,
+            )
             assert isinstance(app.screen, screen_type)
             assert app.screen.query_one(table_selector).row_count == 1  # type: ignore[attr-defined]
             await pilot.press("escape")
@@ -6125,14 +6443,11 @@ async def test_area_refresh_ignores_stale_worker_result(tmp_path: Path) -> None:
         async with app.run_test(size=(120, 35)) as pilot:
             screen = AreaScreen("Synthetic race", loader)
             app.push_screen(screen)
-            for _ in range(100):
-                if first_started.is_set():
-                    break
-                await pilot.pause(0.01)
+            await wait_until(pilot, lambda: first_started.is_set(), interval=0.01)
             assert first_started.is_set()
 
             screen.action_refresh()
-            for _ in range(100):
+            for _ in rounds(100):
                 content = str(screen.query_one("#area-content", Static).content)
                 if "fresh result" in content:
                     break
@@ -6161,10 +6476,7 @@ async def test_area_close_ignores_late_worker_result(tmp_path: Path) -> None:
         async with app.run_test(size=(120, 35)) as pilot:
             screen = AreaScreen("Synthetic close", loader)
             app.push_screen(screen)
-            for _ in range(100):
-                if started.is_set():
-                    break
-                await pilot.pause(0.01)
+            await wait_until(pilot, lambda: started.is_set(), interval=0.01)
             assert started.is_set()
 
             screen.action_close()
@@ -6494,26 +6806,27 @@ async def test_mark_read_preference_reaches_gateway_only_when_enabled(tmp_path: 
     gateway = ReadGateway()
     app = GUCmailApp(context, gateway=gateway)
     async with app.run_test(size=(120, 35)) as pilot:
-        for _ in range(150):
-            if app.ui.selected_reference == "m-demo" and app.ui.busy is None:
-                break
-            await pilot.pause(0.02)
+        await wait_until(
+            pilot,
+            lambda: app.ui.selected_reference == "m-demo" and app.ui.busy is None,
+            interval=0.02,
+        )
         assert app.ui.selected_reference == "m-demo"
         app.load_message("m-demo")
-        for _ in range(150):
-            if app._message_detail_reference == "m-demo" and app.ui.busy is None:
-                break
-            await pilot.pause(0.02)
+        await wait_until(
+            pilot,
+            lambda: app._message_detail_reference == "m-demo" and app.ui.busy is None,
+            interval=0.02,
+        )
         assert app._message_detail_reference == "m-demo"
         await pilot.pause()
         assert gateway.read_arguments[-1] is False
         assert not gateway.marked
         SettingsService(context.config_store).set("mail.mark_read_on_open", True)
         app.load_message("m-demo")
-        for _ in range(150):
-            if gateway.marked and not app._automatic_read_inflight:
-                break
-            await pilot.pause(0.02)
+        await wait_until(
+            pilot, lambda: gateway.marked and not app._automatic_read_inflight, interval=0.02
+        )
         assert gateway.read_arguments == [False, False]
         assert gateway.marked == [("m-demo", True)]
         assert app._message_detail.summary.is_read

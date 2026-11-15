@@ -33,6 +33,7 @@ from test_calendar_secondpass import (
     _MutableCalendarGateway,
     _wait_for_calendar_rows,
 )
+from waiting import wait_until
 
 
 def _series() -> tuple[CalendarEvent, CalendarEvent]:
@@ -240,24 +241,30 @@ async def test_mounted_series_edit_loads_master_and_requires_exact_scope_confirm
     async with app.run_test(size=size) as pilot:
         screen = await _wait_for_calendar_rows(app, pilot, 1)
         screen.action_edit()
-        for _ in range(200):
-            await pilot.pause(0.05)
-            if isinstance(app.screen, CalendarScopeScreen):
-                break
+        await wait_until(
+            pilot,
+            lambda: isinstance(app.screen, CalendarScopeScreen),
+            interval=0.05,
+            pause_first=True,
+        )
         chooser = app.screen
         assert isinstance(chooser, CalendarScopeScreen)
         for button in chooser.query(Button):
             assert button.region.bottom <= size[1]
+        # The chooser draws its buttons after it opens.
+        await wait_until(pilot, lambda: chooser.query("#calendar-scope-series"))
         chooser.query_one("#calendar-scope-series", Button).press()
-        for _ in range(200):
-            await pilot.pause(0.05)
-            if (
+        await wait_until(
+            pilot,
+            lambda: (
                 isinstance(app.screen, CalendarEditorScreen)
                 and app.screen.is_mounted
                 and app.screen.query_one("#calendar-edit-availability", Select).value
                 is not Select.BLANK
-            ):
-                break
+            ),
+            interval=0.05,
+            pause_first=True,
+        )
         editor = app.screen
         assert isinstance(editor, CalendarEditorScreen)
         await pilot.pause()
@@ -272,10 +279,7 @@ async def test_mounted_series_edit_loads_master_and_requires_exact_scope_confirm
         assert "Reviewed series" in app.screen.detail_text
         assert not gateway.updates
         await pilot.press("y")
-        for _ in range(200):
-            await pilot.pause(0.05)
-            if gateway.updates:
-                break
+        await wait_until(pilot, lambda: gateway.updates, interval=0.05, pause_first=True)
         assert gateway.updates[0].reference == "master"
         assert gateway.updates[0].scope is RecurrenceScope.SERIES
         assert gateway.events["occurrence"].subject == "Recurring lesson"
@@ -293,29 +297,39 @@ async def test_occurrence_scope_cancel_and_series_delete_preview_are_safe():
         await pilot.press("escape")
         assert not gateway.deletes
         screen.action_edit()
-        for _ in range(200):
-            await pilot.pause(0.05)
-            if isinstance(app.screen, CalendarScopeScreen):
-                break
+        await wait_until(
+            pilot,
+            lambda: isinstance(app.screen, CalendarScopeScreen),
+            interval=0.05,
+            pause_first=True,
+        )
+        # The chooser draws its buttons after it opens.
+        await wait_until(pilot, lambda: app.screen.query("#calendar-scope-occurrence"))
         app.screen.query_one("#calendar-scope-occurrence", Button).press()
-        for _ in range(200):
-            await pilot.pause(0.05)
-            if (
+        await wait_until(
+            pilot,
+            lambda: (
                 isinstance(app.screen, CalendarEditorScreen)
                 and app.screen.query_one("#calendar-edit-repeat", Select).disabled
-            ):
-                break
+            ),
+            interval=0.05,
+            pause_first=True,
+        )
         assert isinstance(app.screen, CalendarEditorScreen)
         assert app.screen.query_one("#calendar-edit-repeat", Select).disabled
         await pilot.press("escape")
         assert not gateway.updates
         screen.action_delete()
         await pilot.pause()
+        # The chooser draws its buttons after it opens.
+        await wait_until(pilot, lambda: app.screen.query("#calendar-scope-series"))
         app.screen.query_one("#calendar-scope-series", Button).press()
-        for _ in range(200):
-            await pilot.pause(0.05)
-            if isinstance(app.screen, ConfirmationScreen):
-                break
+        await wait_until(
+            pilot,
+            lambda: isinstance(app.screen, ConfirmationScreen),
+            interval=0.05,
+            pause_first=True,
+        )
         assert isinstance(app.screen, ConfirmationScreen)
         assert "Every date" in app.screen.detail_text
         await pilot.press("escape")

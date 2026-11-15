@@ -27,6 +27,7 @@ from gucmail.services.backup import (
 from gucmail.tui.area_backends import BackupAreaBackend
 from gucmail.tui.area_common import ConfirmationScreen, PublicOperationError
 from gucmail.tui.backup_screen import BackupCreateRequest, BackupScreen
+from waiting import rounds, wait_until
 
 
 class Snapshot:
@@ -222,10 +223,12 @@ async def test_tui_reviews_selected_parent_and_rejects_other_destination(tmp_pat
     app = App()
     async with app.run_test(size=size) as pilot:
         await app.push_screen(screen)
-        for _ in range(100):
-            await pilot.pause(0.02)
-            if screen.selected_backup_id and not screen._operation_active:
-                break
+        await wait_until(
+            pilot,
+            lambda: screen.selected_backup_id and not screen._operation_active,
+            interval=0.02,
+            pause_first=True,
+        )
         request = screen._parse_request()
         assert request.parent_backup_id == "chosen-parent"
         assert screen.query_one("#backup-encrypt", Checkbox).disabled
@@ -236,7 +239,7 @@ async def test_tui_reviews_selected_parent_and_rejects_other_destination(tmp_pat
         create = screen.query_one("#backup-create", Button)
         settled = 0
         previous_region = None
-        for _ in range(250):
+        for _ in rounds(250):
             await pilot.pause(0.02)
             region = create.region
             if (

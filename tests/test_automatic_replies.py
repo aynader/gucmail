@@ -32,6 +32,7 @@ from gucmail.tui.notification_settings_screen import NotificationSettingsScreen
 from test_cli import _environment
 from test_settings_secondpass import _context
 from test_tui import FakeGateway
+from waiting import wait_until
 
 
 class _Gateway:
@@ -190,10 +191,9 @@ async def test_mounted_policy_editor_reviews_then_confirms_and_cancel_does_not_w
     gateway = _Gateway()
     app = _Harness(AutomaticReplyService(gateway))
     async with app.run_test(size=size) as pilot:
-        for _ in range(30):
-            await pilot.pause(0.05)
-            if app.screen.current is not None:
-                break
+        await wait_until(
+            pilot, lambda: app.screen.current is not None, interval=0.05, pause_first=True
+        )
         screen = app.screen
         screen.query_one("#oof-edit", Button).press()
         await pilot.pause()
@@ -210,10 +210,14 @@ async def test_mounted_policy_editor_reviews_then_confirms_and_cancel_does_not_w
         assert "External audience: none" in app.screen.detail_text
         assert not gateway.writes
         await pilot.press("y")
-        for _ in range(30):
-            await pilot.pause(0.05)
-            if gateway.writes and app.screen.current.state is AutomaticReplyState.ENABLED:
-                break
+        await wait_until(
+            pilot,
+            lambda: (
+                gateway.writes and app.screen.current.state is AutomaticReplyState.ENABLED
+            ),
+            interval=0.05,
+            pause_first=True,
+        )
         assert len(gateway.writes) == 1
         assert "State: enabled" in str(screen.query_one("#oof-details", Static).content)
 
@@ -245,10 +249,15 @@ async def test_actual_mail_app_navigates_from_notifications_to_live_policy_surfa
         button = screen.query_one("#notification-automatic-replies", Button)
         assert not button.disabled
         button.press()
-        for _ in range(30):
-            await pilot.pause(0.05)
-            if isinstance(app.screen, AutomaticRepliesScreen) and app.screen.current is not None:
-                break
+        await wait_until(
+            pilot,
+            lambda: (
+                isinstance(app.screen, AutomaticRepliesScreen)
+                and app.screen.current is not None
+            ),
+            interval=0.05,
+            pause_first=True,
+        )
         assert isinstance(app.screen, AutomaticRepliesScreen)
         assert gateway.reads == 1 and not gateway.writes
 

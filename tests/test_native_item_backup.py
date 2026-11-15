@@ -16,6 +16,7 @@ from gucmail.errors import (
     UnsupportedFeatureError,
 )
 from gucmail.ews import native_items as module
+from waiting import rounds
 
 
 def account():
@@ -567,7 +568,7 @@ async def test_normal_backup_palette_plan_confirmation_native_restore_result(
     app = GUCmailApp(context, gateway=facade)
 
     async def wait(pilot, predicate):
-        for _ in range(250):
+        for _ in rounds(250):
             await pilot.pause(0.02)
             if predicate():
                 return

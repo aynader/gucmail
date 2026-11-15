@@ -28,6 +28,7 @@ from test_notification_settings_screen_secondpass import (
     _event,
     _service,
 )
+from waiting import rounds, wait_until
 
 LEAF = {"type": "text", "field": "subject", "operator": "contains", "values": ["exam"]}
 
@@ -87,7 +88,7 @@ async def test_guided_tree_actions_save_reopen_and_execute_same_runtime_rule(tmp
     async with app.run_test(size=size) as pilot:
 
         async def wait_for_form():
-            for _ in range(150):
+            for _ in rounds(150):
                 if (
                     isinstance(app.screen, RuleValueForm)
                     and app.screen.is_mounted
@@ -236,18 +237,26 @@ async def test_recent_mail_button_runs_worker_dry_run_without_provider_delivery(
     app = NotificationSettingsHarness(screen)
     async with app.run_test(size=(100, 35)) as pilot:
         # Press only after the settings load; otherwise the load result replaces the report.
-        for _ in range(300):
-            await pilot.pause(0.05)
-            if screen._profiles and not screen._operation_active:
-                break
+        await wait_until(
+            pilot,
+            lambda: screen._profiles and not screen._operation_active,
+            interval=0.05,
+            pause_first=True,
+            timeout=15,
+        )
         screen.query_one("#notification-tabs", TabbedContent).active = "notification-rules-tab"
         screen.query_one("#notification-rule-recent", Button).press()
-        for _ in range(300):  # sampling and the dry run are two worker steps
-            await pilot.pause(0.05)
-            if "Recent metadata sample" in str(
-                screen.query_one("#notification-rule-detail", Static).content
-            ):
-                break
+        # sampling and the dry run are two worker steps
+        await wait_until(
+            pilot,
+            lambda: (
+                "Recent metadata sample"
+                in str(screen.query_one("#notification-rule-detail", Static).content)
+            ),
+            interval=0.05,
+            pause_first=True,
+            timeout=15,
+        )
         report = str(screen.query_one("#notification-rule-detail", Static).content)
         assert "Events: 50" in report
         assert "DRY RUN" in report

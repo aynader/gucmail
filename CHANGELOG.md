@@ -16,7 +16,15 @@ people using gucmail, not for its developers.
   is still waiting.
 - `gucmail notifications status` gives a plain answer: on or off, and whether the task runs.
 
-## 1.2.0 (unreleased)
+### Fixed
+- F5 in the window that opens from a notification now refreshes as soon as the message is
+  shown. It could be ignored for a moment before.
+- Double-clicking Close in Keyboard shortcuts or Saved searches no longer also closes the
+  screen behind it.
+- Screens such as Drafts load faster on a busy computer: progress updates no longer hold up
+  the loading work.
+
+## 1.2.0
 
 ### Fixed
 - Notifications: one privacy setting now decides what a toast shows. "(No subject)" appears

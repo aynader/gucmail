@@ -17,6 +17,7 @@ from gucmail.startup import (
 )
 from gucmail.watcher_entry import main
 from test_settings_secondpass import _context
+from waiting import wait_until
 
 
 def test_watcher_process_binds_paths_and_child_entry_uses_them(tmp_path: Path, monkeypatch) -> None:
@@ -148,29 +149,37 @@ async def test_settings_opens_startup_preview_and_cancel_never_applies(
     app = GUCmailApp(context, offline=True)
     async with app.run_test(size=(140, 50)) as pilot:
         app._open_area("settings")
-        for _ in range(80):
-            await pilot.pause(0.025)
-            if (
-                isinstance(app.screen, SettingsScreen) and app.screen.is_mounted
-            ) and "monitoring.start_at_login" in app.screen._settings_by_id:
-                break
+        await wait_until(
+            pilot,
+            lambda: (
+                (isinstance(app.screen, SettingsScreen) and app.screen.is_mounted)
+                and "monitoring.start_at_login" in app.screen._settings_by_id
+            ),
+            interval=0.025,
+            pause_first=True,
+        )
         app.screen.action_select_setting("monitoring.start_at_login")
         await pilot.pause()
         app.screen.query_one("#settings-managed", Button).press()
-        for _ in range(80):
-            await pilot.pause(0.025)
-            if (
-                isinstance(app.screen, StartupScreen) and app.screen.is_mounted
-            ) and app.screen.current is not None:
-                break
+        await wait_until(
+            pilot,
+            lambda: (
+                (isinstance(app.screen, StartupScreen) and app.screen.is_mounted)
+                and app.screen.current is not None
+            ),
+            interval=0.025,
+            pause_first=True,
+        )
         assert isinstance(app.screen, StartupScreen)
         assert app.screen.current.inspection.installed is False
         screen = app.screen
         screen.query_one("#startup-enable", Button).press()
-        for _ in range(80):
-            await pilot.pause(0.025)
-            if isinstance(app.screen, ConfirmationScreen) and app.screen.is_mounted:
-                break
+        await wait_until(
+            pilot,
+            lambda: isinstance(app.screen, ConfirmationScreen) and app.screen.is_mounted,
+            interval=0.025,
+            pause_first=True,
+        )
         assert isinstance(app.screen, ConfirmationScreen)
         assert applied == []
         await pilot.press("escape")
@@ -178,15 +187,19 @@ async def test_settings_opens_startup_preview_and_cancel_never_applies(
         assert applied == []
 
         screen.query_one("#startup-enable", Button).press()
-        for _ in range(80):
-            await pilot.pause(0.025)
-            if isinstance(app.screen, ConfirmationScreen) and app.screen.is_mounted:
-                break
+        await wait_until(
+            pilot,
+            lambda: isinstance(app.screen, ConfirmationScreen) and app.screen.is_mounted,
+            interval=0.025,
+            pause_first=True,
+        )
         await pilot.press("y")
-        for _ in range(80):
-            await pilot.pause(0.025)
-            if app.screen is screen and screen.current.inspection.healthy:
-                break
+        await wait_until(
+            pilot,
+            lambda: app.screen is screen and screen.current.inspection.healthy,
+            interval=0.025,
+            pause_first=True,
+        )
         assert len(applied) == 1
         assert screen.current.inspection.healthy
         preference = context.state.get_ui_preference("preferences", scope="startup")

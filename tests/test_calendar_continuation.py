@@ -13,6 +13,7 @@ from gucmail.models import CalendarEvent
 from gucmail.services.calendar import CalendarService, CalendarViewKind
 from gucmail.services.calendar_paging import query_calendar_window
 from gucmail.tui.pim_screens import CalendarScreen, CalendarServiceBackend
+from waiting import click_button, rounds
 
 START = datetime(2026, 9, 1, tzinfo=UTC)
 
@@ -172,21 +173,29 @@ async def test_user_can_page_back_and_search_beyond_first_page():
     app = CalendarApp()
     async with app.run_test(size=(120, 36)) as pilot:
 
-        async def settled(count):
-            for _ in range(100):
+        async def settled(count, *, unlike=None):
+            # ``unlike``: the page shown before a click; the new page must differ from it,
+            # because the old page also has ``count`` events until the load starts.
+            for _ in rounds(100):
                 await pilot.pause(0.02)
-                if not screen._operation_active and len(screen._events) == count:
+                shown = [event.reference for event in screen._events]
+                if (
+                    not screen._operation_active
+                    and len(shown) == count
+                    and (unlike is None or shown != unlike)
+                ):
                     return
             pytest.fail("Calendar did not settle")
 
         await settled(25)
         first = [event.reference for event in screen._events]
         assert not screen.query_one("#calendar-more", Button).disabled
-        await pilot.click("#calendar-more")
-        await settled(25)
-        assert not set(first) & {event.reference for event in screen._events}
-        await pilot.click("#calendar-earlier")
-        await settled(25)
+        await click_button(pilot, screen.query_one("#calendar-more", Button))
+        await settled(25, unlike=first)
+        second = [event.reference for event in screen._events]
+        assert not set(first) & set(second)
+        await click_button(pilot, screen.query_one("#calendar-earlier", Button))
+        await settled(25, unlike=second)
         assert [event.reference for event in screen._events] == first
         search = screen.query_one("#calendar-search", Input)
         search.value = "Academic 41"

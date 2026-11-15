@@ -27,6 +27,7 @@ from test_cli import _environment
 from test_compose_preferences import wait_for
 from test_pim import CalendarMemoryGateway, _event
 from test_settings_secondpass import _context
+from waiting import press_button
 
 ATTENDEES = (Address("guest@example.test"), Address("other@example.test"))
 START = datetime(2026, 10, 3, 8, tzinfo=UTC)
@@ -375,11 +376,7 @@ async def test_normal_settings_cancel_apply_workweek_free_time_and_captured_poli
         settings = app.screen
 
         async def activate(selector):
-            button = settings.query_one(selector, Button)
-            await wait_for(pilot, lambda: not button.disabled and not button.has_class("-active"))
-            button.focus()
-            await pilot.pause()
-            await pilot.press("enter")
+            await press_button(pilot, settings.query_one(selector, Button))
 
         async def stage():
             for key, value in VALUES.items():

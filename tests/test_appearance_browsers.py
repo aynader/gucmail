@@ -30,6 +30,7 @@ from gucmail.tui.themes import (
     adapt_theme_high_contrast,
     contrast_ratio,
 )
+from waiting import wait_until
 
 
 class _ScreenHost(App[None]):
@@ -394,7 +395,8 @@ async def test_branding_browser_screen_pilot_custom_monochrome_apply() -> None:
         preview_text = str(app.query_one("#branding-preview", Static).content)
         assert "G" in preview_text
         assert await pilot.click("#branding-apply")
-        await pilot.pause()
+        # Applying saves in the background; wait for the save, not for one refresh.
+        await wait_until(pilot, lambda: persisted and not backend.session.is_previewing)
         assert not backend.session.is_previewing
         assert persisted[-1].preset_id == "custom"
         assert persisted[-1].target_width == 16

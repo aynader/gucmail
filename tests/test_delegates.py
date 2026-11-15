@@ -39,6 +39,7 @@ from gucmail.tui.delegates_screen import DelegatesScreen
 from test_cli import _environment
 from test_settings_secondpass import _context
 from test_tui import FakeGateway
+from waiting import rounds, wait_until
 
 VERSION = Version(build=Build(15, 1, 2375, 7))
 
@@ -295,7 +296,7 @@ class Harness(App):
 
 
 async def _loaded(pilot, screen):
-    for _ in range(50):
+    for _ in rounds(50):
         await pilot.pause(0.05)
         if screen.view_state in {ViewState.READY, ViewState.ERROR}:
             return
@@ -387,10 +388,7 @@ async def test_cancelled_slow_read_keeps_ui_responsive_and_rejects_late_result()
     try:
         async with app.run_test() as pilot:
             screen = app.screen
-            for _ in range(30):
-                await pilot.pause(0.05)
-                if entered.is_set():
-                    break
+            await wait_until(pilot, lambda: entered.is_set(), interval=0.05, pause_first=True)
             assert entered.is_set() and screen.view_state is ViewState.LOADING
             await pilot.press("ctrl+c")
             await pilot.pause()
@@ -439,9 +437,14 @@ async def test_normal_palette_keyboard_route_resolves_and_reads_once(tmp_path):
         assert app.screen._interpretation.invocation.command_id == "ews.delegates"
         assert gateway.reads == 0
         await pilot.press("enter")
-        for _ in range(50):
-            await pilot.pause(0.05)
-            if isinstance(app.screen, DelegatesScreen) and app.screen.view_state is ViewState.READY:
-                break
+        await wait_until(
+            pilot,
+            lambda: (
+                isinstance(app.screen, DelegatesScreen)
+                and app.screen.view_state is ViewState.READY
+            ),
+            interval=0.05,
+            pause_first=True,
+        )
         assert isinstance(app.screen, DelegatesScreen)
         assert app.screen.view_state is ViewState.READY and gateway.reads == 1

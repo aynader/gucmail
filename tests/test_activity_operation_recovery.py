@@ -11,10 +11,11 @@ from gucmail.tui.activity_screen import ActivityScreen
 from gucmail.tui.app import AreaScreen, GUCmailApp
 from gucmail.tui.area_backends import ActivityAreaBackend
 from test_tui import context_for
+from waiting import rounds
 
 
 async def wait(pilot, condition):
-    for _ in range(100):
+    for _ in rounds(100):
         await pilot.pause(0.03)
         if condition():
             return

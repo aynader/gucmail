@@ -39,6 +39,7 @@ from test_mail_services import ComposeFake
 from test_scheduler import NOW, make_services
 from test_settings_secondpass import _context
 from test_tui import _ready_composer_for_editing
+from waiting import press_button
 
 VALUES = {
     "mail.default_reply_mode": "all",
@@ -411,11 +412,7 @@ async def test_normal_settings_stage_cancel_apply_and_mail_response_consumers(
         settings = app.screen
 
         async def activate(identifier):
-            control = settings.query_one(identifier, Button)
-            await wait_for(pilot, lambda: not control.has_class("-active") and not control.disabled)
-            control.focus()
-            await pilot.pause()
-            await pilot.press("enter")
+            await press_button(pilot, settings.query_one(identifier, Button))
 
         async def stage():
             for identifier, value in VALUES.items():

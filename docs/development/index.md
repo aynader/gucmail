@@ -24,6 +24,23 @@ finishes. Pass pytest arguments to run less, e.g. `qa\test.py tests\test_cli.py 
 Live tests are skipped unless you explicitly opt in. Automated checks never send, move,
 delete, flag or mark real messages read.
 
+### Tests that wait for the app
+
+The app does its work in the background, so a test must wait for a result rather than for a
+fixed number of pauses. Use the helpers in `tests/waiting.py`:
+
+- `wait_until(pilot, condition)` checks the condition until it holds (10 seconds at most,
+  `GUCMAIL_TEST_WAIT_SECONDS` changes this). Assert afterwards, so a timeout fails with the
+  test's own message.
+- `press_button(pilot, button)` and `click_button(pilot, button)` wait until the button is
+  enabled and its screen has finished its work. `click_button` also waits for the button to
+  stop moving, since a screen often shows or hides other buttons when work finishes.
+- `rounds(n)` counts rounds for a polling loop that needs more than one condition.
+
+`qa\test.py --slow` makes every background task start and finish later, like a busy CI
+machine does. A test that passes normally but fails with `--slow` reads the screen before
+the app is ready. Run it after changing a TUI test.
+
 ## Where things live
 
 - `src/gucmail/cli/`: the command line, one module per area (`mail.py`, `calendar.py`, ...).

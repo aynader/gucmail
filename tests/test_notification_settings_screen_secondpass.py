@@ -60,6 +60,7 @@ from gucmail.tui.notification_settings_screen import (
     WebhookSetupScreen,
     preview_provider_metadata_document,
 )
+from waiting import rounds, wait_until
 
 
 @pytest.mark.asyncio
@@ -207,7 +208,7 @@ class NotificationSettingsHarness(App[None]):
 
 
 async def _settle_configuration_read(pilot, screen):
-    for _ in range(500):
+    for _ in rounds(500):
         if not screen._operation_active and screen._pending_configuration_action is None:
             await pilot.pause()
             return
@@ -239,7 +240,7 @@ async def test_screen_loads_every_configuration_surface_and_redacts_export(
     async with app.run_test(size=(160, 48)) as pilot:
 
         async def acknowledged(condition, phase):
-            for _ in range(500):
+            for _ in rounds(500):
                 if condition():
                     return
                 await pilot.pause(0.02)
@@ -319,7 +320,7 @@ async def test_rule_simulation_and_routing_matrix_mutate_only_local_state(
     async with app.run_test(size=(150, 46)) as pilot:
 
         async def acknowledged(condition, phase):
-            for _ in range(500):
+            for _ in rounds(500):
                 if condition():
                     return
                 await pilot.pause(0.02)
@@ -385,10 +386,9 @@ async def test_profile_deletion_requires_explicit_confirmation(tmp_path: Path) -
     app = NotificationSettingsHarness(screen)
 
     async with app.run_test(size=(140, 42)) as pilot:
-        for _ in range(40):
-            await pilot.pause(0.025)
-            if screen._profile() is not None:
-                break
+        await wait_until(
+            pilot, lambda: screen._profile() is not None, interval=0.025, pause_first=True
+        )
         screen.query_one("#notification-profile-delete", Button).press()
         await pilot.pause()
         assert isinstance(app.screen, NotificationConfirmationScreen)
@@ -422,10 +422,9 @@ async def test_palette_rule_actions_prefill_supported_monitoring_predicates(
         ("has_attachments", None, "boolean", "has_attachments"),
     )
     async with app.run_test(size=(140, 44)) as pilot:
-        for _ in range(40):
-            await pilot.pause(0.025)
-            if screen._profile() is not None:
-                break
+        await wait_until(
+            pilot, lambda: screen._profile() is not None, interval=0.025, pause_first=True
+        )
         for preset, value, condition_type, field in expected:
             screen.action_create_rule(preset, value)
             await _settle_configuration_read(pilot, screen)
@@ -450,24 +449,25 @@ async def test_rule_create_edit_and_confirmed_delete_persist_through_the_screen(
     app = NotificationSettingsHarness(screen)
 
     async with app.run_test(size=(150, 46)) as pilot:
-        for _ in range(40):
-            await pilot.pause(0.025)
-            if screen._profile() is not None:
-                break
+        await wait_until(
+            pilot, lambda: screen._profile() is not None, interval=0.025, pause_first=True
+        )
 
         screen.action_create_rule()
         await _settle_configuration_read(pilot, screen)
-        for _ in range(40):
-            await pilot.pause(0.025)
-            if isinstance(app.screen, RuleEditorScreen) and app.screen.is_mounted:
-                break
+        await wait_until(
+            pilot,
+            lambda: isinstance(app.screen, RuleEditorScreen) and app.screen.is_mounted,
+            interval=0.025,
+            pause_first=True,
+        )
         assert isinstance(app.screen, RuleEditorScreen)
         editor = app.screen
         editor.query_one("#notification-rule-id", Input).value = "student-affairs"
         editor.query_one("#notification-rule-name", Input).value = "Student Affairs alerts"
         editor.query_one("#notification-rule-enabled", Checkbox).value = True
         editor.query_one("#notification-rule-save", Button).press()
-        for _ in range(40):
+        for _ in rounds(40):
             await pilot.pause(0.025)
             if isinstance(app.screen, NotificationSettingsScreen):
                 profile = service.profiles.get_profile("campus")
@@ -487,16 +487,18 @@ async def test_rule_create_edit_and_confirmed_delete_persist_through_the_screen(
         screen._selected_rule_id = created.rule_id
         screen.action_edit_rule()
         await _settle_configuration_read(pilot, screen)
-        for _ in range(40):
-            await pilot.pause(0.025)
-            if isinstance(app.screen, RuleEditorScreen) and app.screen.is_mounted:
-                break
+        await wait_until(
+            pilot,
+            lambda: isinstance(app.screen, RuleEditorScreen) and app.screen.is_mounted,
+            interval=0.025,
+            pause_first=True,
+        )
         assert isinstance(app.screen, RuleEditorScreen)
         editor = app.screen
         assert editor.query_one("#notification-rule-id", Input).disabled
         editor.query_one("#notification-rule-name", Input).value = "Student Affairs priority"
         editor.query_one("#notification-rule-save", Button).press()
-        for _ in range(40):
+        for _ in rounds(40):
             await pilot.pause(0.025)
             if isinstance(app.screen, NotificationSettingsScreen):
                 profile = service.profiles.get_profile("campus")
@@ -520,14 +522,19 @@ async def test_rule_create_edit_and_confirmed_delete_persist_through_the_screen(
         screen._selected_rule_id = edited.rule_id
         screen.action_delete_rule()
         await _settle_configuration_read(pilot, screen)
-        for _ in range(40):
-            await pilot.pause(0.025)
-            if isinstance(app.screen, NotificationConfirmationScreen) and app.screen.is_mounted:
-                break
+        await wait_until(
+            pilot,
+            lambda: (
+                isinstance(app.screen, NotificationConfirmationScreen)
+                and app.screen.is_mounted
+            ),
+            interval=0.025,
+            pause_first=True,
+        )
         assert isinstance(app.screen, NotificationConfirmationScreen)
         assert any(item.rule_id == "student-affairs" for item in edited_profile.rules)
         app.screen.query_one("#operational-confirm-yes", Button).press()
-        for _ in range(40):
+        for _ in rounds(40):
             await pilot.pause(0.025)
             profile = service.profiles.get_profile("campus")
             if profile is not None and all(
@@ -548,10 +555,9 @@ async def test_monitor_folder_palette_action_persists_the_active_watcher_scope(
     app = NotificationSettingsHarness(screen)
 
     async with app.run_test(size=(140, 44)) as pilot:
-        for _ in range(40):
-            await pilot.pause(0.025)
-            if screen._profile() is not None:
-                break
+        await wait_until(
+            pilot, lambda: screen._profile() is not None, interval=0.025, pause_first=True
+        )
         screen.action_configure_folder_scope("add", "Inbox/Student Affairs")
         await _settle_configuration_read(pilot, screen)
         updated = service.profiles.active_profile()
@@ -582,10 +588,9 @@ async def test_notification_palette_actions_mutate_the_consumed_profile(
     app = NotificationSettingsHarness(screen)
 
     async with app.run_test(size=(150, 46)) as pilot:
-        for _ in range(40):
-            await pilot.pause(0.025)
-            if screen._profile() is not None:
-                break
+        await wait_until(
+            pilot, lambda: screen._profile() is not None, interval=0.025, pause_first=True
+        )
 
         screen.action_set_desktop_notifications(False)
         await _settle_configuration_read(pilot, screen)
@@ -655,10 +660,9 @@ async def test_secure_webhook_setup_pause_resume_and_remove_are_real_local_lifec
     destination = "https://discord.com/api/webhooks/" + "12345/" + ("x" * 20)
 
     async with app.run_test(size=(160, 48)) as pilot:
-        for _ in range(40):
-            await pilot.pause(0.025)
-            if screen._profile() is not None:
-                break
+        await wait_until(
+            pilot, lambda: screen._profile() is not None, interval=0.025, pause_first=True
+        )
         screen.action_configure_webhook("discord")
         await _settle_configuration_read(pilot, screen)
         await pilot.pause()
@@ -733,22 +737,23 @@ async def test_webhook_provider_variants_persist_disabled_without_network_traffi
     app = NotificationSettingsHarness(screen)
 
     async with app.run_test(size=(160, 48)) as pilot:
-        for _ in range(40):
-            await pilot.pause(0.025)
-            if screen._profile() is not None:
-                break
+        await wait_until(
+            pilot, lambda: screen._profile() is not None, interval=0.025, pause_first=True
+        )
         for kind in ("webhook", "slack", "teams"):
             screen.action_configure_webhook(kind)
             await _settle_configuration_read(pilot, screen)
-            for _ in range(40):
-                await pilot.pause(0.025)
-                if isinstance(app.screen, WebhookSetupScreen) and app.screen.is_mounted:
-                    break
+            await wait_until(
+                pilot,
+                lambda: isinstance(app.screen, WebhookSetupScreen) and app.screen.is_mounted,
+                interval=0.025,
+                pause_first=True,
+            )
             assert isinstance(app.screen, WebhookSetupScreen)
             editor = app.screen
             editor.query_one("#webhook-url", Input).value = f"https://hooks.example.test/{kind}"
             editor.query_one("#webhook-setup-save", Button).press()
-            for _ in range(40):
+            for _ in rounds(40):
                 await pilot.pause(0.025)
                 metadata = service.providers.get_provider(f"{kind}-main")
                 if metadata is not None:
@@ -816,19 +821,20 @@ async def test_confirmed_webhook_test_uses_only_synthetic_data_and_exact_provide
     app = NotificationSettingsHarness(screen)
 
     async with app.run_test(size=(150, 46)) as pilot:
-        for _ in range(40):
-            await pilot.pause(0.025)
-            if screen._profile() is not None:
-                break
+        await wait_until(
+            pilot, lambda: screen._profile() is not None, interval=0.025, pause_first=True
+        )
         screen.action_show_webhook_configuration("example")
         await _settle_configuration_read(pilot, screen)
         assert screen._selected_webhook_name == "example"
         screen.action_test_webhook("example", confirmed=True)
         await _settle_configuration_read(pilot, screen)
-        for _ in range(80):
-            await pilot.pause(0.025)
-            if deliveries and not screen._operation_active:
-                break
+        await wait_until(
+            pilot,
+            lambda: deliveries and not screen._operation_active,
+            interval=0.025,
+            pause_first=True,
+        )
 
         assert len(deliveries) == 1
         assert deliveries[0][0] == "example"
@@ -837,10 +843,12 @@ async def test_confirmed_webhook_test_uses_only_synthetic_data_and_exact_provide
 
         screen.action_test_webhook(provider_kind="discord", confirmed=True)
         await _settle_configuration_read(pilot, screen)
-        for _ in range(80):
-            await pilot.pause(0.025)
-            if len(deliveries) == 2 and not screen._operation_active:
-                break
+        await wait_until(
+            pilot,
+            lambda: len(deliveries) == 2 and not screen._operation_active,
+            interval=0.025,
+            pause_first=True,
+        )
         assert deliveries[1][0] == "discord-synthetic"
 
 
@@ -914,10 +922,9 @@ async def test_import_must_be_repreviewed_after_payload_changes(tmp_path: Path) 
     app = NotificationSettingsHarness(screen)
 
     async with app.run_test(size=(150, 44)) as pilot:
-        for _ in range(40):
-            await pilot.pause(0.025)
-            if screen._profile() is not None:
-                break
+        await wait_until(
+            pilot, lambda: screen._profile() is not None, interval=0.025, pause_first=True
+        )
         screen.query_one("#notification-tabs", TabbedContent).active = "notification-transfer-tab"
         await pilot.pause()
         screen.query_one("#notification-transfer-kind", Select).value = "profiles"

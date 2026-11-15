@@ -39,6 +39,7 @@ from gucmail.tui.notification_settings_screen import (
 )
 from test_notification_runtime_preview import _metadata_gateway
 from test_tui import context_for
+from waiting import rounds
 
 NOW = datetime(2026, 10, 7, 12, tzinfo=UTC)
 
@@ -79,7 +80,7 @@ class EditorHarness(App[None]):
 
 
 async def _wait(pilot, predicate):
-    for _ in range(250):
+    for _ in rounds(250):
         await pilot.pause(0.02)
         if predicate():
             return

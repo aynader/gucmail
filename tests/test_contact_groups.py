@@ -41,6 +41,7 @@ from gucmail.tui.contact_groups_screen import ContactGroupEditor, ContactGroupsS
 from test_cli import _environment
 from test_settings_secondpass import _context
 from test_tui import FakeGateway
+from waiting import rounds, wait_until
 
 
 def test_local_groups_migrate_reopen_preserve_cache_and_isolate_accounts(tmp_path, monkeypatch):
@@ -349,7 +350,7 @@ async def test_mounted_group_form_exact_confirmation_and_cancel(tmp_path, size):
     async with app.run_test(size=size) as pilot:
 
         async def wait_until_ready(condition):
-            for _ in range(150):
+            for _ in rounds(150):
                 if condition():
                     await pilot.pause()
                     return
@@ -409,21 +410,27 @@ async def test_actual_app_group_composition_reviews_exact_recipients_then_opens_
     async with app.run_test(size=(100, 35)) as pilot:
         await pilot.pause()
         app._open_area("contact_groups")
-        for _ in range(30):
-            await pilot.pause(0.05)
-            if isinstance(app.screen, ContactGroupsScreen) and app.screen.current:
-                break
+        await wait_until(
+            pilot,
+            lambda: isinstance(app.screen, ContactGroupsScreen) and app.screen.current,
+            interval=0.05,
+            pause_first=True,
+        )
         app.screen.query_one("#group-compose", Button).press()
-        for _ in range(30):
-            await pilot.pause(0.05)
-            if isinstance(app.screen, ConfirmationScreen):
-                break
+        await wait_until(
+            pilot,
+            lambda: isinstance(app.screen, ConfirmationScreen),
+            interval=0.05,
+            pause_first=True,
+        )
         assert isinstance(app.screen, ConfirmationScreen)
         await pilot.press("y")
-        for _ in range(100):
-            await pilot.pause(0.02)
-            if isinstance(app.screen, ComposeScreen) and app.screen.is_mounted:
-                break
+        await wait_until(
+            pilot,
+            lambda: isinstance(app.screen, ComposeScreen) and app.screen.is_mounted,
+            interval=0.02,
+            pause_first=True,
+        )
         assert isinstance(app.screen, ComposeScreen)
         assert tuple(app.screen.draft.bcc) == group.members
         assert app.screen.draft.to == [] and not sends

@@ -33,6 +33,7 @@ from gucmail.tui.backup_screen import (
     RestorePlanView,
     RestoreResultView,
 )
+from waiting import click_button, rounds
 
 
 async def _wait_for(
@@ -41,7 +42,7 @@ async def _wait_for(
     *,
     attempts: int = 100,
 ) -> None:
-    for _ in range(attempts):
+    for _ in rounds(attempts):
         if condition():
             return
         await pilot.pause(0.03)  # type: ignore[attr-defined]
@@ -361,7 +362,7 @@ async def test_backup_screen_controls_execute_real_synthetic_workflow() -> None:
         assert screen.query_one("#backup-content-mail").disabled
         assert "backup-complete" in str(screen.query_one("#backup-parent-summary", Static).render())
 
-        assert await pilot.click("#backup-estimate")
+        await click_button(pilot, screen.query_one("#backup-estimate", Button))
         await _wait_for(pilot, lambda: bool(backend.estimate_requests))
         request = backend.estimate_requests[-1]
         assert request.kind == "incremental"
@@ -374,12 +375,12 @@ async def test_backup_screen_controls_execute_real_synthetic_workflow() -> None:
         )
         assert "Estimated items: 428" in str(screen.query_one("#backup-detail", Static).render())
 
-        assert await pilot.click("#backup-create")
+        await click_button(pilot, pilot.app.screen.query_one("#backup-create", Button))
         await _wait_for(pilot, lambda: isinstance(app.screen, ConfirmationScreen))
         await pilot.press("y")
         await _wait_for(pilot, lambda: bool(backend.create_requests))
 
-        assert await pilot.click("#backup-verify")
+        await click_button(pilot, pilot.app.screen.query_one("#backup-verify", Button))
         await _wait_for(pilot, lambda: backend.verified == ["backup-complete"])
         screen.action_restore_plan()
         await _wait_for(
@@ -400,7 +401,8 @@ async def test_backup_screen_controls_execute_real_synthetic_workflow() -> None:
         await _wait_for(pilot, lambda: backend.browsed == ["backup-complete"])
         await _wait_for(pilot, lambda: isinstance(app.screen, BackupBrowseScreen))
         await pilot.press("space")
-        assert await pilot.click("#backup-browse-plan-selected")
+        plan_selected = pilot.app.screen.query_one("#backup-browse-plan-selected", Button)
+        await click_button(pilot, plan_selected)
         await _wait_for(
             pilot,
             lambda: (
@@ -508,7 +510,7 @@ async def test_backup_repository_controls_export_prune_and_open_safely() -> None
         await app.push_screen(screen)
         await _wait_for(pilot, lambda: screen._selected_id == "backup-complete")
 
-        assert await pilot.click("#backup-export")
+        await click_button(pilot, pilot.app.screen.query_one("#backup-export", Button))
         await _wait_for(pilot, lambda: isinstance(app.screen, BackupExportPathScreen))
         app.screen.query_one(
             "#backup-export-destination", Input
@@ -519,7 +521,7 @@ async def test_backup_repository_controls_export_prune_and_open_safely() -> None
             lambda: backend.exports == [("backup-complete", "C:/synthetic/portable-backup.zip")],
         )
 
-        assert await pilot.click("#backup-prune")
+        await click_button(pilot, pilot.app.screen.query_one("#backup-prune", Button))
         await _wait_for(pilot, lambda: isinstance(app.screen, ConfirmationScreen))
         detail = str(screen.query_one("#backup-detail", Static).render())
         assert "backup-old" in detail
@@ -528,7 +530,7 @@ async def test_backup_repository_controls_export_prune_and_open_safely() -> None
         await _wait_for(pilot, lambda: backend.pruned == [("backup-old",)])
         assert backend.prune_plans == [7]
 
-        assert await pilot.click("#backup-open-folder")
+        await click_button(pilot, pilot.app.screen.query_one("#backup-open-folder", Button))
         # The status line updates after the worker returns, a moment after the backend call.
         await _wait_for(
             pilot,
@@ -604,24 +606,24 @@ async def test_activity_screen_filters_details_and_executes_safe_controls() -> N
         assert not screen.query_one("#activity-retry-delivery", Button).disabled
         assert "redacted" in str(screen.query_one("#activity-detail", Static).render()).casefold()
 
-        assert await pilot.click("#activity-retry-delivery")
+        await click_button(pilot, pilot.app.screen.query_one("#activity-retry-delivery", Button))
         await _wait_for(pilot, lambda: isinstance(app.screen, ConfirmationScreen))
         await pilot.press("y")
         await _wait_for(pilot, lambda: backend.retry_ids == ["corr-hook"])
 
-        assert await pilot.click("#activity-test-notification")
+        await click_button(pilot, pilot.app.screen.query_one("#activity-test-notification", Button))
         await _wait_for(pilot, lambda: isinstance(app.screen, ConfirmationScreen))
         await pilot.press("y")
         await _wait_for(pilot, lambda: backend.tests == 1)
 
-        assert await pilot.click("#activity-export")
+        await click_button(pilot, pilot.app.screen.query_one("#activity-export", Button))
         await _wait_for(pilot, lambda: backend.exports == 1)
-        assert await pilot.click("#activity-clear-history")
+        await click_button(pilot, pilot.app.screen.query_one("#activity-clear-history", Button))
         await _wait_for(pilot, lambda: isinstance(app.screen, ConfirmationScreen))
         assert backend.clear_plans == 1
         await pilot.press("y")
         await _wait_for(pilot, lambda: backend.cleared == 2)
-        assert await pilot.click("#activity-toggle-watcher")
+        await click_button(pilot, pilot.app.screen.query_one("#activity-toggle-watcher", Button))
         await _wait_for(pilot, lambda: isinstance(app.screen, ConfirmationScreen))
         await pilot.press("y")
         await _wait_for(pilot, lambda: backend.watcher_controls == ["stop"])
@@ -636,10 +638,15 @@ async def test_activity_screen_executes_exact_pause_resume_and_sync_controls() -
         await app.push_screen(screen)
         await _wait_for(pilot, lambda: screen._snapshot is not None)
 
+        # The screen runs one change at a time, so each request waits until the last one
+        # (and the reload after it) has finished.
+        def done(*controls: str) -> bool:
+            return backend.watcher_controls == list(controls) and not screen._operation_active
+
         screen.queue_watcher_control("pause")
-        await _wait_for(pilot, lambda: backend.watcher_controls == ["pause"])
+        await _wait_for(pilot, lambda: done("pause"))
         screen.queue_watcher_control("resume")
-        await _wait_for(pilot, lambda: backend.watcher_controls == ["pause", "resume"])
+        await _wait_for(pilot, lambda: done("pause", "resume"))
         screen.queue_watcher_control("sync")
         await _wait_for(
             pilot,

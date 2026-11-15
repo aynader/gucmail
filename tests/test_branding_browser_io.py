@@ -17,6 +17,7 @@ from gucmail.tui.branding_screen import BrandingBrowserBackend, BrandingBrowserS
 from gucmail.tui.themes import ThemeRegistry
 from gucmail.tui.write_coordinator import app_write_coordinator
 from test_tui_visual_regressions import _context
+from waiting import rounds
 
 
 class _Host(App[None]):
@@ -108,7 +109,8 @@ async def test_started_branding_write_keeps_lease_and_ui_callback_after_wait_sto
             await pilot.pause()
             screen = BrandingBrowserScreen(app.branding_browser_backend)
             if stop == "timeout":
-                screen.operation_timeout_seconds = 0.15
+                # Long enough for a busy machine to start the save; it is held for 7 s.
+                screen.operation_timeout_seconds = 1.0
             await app.push_screen(screen)
             await pilot.pause()
             app.branding_browser_backend.session.preview(preset_id="builtin.guc-mail-standard")
@@ -116,7 +118,7 @@ async def test_started_branding_write_keeps_lease_and_ui_callback_after_wait_sto
             timer.start()
             try:
                 screen.action_apply()
-                for _ in range(100):
+                for _ in rounds(100):
                     if started.is_set():
                         break
                     await asyncio.sleep(0.005)
@@ -125,7 +127,7 @@ async def test_started_branding_write_keeps_lease_and_ui_callback_after_wait_sto
                     await pilot.press("ctrl+c")
                     assert screen.view_state is ViewState.CANCELLED
                 elif stop == "timeout":
-                    for _ in range(100):
+                    for _ in rounds(100):
                         if not screen._operation_active:
                             break
                         await asyncio.sleep(0.005)
@@ -146,7 +148,7 @@ async def test_started_branding_write_keeps_lease_and_ui_callback_after_wait_sto
                 assert app_write_coordinator(app).pending and not saved.is_set()
                 release.set()
                 await app.workers.wait_for_complete()
-                for _ in range(500):
+                for _ in rounds(500):
                     if saved.is_set() and not app_write_coordinator(app).pending:
                         break
                     await asyncio.sleep(0.01)
@@ -281,7 +283,7 @@ async def test_held_branding_config_write_stays_off_ui_thread_and_keeps_ownershi
                         CommandInvocation("appearance.toggle_banner"),
                         CommandContext(offline_mode=True),
                     )
-                for _ in range(100):
+                for _ in rounds(100):
                     if started.is_set():
                         break
                     await asyncio.sleep(0.005)

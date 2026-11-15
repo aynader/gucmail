@@ -14,6 +14,7 @@ from gucmail.tui.area_backends import ActivityAreaBackend, StorageAreaBackend
 from gucmail.tui.area_common import ConfirmationScreen, PublicOperationError
 from gucmail.tui.palette_routes import RouteKind, catalog_route
 from gucmail.tui.storage_screen import CleanupPlanScreen, StorageScreen
+from waiting import rounds
 
 
 def _duplicate_dataset() -> tuple[dict[str, object], ...]:
@@ -142,7 +143,7 @@ async def _wait_for(
     *,
     attempts: int = 120,
 ) -> None:
-    for _ in range(attempts):
+    for _ in rounds(attempts):
         if condition():
             return
         await pilot.pause(0.03)  # type: ignore[attr-defined]

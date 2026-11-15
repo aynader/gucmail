@@ -37,6 +37,7 @@ from gucmail.tui.pim_screens import (
     PimActionRequested,
     _shift_calendar_anchor,
 )
+from waiting import rounds, wait_until
 
 
 class _CalendarGateway:
@@ -303,7 +304,7 @@ async def _wait_for_calendar_rows(
     pilot: object,
     expected: int,
 ) -> CalendarScreen:
-    for _ in range(50):
+    for _ in rounds(50):
         await pilot.pause(0.05)  # type: ignore[attr-defined]
         if isinstance(app.screen, CalendarScreen):
             table = app.screen.query_one("#calendar-table", DataTable)
@@ -342,18 +343,25 @@ async def test_calendar_screen_executes_crud_response_ics_and_related_mail(tmp_p
         screen.action_refresh()
         screen = await _wait_for_calendar_rows(app, pilot, 1)
         screen.query_one("#calendar-view", Select).value = CalendarViewKind.WEEK.value
-        for _ in range(30):
-            await pilot.pause(0.05)
-            if screen.view_kind is CalendarViewKind.WEEK:
-                break
+        await wait_until(
+            pilot,
+            lambda: screen.view_kind is CalendarViewKind.WEEK,
+            interval=0.05,
+            pause_first=True,
+        )
         assert screen.view_kind is CalendarViewKind.WEEK
         screen.query_one("#calendar-search", Input).value = ""
 
         screen.action_details()
-        for _ in range(30):
-            await pilot.pause(0.05)
-            if "Complete event details" in str(screen.query_one("#area-state", Static).content):
-                break
+        await wait_until(
+            pilot,
+            lambda: (
+                "Complete event details"
+                in str(screen.query_one("#area-state", Static).content)
+            ),
+            interval=0.05,
+            pause_first=True,
+        )
         assert "Room C-101" in str(screen.query_one("#calendar-detail", Static).content)
 
         screen.action_respond(CalendarResponse.TENTATIVE)
@@ -363,10 +371,7 @@ async def test_calendar_screen_executes_crud_response_ics_and_related_mail(tmp_p
         await pilot.pause()
         assert isinstance(app.screen, OperationalConfirmationScreen)
         app.screen.dismiss(True)
-        for _ in range(30):
-            await pilot.pause(0.05)
-            if gateway.responses:
-                break
+        await wait_until(pilot, lambda: gateway.responses, interval=0.05, pause_first=True)
         assert gateway.responses[0].response is CalendarResponse.TENTATIVE
 
         screen = app.screen
@@ -396,16 +401,22 @@ async def test_calendar_screen_executes_crud_response_ics_and_related_mail(tmp_p
         assert gateway.events[created_reference].recurrence["boundary"]["occurrences"] == 4
 
         screen.action_edit()
-        for _ in range(30):
-            await pilot.pause(0.05)
-            if isinstance(app.screen, CalendarScopeScreen):
-                break
+        await wait_until(
+            pilot,
+            lambda: isinstance(app.screen, CalendarScopeScreen),
+            interval=0.05,
+            pause_first=True,
+        )
         assert isinstance(app.screen, CalendarScopeScreen)
+        # The chooser draws its buttons after it opens.
+        await wait_until(pilot, lambda: app.screen.query("#calendar-scope-occurrence"))
         app.screen.query_one("#calendar-scope-occurrence").press()
-        for _ in range(30):
-            await pilot.pause(0.05)
-            if isinstance(app.screen, CalendarEditorScreen) and app.screen.is_mounted:
-                break
+        await wait_until(
+            pilot,
+            lambda: isinstance(app.screen, CalendarEditorScreen) and app.screen.is_mounted,
+            interval=0.05,
+            pause_first=True,
+        )
         assert isinstance(app.screen, CalendarEditorScreen)
         app.screen.query_one("#calendar-edit-subject", Input).value = "Edited in TUI"
         app.screen.action_save()
@@ -427,12 +438,15 @@ async def test_calendar_screen_executes_crud_response_ics_and_related_mail(tmp_p
         assert isinstance(app.screen, FilePathScreen)
         app.screen.query_one("#pim-file-path", Input).value = str(export_path)
         app.screen.query_one("#pim-file-continue").press()
-        for _ in range(30):
-            await pilot.pause(0.05)
-            if export_path.exists() and (
-                isinstance(app.screen, CalendarScreen) and app.screen.is_mounted
-            ):
-                break
+        await wait_until(
+            pilot,
+            lambda: (
+                export_path.exists()
+                and (isinstance(app.screen, CalendarScreen) and app.screen.is_mounted)
+            ),
+            interval=0.05,
+            pause_first=True,
+        )
         assert "BEGIN:VCALENDAR" in export_path.read_text(encoding="utf-8")
 
         screen = app.screen
@@ -472,6 +486,8 @@ async def test_calendar_screen_executes_crud_response_ics_and_related_mail(tmp_p
         screen.action_delete()
         await pilot.pause()
         assert isinstance(app.screen, CalendarScopeScreen)
+        # The chooser draws its buttons after it opens.
+        await wait_until(pilot, lambda: app.screen.query("#calendar-scope-occurrence"))
         app.screen.query_one("#calendar-scope-occurrence").press()
         await pilot.pause()
         assert isinstance(app.screen, OperationalConfirmationScreen)

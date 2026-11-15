@@ -5,7 +5,8 @@
 
 Everything the run writes goes to one temporary folder that is deleted afterwards.
 The last lines printed are always a summary, the failed tests and any guard blocks.
-Use --keep to keep the folder.
+Use --keep to keep the folder. Use --slow to start and finish every background worker
+0.2 s late, like a slow PC; tests that pass normally but fail with --slow read the screen too early.
 """
 
 from __future__ import annotations
@@ -57,7 +58,8 @@ def _summary(private: Path, seconds: float) -> list[str]:
 def main(argv: list[str]) -> int:
     sys.stdout.reconfigure(errors="replace")  # type: ignore[attr-defined]
     keep = "--keep" in argv
-    args = [arg for arg in argv if arg != "--keep"]
+    slow = "--slow" in argv
+    args = [arg for arg in argv if arg not in {"--keep", "--slow"}]
     if not any(arg == "-n" or arg.startswith("-n") or arg == "--numprocesses" for arg in args):
         workers = max(2, min(12, (os.cpu_count() or 4) // 2))
         args = ["-n", str(workers), "-q", "--color=no", *args]
@@ -82,6 +84,8 @@ def main(argv: list[str]) -> int:
             for key, value in os.environ.items()
             if key not in {"GITHUB_ACTIONS", "FORCE_COLOR", "PY_COLORS"}
         }
+        if slow:
+            env["GUCMAIL_TEST_SLOW_WORKERS"] = "0.2"
         status = subprocess.call(command, cwd=REPO, env=env)  # noqa: S603 - fixed argv, no shell
         failures = work / "private" / "test-failures.txt"
         if status and failures.is_file():

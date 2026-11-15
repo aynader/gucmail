@@ -11,6 +11,7 @@ from gucmail.tui.appearance_screen import ThemeBrowserScreen
 from gucmail.tui.branding_screen import BrandingBrowserScreen
 from gucmail.tui.settings_screen import SettingsScreen
 from test_tui_visual_regressions import _context
+from waiting import wait_until
 
 
 @pytest.mark.asyncio
@@ -37,10 +38,7 @@ async def test_appearance_write_refreshes_clean_settings_and_preserves_staging(
             }[route]
             # Mount schedules the first catalog load after refresh. Wait for its
             # delivered result, rather than an earlier empty worker snapshot.
-            for _ in range(100):
-                if setting_id in settings._settings_by_id:
-                    break
-                await pilot.pause(0.05)
+            await wait_until(pilot, lambda: setting_id in settings._settings_by_id, interval=0.05)
             initial = settings._settings_by_id[setting_id].current_value
             assert initial != target
             if staged:

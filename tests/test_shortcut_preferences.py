@@ -21,6 +21,7 @@ from gucmail.tui.app import ComposeScreen, GUCmailApp, HelpScreen, PaletteScreen
 from gucmail.tui.area_common import ViewState
 from gucmail.tui.settings_screen import SettingsScreen
 from gucmail.tui.shortcuts_screen import REQUIRED_SCOPES, ShortcutsScreen, runtime_shortcut_records
+from waiting import wait_until
 
 
 @pytest.mark.asyncio
@@ -45,10 +46,12 @@ async def test_normal_settings_conflict_is_visible_and_keeps_committed_keys(
     before = context.paths.config_file.read_bytes()
     async with app.run_test(size=size) as pilot:
         app._open_area("settings")
-        for _ in range(100):
-            await pilot.pause(0.02)
-            if isinstance(app.screen, SettingsScreen) and app.screen._catalog:
-                break
+        await wait_until(
+            pilot,
+            lambda: isinstance(app.screen, SettingsScreen) and app.screen._catalog,
+            interval=0.02,
+            pause_first=True,
+        )
         assert isinstance(app.screen, SettingsScreen)
         settings = app.screen
         assert settings.action_select_setting("appearance.next_theme_shortcut")
@@ -56,17 +59,22 @@ async def test_normal_settings_conflict_is_visible_and_keeps_committed_keys(
         settings.query_one("#settings-editor", Input).value = "ctrl+k"
         settings.query_one("#settings-stage", Button).focus()
         await pilot.press("enter")
-        for _ in range(100):
-            await pilot.pause(0.02)
-            if settings._staged.get("appearance.next_theme_shortcut") == "ctrl+k" and (
-                not settings._operation_active
-            ):
-                break
+        await wait_until(
+            pilot,
+            lambda: (
+                settings._staged.get("appearance.next_theme_shortcut") == "ctrl+k"
+                and (not settings._operation_active)
+            ),
+            interval=0.02,
+            pause_first=True,
+        )
         await pilot.press("ctrl+s")
-        for _ in range(100):
-            await pilot.pause(0.02)
-            if settings.view_state is ViewState.ERROR and not settings._operation_active:
-                break
+        await wait_until(
+            pilot,
+            lambda: settings.view_state is ViewState.ERROR and not settings._operation_active,
+            interval=0.02,
+            pause_first=True,
+        )
         assert settings.view_state is ViewState.ERROR
         await pilot.pause()
         status = settings.query_one("#area-state", Static)
@@ -368,20 +376,29 @@ async def test_normal_help_browser_filters_and_customizes_via_staged_settings(
         await pilot.pause()
         assert isinstance(app.screen, ShortcutsScreen)
         browser = app.screen
-        for _ in range(250):
-            await pilot.pause(0.02)
-            if browser.is_mounted and browser.query_one("#shortcut-table", DataTable).columns:
-                break
+        await wait_until(
+            pilot,
+            lambda: (
+                browser.is_mounted and browser.query_one("#shortcut-table", DataTable).columns
+            ),
+            interval=0.02,
+            pause_first=True,
+        )
         assert len(browser.query_one("#shortcut-table", DataTable).columns) == 6
         for scope in REQUIRED_SCOPES:
             browser.query_one("#shortcut-scope", Select).value = scope
             table = browser.query_one("#shortcut-table", DataTable)
-            for _ in range(100):
-                await pilot.pause(0.02)
-                if table.row_count and all(
-                    str(table.get_row(row.key)[2]) == scope for row in table.ordered_rows
-                ):
-                    break
+            await wait_until(
+                pilot,
+                lambda: (
+                    table.row_count  # noqa: B023 - wait_until runs it right away
+                    and all(
+                        str(table.get_row(row.key)[2]) == scope for row in table.ordered_rows  # noqa: B023 - wait_until runs it right away
+                    )
+                ),
+                interval=0.02,
+                pause_first=True,
+            )
             assert table.row_count
             assert all(str(table.get_row(row.key)[2]) == scope for row in table.ordered_rows)
         browser.query_one("#shortcut-scope", Select).value = "Global"
@@ -391,22 +408,30 @@ async def test_normal_help_browser_filters_and_customizes_via_staged_settings(
         assert browser.query_one("#shortcut-table", DataTable).row_count == 1
         browser.query_one("#shortcut-table", DataTable).focus()
         await pilot.press("ctrl+enter")
-        for _ in range(100):
-            await pilot.pause(0.02)
-            if isinstance(app.screen, SettingsScreen) and app.screen._selected_setting_id == (
-                "palette.primary_shortcut"
-            ):
-                break
+        await wait_until(
+            pilot,
+            lambda: (
+                isinstance(app.screen, SettingsScreen)
+                and app.screen._selected_setting_id == ("palette.primary_shortcut")
+            ),
+            interval=0.02,
+            pause_first=True,
+        )
         assert isinstance(app.screen, SettingsScreen)
         settings = app.screen
         assert settings._selected_setting_id == "palette.primary_shortcut"
         settings.query_one("#settings-editor", Input).value = "f8"
         settings.query_one("#settings-stage", Button).focus()
         await pilot.press("enter")
-        for _ in range(100):
-            await pilot.pause(0.02)
-            if "palette.primary_shortcut" in settings._staged and not settings._operation_active:
-                break
+        await wait_until(
+            pilot,
+            lambda: (
+                "palette.primary_shortcut" in settings._staged
+                and not settings._operation_active
+            ),
+            interval=0.02,
+            pause_first=True,
+        )
         assert app._palette_primary_shortcut == "ctrl+k"
         assert settings._staged.get("palette.primary_shortcut") == "f8", (
             settings._staged,
@@ -414,35 +439,46 @@ async def test_normal_help_browser_filters_and_customizes_via_staged_settings(
             settings._selected_setting_id,
         )
         await pilot.press("ctrl+z")
-        for _ in range(100):
-            await pilot.pause(0.02)
-            if not settings._staged and not settings._operation_active:
-                break
+        await wait_until(
+            pilot,
+            lambda: not settings._staged and not settings._operation_active,
+            interval=0.02,
+            pause_first=True,
+        )
         assert not settings._staged and not settings._operation_active
         assert app._palette_primary_shortcut == "ctrl+k"
         settings.action_edit_setting()
         await pilot.pause()
-        for _ in range(100):
-            await pilot.pause(0.02)
-            if not settings.query_one("#settings-stage", Button).has_class("-active"):
-                break
+        await wait_until(
+            pilot,
+            lambda: not settings.query_one("#settings-stage", Button).has_class("-active"),
+            interval=0.02,
+            pause_first=True,
+        )
         settings.query_one("#settings-editor", Input).value = "f8"
         settings.query_one("#settings-stage", Button).focus()
         await pilot.press("enter")
-        for _ in range(100):
-            await pilot.pause(0.02)
-            if "palette.primary_shortcut" in settings._staged and not settings._operation_active:
-                break
+        await wait_until(
+            pilot,
+            lambda: (
+                "palette.primary_shortcut" in settings._staged
+                and not settings._operation_active
+            ),
+            interval=0.02,
+            pause_first=True,
+        )
         assert settings._staged.get("palette.primary_shortcut") == "f8", (
             settings._staged,
             settings.query_one("#settings-editor", Input).value,
             settings._selected_setting_id,
         )
         await pilot.press("ctrl+s")
-        for _ in range(100):
-            await pilot.pause(0.02)
-            if app._palette_primary_shortcut == "f8" and not settings._operation_active:
-                break
+        await wait_until(
+            pilot,
+            lambda: app._palette_primary_shortcut == "f8" and not settings._operation_active,
+            interval=0.02,
+            pause_first=True,
+        )
         assert app._palette_primary_shortcut == "f8"
         await pilot.press("escape")
         await pilot.pause()

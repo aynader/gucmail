@@ -17,6 +17,7 @@ from gucmail.errors import ConfigurationError
 from gucmail.headless import run_headless_cycles
 from gucmail.services.notification_switch import NotificationSwitch
 from gucmail.state import StateStore
+from waiting import wait_until
 
 
 def make_context(tmp_path: Path) -> AppContext:
@@ -314,17 +315,23 @@ async def test_the_settings_screen_switch_runs_the_whole_setup(tmp_path):
     screen = NotificationSettingsScreen(service.settings, switch=service)
     app = NotificationSettingsHarness(screen)
     async with app.run_test(size=(120, 35)) as pilot:
-        for _ in range(300):
-            await pilot.pause(0.05)
-            if screen._profiles or not screen._operation_active:
-                break
+        await wait_until(
+            pilot,
+            lambda: screen._profiles or not screen._operation_active,
+            interval=0.05,
+            pause_first=True,
+            timeout=15,
+        )
         toggle = screen.query_one("#notification-switch", Switch)
         assert toggle.value is False
         toggle.value = True
-        for _ in range(300):
-            await pilot.pause(0.05)
-            if parts["startup"].applied and not toggle.disabled:
-                break
+        await wait_until(
+            pilot,
+            lambda: parts["startup"].applied and not toggle.disabled,
+            interval=0.05,
+            pause_first=True,
+            timeout=15,
+        )
         steps = str(screen.query_one("#notification-switch-steps", Static).content)
         assert "✓ Background task" in steps and "✓ Test notification" in steps
         assert "Working" in str(screen.query_one("#notification-switch-status", Static).content)
@@ -332,9 +339,12 @@ async def test_the_settings_screen_switch_runs_the_whole_setup(tmp_path):
 
         # The palette command takes the same path.
         screen.action_set_desktop_notifications(False)
-        for _ in range(300):
-            await pilot.pause(0.05)
-            if "disable" in parts["startup"].applied and not toggle.disabled:
-                break
+        await wait_until(
+            pilot,
+            lambda: "disable" in parts["startup"].applied and not toggle.disabled,
+            interval=0.05,
+            pause_first=True,
+            timeout=15,
+        )
         assert toggle.value is False
         assert not service.notifications_on()

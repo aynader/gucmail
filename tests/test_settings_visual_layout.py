@@ -7,10 +7,11 @@ from gucmail.tui.app import GUCmailApp
 from gucmail.tui.settings_form import SettingRow, SettingsForm
 from gucmail.tui.settings_screen import SettingsScreen
 from test_tui import context_for
+from waiting import rounds, wait_until
 
 
 async def ready(pilot, screen: SettingsScreen) -> None:
-    for _ in range(100):
+    for _ in rounds(100):
         await pilot.pause(0.03)
         if (
             screen.query_one("#settings-form", SettingsForm).row_count
@@ -68,6 +69,9 @@ async def test_keyboard_edit_stage_save_and_discard(tmp_path: Path) -> None:
         await pilot.press("enter")
         assert screen._editor_open
         screen.query_one("#settings-choice", Select).value = "off"
+        # The editor opens on the next refresh; click only once the button is laid out.
+        stage = screen.query_one("#settings-stage", Button)
+        await wait_until(pilot, lambda: stage.region.width > 0, pause_first=True)
         assert await pilot.click("#settings-stage")
         await ready(pilot, screen)
         assert screen._staged == {"mail.fill_viewport": False}

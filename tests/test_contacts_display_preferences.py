@@ -26,6 +26,7 @@ from test_cli import _environment
 from test_compose_preferences import wait_for
 from test_pim import ContactsMemoryGateway
 from test_settings_secondpass import _context
+from waiting import press_button
 
 
 def contacts():
@@ -324,11 +325,7 @@ async def test_normal_settings_cancel_apply_relabel_selection_duplicates_and_ori
         screen = app.screen
 
         async def activate(identifier):
-            button = screen.query_one(identifier, Button)
-            await wait_for(pilot, lambda: not button.disabled and not button.has_class("-active"))
-            button.focus()
-            await pilot.pause()
-            await pilot.press("enter")
+            await press_button(pilot, screen.query_one(identifier, Button))
 
         async def stage():
             for key, value in zip(

@@ -11,6 +11,7 @@ from textual.widgets import DataTable
 from gucmail.models import Address, MessageSummary
 from gucmail.tui.app import GUCmailApp
 from test_tui import context_for
+from waiting import wait_until
 
 
 class PagedGateway:
@@ -138,10 +139,12 @@ def test_scheduled_and_saved_search_actions_are_reachable_on_small_terminals(
                             continue
                         button.focus()
                         # Focus scrolls the widget into view with a short animation.
-                        for _ in range(100):
-                            await pilot.pause(0.02)
-                            if app.screen.region.contains_region(button.region):
-                                break
+                        await wait_until(
+                            pilot,
+                            lambda: app.screen.region.contains_region(button.region),  # noqa: B023 - wait_until runs it right away
+                            interval=0.02,
+                            pause_first=True,
+                        )
                         assert app.screen.region.contains_region(button.region), (
                             area,
                             size,

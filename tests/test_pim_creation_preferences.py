@@ -27,6 +27,7 @@ from gucmail.tui.settings_screen import SettingsScreen
 from test_cli import _environment
 from test_compose_preferences import wait_for
 from test_settings_secondpass import _context
+from waiting import press_button
 
 NOW = datetime(2026, 10, 3, 23, 30, tzinfo=UTC)
 VALUES = {
@@ -341,18 +342,7 @@ async def test_normal_settings_cancel_apply_then_fresh_pim_forms(tmp_path, monke
         screen = app.screen
 
         async def activate(identifier):
-            button = screen.query_one(identifier, Button)
-            await wait_for(
-                pilot,
-                lambda: (
-                    not button.has_class("-active")
-                    and not button.disabled
-                    and not screen._operation_active
-                ),
-            )
-            button.focus()
-            await pilot.pause()
-            await pilot.press("enter")
+            await press_button(pilot, screen.query_one(identifier, Button))
 
         async def stage():
             for identifier, value in VALUES.items():
@@ -479,11 +469,7 @@ async def test_normal_settings_clear_pim_defaults_has_explicit_labels(tmp_path, 
         screen = app.screen
 
         async def activate(identifier):
-            button = screen.query_one(identifier, Button)
-            await wait_for(pilot, lambda: not button.has_class("-active") and not button.disabled)
-            button.focus()
-            await pilot.pause()
-            await pilot.press("enter")
+            await press_button(pilot, screen.query_one(identifier, Button))
 
         async def stage_clears():
             for identifier, label in cleared.items():

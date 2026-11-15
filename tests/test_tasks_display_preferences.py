@@ -29,6 +29,7 @@ from test_cli import _environment
 from test_compose_preferences import wait_for
 from test_pim import TasksMemoryGateway
 from test_settings_secondpass import _context
+from waiting import press_button
 
 NOW = datetime(2026, 10, 3, 23, 30, tzinfo=UTC)
 TODAY = date(2026, 10, 4)
@@ -330,11 +331,7 @@ async def test_normal_settings_apply_preserves_current_view_selection_details_an
         settings = app.screen
 
         async def activate(identifier):
-            button = settings.query_one(identifier, Button)
-            await wait_for(pilot, lambda: not button.disabled and not button.has_class("-active"))
-            button.focus()
-            await pilot.pause()
-            await pilot.press("enter")
+            await press_button(pilot, settings.query_one(identifier, Button))
 
         async def stage():
             for key, value in {

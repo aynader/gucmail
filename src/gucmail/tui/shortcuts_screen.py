@@ -450,4 +450,6 @@ class ShortcutsScreen(Screen[None]):
 
     @on(Button.Pressed, "#shortcut-close")
     def action_close(self) -> None:
-        self.app.pop_screen()
+        # dismiss() closes only this screen. A second close request (a double click
+        # on Close) must not close the screen underneath as well.
+        self.dismiss()

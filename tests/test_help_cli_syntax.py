@@ -15,6 +15,7 @@ from gucmail.cli.settings import _installed_cli_help_syntax
 from gucmail.help import HelpRepository
 from gucmail.help.cli_syntax import CliCommandSyntax, CliParameterSyntax, syntax_from_command
 from gucmail.help.validation import validate_help_pages
+from waiting import wait_until
 
 
 @pytest.fixture(scope="module")
@@ -311,10 +312,12 @@ async def test_normal_help_search_opens_corrected_examples_and_returns(tmp_path,
             search = screen.query_one("#help-search", Input)
             assert application.focused is search
             search.value = page.title
-            for _ in range(30):
-                await pilot.pause(0.025)
-                if screen._result_page_ids and screen._result_page_ids[0] == page_id:
-                    break
+            await wait_until(
+                pilot,
+                lambda: screen._result_page_ids and screen._result_page_ids[0] == page_id,  # noqa: B023 - wait_until runs it right away
+                interval=0.025,
+                pause_first=True,
+            )
             assert screen._result_page_ids[0] == page_id
             await pilot.press("enter")
             await pilot.pause()

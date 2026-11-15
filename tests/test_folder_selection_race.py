@@ -9,6 +9,7 @@ from gucmail.commands import CommandInvocation
 from gucmail.models import FolderInfo
 from gucmail.tui.app import GUCmailApp
 from test_tui import context_for
+from waiting import wait_until
 
 
 @pytest.mark.asyncio
@@ -56,10 +57,7 @@ async def test_folder_cursor_sync_cannot_overwrite_newer_palette_navigation(
 
         # Actual tree activation still navigates and records the new location.
         tree.select_node(tree.get_node_by_id(app._folder_nodes["sent"]))
-        for _ in range(250):
-            if app.ui.folder == "sent":
-                break
-            await pilot.pause(0.02)
+        await wait_until(pilot, lambda: app.ui.folder == "sent", interval=0.02)
         assert app.ui.folder == "sent"
         assert app._folder_location_history == ["inbox", "sent", "archive", "sent"]
         assert app._setting_value("mail.last_folder", None) == "sent"
@@ -87,14 +85,15 @@ async def test_loaded_folder_cursor_reflects_current_location_without_navigation
             ),
             False,
         )
-        for _ in range(250):
-            if (
+        await wait_until(
+            pilot,
+            lambda: (
                 tree.cursor_node is not None
                 and isinstance(tree.cursor_node.data, dict)
                 and tree.cursor_node.data.get("reference") == "inbox"
-            ):
-                break
-            await pilot.pause(0.02)
+            ),
+            interval=0.02,
+        )
         assert tree.cursor_node.data["reference"] == "inbox"
         assert app.ui.folder == "inbox" and app._folder_location_history == ["inbox"]
         assert context.paths.config_file.read_bytes() == persisted

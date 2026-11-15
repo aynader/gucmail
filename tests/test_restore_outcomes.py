@@ -11,6 +11,7 @@ from gucmail.config import AppConfig
 from gucmail.errors import ConfigurationError, GUCmailError, MutationResultUnavailableError
 from gucmail.ews.adapter import EWSGateway
 from gucmail.services.backup import BackupItem, BackupService, OfflineArchive, RestoreResult
+from waiting import rounds
 
 
 @pytest.mark.parametrize("kind", ["message", "calendar", "contact", "task"])
@@ -453,7 +454,7 @@ async def test_normal_backup_restore_preserves_result_and_prevents_replay(
     app = GUCmailApp(context, gateway=facade)
 
     async def wait(pilot, condition):
-        for _ in range(250):
+        for _ in rounds(250):
             await pilot.pause(0.02)
             if condition():
                 return

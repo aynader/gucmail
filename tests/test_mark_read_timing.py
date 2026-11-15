@@ -15,6 +15,7 @@ from gucmail.settings import SettingsService
 from gucmail.tui.app import ConfirmationScreen, GUCmailApp, ReaderScreen
 from gucmail.tui.settings_screen import SettingsScreen
 from test_tui import FakeGateway, context_for
+from waiting import rounds
 
 
 class ReadGateway(FakeGateway):
@@ -52,7 +53,7 @@ class ReadGateway(FakeGateway):
 
 
 async def wait_for(pilot, condition, *, attempts=150):
-    for _ in range(attempts):
+    for _ in rounds(attempts):
         if condition():
             return
         await pilot.pause(0.02)
@@ -169,14 +170,14 @@ async def test_floating_reader_waits_for_mount_and_rejects_a_stale_mount_result(
             assert not gateway.marked and app._automatic_read_request is None
             if abandon != "none":
                 app.query_one("#message-table", DataTable).move_cursor(row=1)
-                for _ in range(100):
+                for _ in rounds(100):
                     if app.ui.selected_reference == "m-other":
                         break
                     await asyncio.sleep(0.01)
                 assert app.ui.selected_reference == "m-other"
                 if abandon == "replacement":
                     app.load_message("m-other", mode="floating")
-                    for _ in range(100):
+                    for _ in rounds(100):
                         if app._message_detail_reference == "m-other":
                             break
                         await asyncio.sleep(0.01)
@@ -298,6 +299,10 @@ async def test_failed_automatic_write_shows_uncertainty_and_never_replays_on_rer
         await wait_for(pilot, lambda: app.ui.selected_reference == "m-demo")
         app.load_message("m-demo", mode="pane")
         await wait_for(pilot, lambda: bool(gateway.marked) and not app._automatic_read_inflight)
+        # The status bar is updated after the failed write is handled, not at the same moment.
+        await wait_for(
+            pilot, lambda: "may have completed" in str(app.query_one("#status-bar", Static).content)
+        )
         status = str(app.query_one("#status-bar", Static).content)
         assert "may have completed" in status
         assert "Private body" not in status

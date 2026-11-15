@@ -26,6 +26,7 @@ from gucmail.tui.app import ComposeScreen, GUCmailApp, HelpScreen
 from gucmail.tui.area_common import ConfirmationScreen, OperationalScreen, ViewState
 from gucmail.tui.keyboard_editor import KeyboardEditorScreen
 from gucmail.tui.settings_screen import SettingsHistoryScreen, SettingsScreen
+from waiting import rounds, wait_until
 
 
 def _binding(owner: str, action: str):
@@ -308,7 +309,7 @@ async def test_mounted_and_future_screen_bindings_update_without_class_mutation(
 
 
 async def _ready(pilot, screen: KeyboardEditorScreen) -> None:
-    for _ in range(250):
+    for _ in rounds(250):
         await pilot.pause(0.02)
         worker = screen._active_worker
         if worker is not None and worker.state is WorkerState.RUNNING:
@@ -340,10 +341,12 @@ async def _open_editor(pilot, app: GUCmailApp) -> KeyboardEditorScreen:
 
 
 async def _editor_opened(pilot, app: GUCmailApp) -> KeyboardEditorScreen:
-    for _ in range(250):
-        await pilot.pause(0.02)
-        if isinstance(app.screen, KeyboardEditorScreen):
-            break
+    await wait_until(
+        pilot,
+        lambda: isinstance(app.screen, KeyboardEditorScreen),
+        interval=0.02,
+        pause_first=True,
+    )
     editor = app.screen
     assert isinstance(editor, KeyboardEditorScreen)
     await _ready(pilot, editor)
@@ -351,7 +354,7 @@ async def _editor_opened(pilot, app: GUCmailApp) -> KeyboardEditorScreen:
 
 
 async def _visible(pilot, app: GUCmailApp, identifier: str) -> None:
-    for _ in range(100):
+    for _ in rounds(100):
         await pilot.pause(0.02)
         matches = app.screen.query(identifier)
         if matches:
@@ -381,12 +384,15 @@ async def _activate(pilot, screen: OperationalScreen, identifier: str) -> None:
     button = screen.query_one(identifier, Button)
     assert not button.disabled
     button.focus()
-    for _ in range(30):
-        await pilot.pause(0.02)
-        if button.region.intersection(
-            screen.region
-        ).height == button.region.height and not button.has_class("-active"):
-            break
+    await wait_until(
+        pilot,
+        lambda: (
+            button.region.intersection(screen.region).height == button.region.height
+            and not button.has_class("-active")
+        ),
+        interval=0.02,
+        pause_first=True,
+    )
     assert button.region.intersection(screen.region).height == button.region.height
     await pilot.press("enter")
     await pilot.pause()
@@ -403,7 +409,7 @@ async def _stage(pilot, editor: KeyboardEditorScreen, identifier: str, key: str)
 
 
 async def _confirm(pilot, app: GUCmailApp, accepted: bool) -> None:
-    for _ in range(100):
+    for _ in rounds(100):
         await pilot.pause(0.02)
         screen = app.screen
         if isinstance(screen, ConfirmationScreen) and screen.query("#operational-confirm-yes"):
@@ -689,12 +695,40 @@ async def test_normal_help_keyboard_editor_stages_cancels_applies_and_refreshes_
         assert app.screen is browser
         current = next(row for row in browser.records if row.shortcut_id == compose.binding_id)
         assert current.key == "f8" and current.customizable
-        await pilot.press("escape", "escape", "f8")
+        await pilot.press("escape", "escape")
+        await wait_until(pilot, lambda: not isinstance(app.screen, HelpScreen))
+        await pilot.press("f8")
+        await wait_until(pilot, lambda: isinstance(app.screen, ComposeScreen))
         assert isinstance(app.screen, ComposeScreen)
 
 
+@pytest.mark.asyncio
+async def test_closing_shortcuts_twice_closes_only_the_shortcuts_screen(tmp_path: Path) -> None:
+    # A double click on Close asks the screen to close twice. Only it may close, not the
+    # help screen underneath.
+    from gucmail.tui.shortcuts_screen import ShortcutsScreen
+
+    app = GUCmailApp(context_for(tmp_path), offline=True)
+    async with app.run_test(size=(100, 30)) as pilot:
+        await pilot.press("?")
+        await wait_until(pilot, lambda: isinstance(app.screen, HelpScreen))
+        help_screen = app.screen
+        app._open_shortcuts()
+        await wait_until(
+            pilot,
+            lambda: isinstance(app.screen, ShortcutsScreen) and app.screen.query("#shortcut-close"),
+        )
+        await pilot.pause()
+        shortcuts = app.screen
+        assert isinstance(shortcuts, ShortcutsScreen)
+        shortcuts.action_close()
+        shortcuts.action_close()
+        await pilot.pause()
+        assert app.screen is help_screen
+
+
 async def _settled(pilot, screen: OperationalScreen, predicate) -> None:
-    for _ in range(250):
+    for _ in rounds(250):
         await pilot.pause(0.02)
         if not screen._operation_active and predicate():
             return

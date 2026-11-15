@@ -18,10 +18,11 @@ from gucmail.tui.app import ComposeScreen, ConfirmationScreen, GUCmailApp
 from gucmail.tui.area_common import OperationalScreen, ViewState
 from gucmail.tui.write_coordinator import WriteCoordinator, app_write_coordinator
 from test_tui_visual_regressions import _context
+from waiting import WAIT_SECONDS
 
 
 async def _until(predicate):
-    deadline = perf_counter() + 5
+    deadline = perf_counter() + WAIT_SECONDS
     while perf_counter() < deadline:
         if predicate():
             return
@@ -286,6 +287,17 @@ async def test_workspace_write_blocks_root_and_delayed_send_without_claiming_job
         started.set()
         assert release.wait(15)
 
+    # Both blocked changes below report on the one status line, in whichever order their
+    # threads run, so look at every status shown rather than only the last.
+    statuses: list[str] = []
+    set_status = app._set_status
+
+    def recording(text: str) -> None:
+        statuses.append(text)
+        set_status(text)
+
+    app._set_status = recording  # type: ignore[method-assign]
+
     async with app.run_test() as pilot:
         # Enable the injected synthetic gateway after startup, without invoking
         # authentication or folder loading. The job is genuinely due.
@@ -296,7 +308,7 @@ async def test_workspace_write_blocks_root_and_delayed_send_without_claiming_job
             await _until(started.is_set)
             app._delete_message("blocked-root")
             app._finish_undo_delay(job.reference)
-            await _until(lambda: "job remains queued" in app._status_activity)
+            await _until(lambda: any("job remains queued" in text for text in statuses))
             await pilot.pause()
             assert not gateway.calls
             current = app._scheduler_service().get(job.reference)

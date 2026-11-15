@@ -40,6 +40,7 @@ from gucmail.tui.notification_settings_screen import NotificationSettingsScreen,
 from test_notification_cli_secondpass import _environment
 from test_notification_settings_screen_secondpass import NotificationSettingsHarness, _profile
 from test_tui import FakeGateway, context_for
+from waiting import rounds, wait_until
 
 NOW = datetime(2026, 10, 7, 12, tzinfo=UTC)
 
@@ -247,7 +248,7 @@ async def test_normal_palette_recent_sample_and_visible_guided_cancel(tmp_path, 
     )
 
     async def wait(pilot, predicate):
-        for _ in range(250):
+        for _ in rounds(250):
             await pilot.pause(0.02)
             if predicate():
                 return
@@ -344,10 +345,12 @@ async def test_all_notification_pane_actions_remain_visible_after_resize(tmp_pat
         ("notification-diagnostics-tab", "#notification-diagnostics-run"),
     )
     async with app.run_test(size=(120, 35)) as pilot:
-        for _ in range(250):
-            await pilot.pause(0.02)
-            if screen._profile() is not None and not screen._operation_active:
-                break
+        await wait_until(
+            pilot,
+            lambda: screen._profile() is not None and not screen._operation_active,
+            interval=0.02,
+            pause_first=True,
+        )
         assert screen._profile() is not None
         for width, height in ((120, 35), (70, 20), (80, 24)):
             await pilot.resize_terminal(width, height)
@@ -357,10 +360,7 @@ async def test_all_notification_pane_actions_remain_visible_after_resize(tmp_pat
                 # still in flight; the retained diagnostic records that ordering.
                 tabs = screen.query_one(Tabs)
                 tabs.focus()
-                for _ in range(250):
-                    await pilot.pause(0.02)
-                    if tabs.has_focus:
-                        break
+                await wait_until(pilot, lambda: tabs.has_focus, interval=0.02, pause_first=True)  # noqa: B023 - wait_until runs it right away
                 assert tabs.has_focus
                 for _ in range(10):
                     if screen.query_one(TabbedContent).active == tab_id:
@@ -373,17 +373,24 @@ async def test_all_notification_pane_actions_remain_visible_after_resize(tmp_pat
                 if button.disabled:
                     assert tab_id == "notification-webhook-tab"
                     button = screen.query_one("#notification-webhook-add-teams", Button)
-                for _ in range(250):
-                    await pilot.pause(0.02)
-                    if all(node.display for node in (button, *button.ancestors)):
-                        break
+                await wait_until(
+                    pilot,
+                    lambda: all(node.display for node in (button, *button.ancestors)),  # noqa: B023 - wait_until runs it right away
+                    interval=0.02,
+                    pause_first=True,
+                )
                 assert all(node.display for node in (button, *button.ancestors))
                 button.focus()
                 pane = next(node for node in button.ancestors if isinstance(node, VerticalScroll))
-                for _ in range(250):
-                    await pilot.pause(0.02)
-                    if button.has_focus and pane.content_region.contains_region(button.region):
-                        break
+                await wait_until(
+                    pilot,
+                    lambda: (
+                        button.has_focus  # noqa: B023 - wait_until runs it right away
+                        and pane.content_region.contains_region(button.region)  # noqa: B023 - wait_until runs it right away
+                    ),
+                    interval=0.02,
+                    pause_first=True,
+                )
                 assert button.has_focus and pane.content_region.contains_region(button.region), (
                     tab_id,
                     width,

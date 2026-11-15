@@ -18,6 +18,7 @@ from gucmail.tui.backup_screen import (
     RestorePlanView,
 )
 from gucmail.tui.write_coordinator import app_write_coordinator
+from waiting import rounds
 
 
 @pytest.mark.asyncio
@@ -44,7 +45,7 @@ async def test_restore_timeout_keeps_pending_result_visible(tmp_path, size):
     app = GUCmailApp(context, gateway=facade)
 
     async def wait(pilot, condition):
-        for _ in range(300):
+        for _ in rounds(300):
             await pilot.pause(0.02)
             if condition():
                 return
@@ -131,7 +132,7 @@ async def test_queued_restore_stop_never_calls_backend_and_keeps_zero_result(
     queued, dispatch = asyncio.Event(), asyncio.Event()
 
     async def wait(pilot, condition):
-        for _ in range(300):
+        for _ in rounds(300):
             await pilot.pause(0.02)
             if condition():
                 return
@@ -255,7 +256,7 @@ async def test_restore_timeout_retains_uncertain_provider_failure(tmp_path, size
     app = GUCmailApp(context, gateway=facade)
 
     async def wait(pilot, condition):
-        for _ in range(300):
+        for _ in rounds(300):
             await pilot.pause(0.02)
             if condition():
                 return
@@ -354,7 +355,7 @@ async def test_invalid_backend_result_after_entry_is_not_zero_attempt_cancellati
     app = App()
 
     async def wait(pilot, condition):
-        for _ in range(300):
+        for _ in rounds(300):
             await pilot.pause(0.02)
             if condition():
                 return

@@ -14,10 +14,11 @@ from gucmail.tui.area_common import ConfirmationScreen
 from gucmail.tui.local_search_screen import LocalSearchScreen
 from gucmail.tui.semantic_screen import SemanticScreen
 from test_semantic_search import CHUNKS, FIXTURE
+from waiting import press_button, rounds
 
 
 async def wait(pilot, condition):
-    for _ in range(200):
+    for _ in rounds(200):
         await pilot.pause(0.025)
         if condition():
             return
@@ -30,14 +31,7 @@ async def wait(pilot, condition):
 
 async def activate(app, pilot, selector):
     button = app.screen.query_one(selector, Button)
-    for _ in range(50):
-        if button.has_focus:
-            break
-        await pilot.press("tab")
-    await wait(pilot, lambda: button.has_focus and app.screen.region.contains_region(button.region))
-    assert not button.disabled
-    await wait(pilot, lambda: not button.has_class("-active"))
-    await pilot.press("enter")
+    await press_button(pilot, button)
     await pilot.pause()
 
 

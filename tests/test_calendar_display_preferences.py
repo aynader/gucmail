@@ -36,6 +36,7 @@ from test_cli import _environment
 from test_compose_preferences import wait_for
 from test_pim import _event
 from test_settings_secondpass import _context
+from waiting import press_button
 
 INSTANT = datetime(2026, 10, 1, 23, 30, tzinfo=UTC)
 
@@ -296,10 +297,7 @@ async def test_normal_settings_calendar_display_apply_refresh_reopen_and_capture
         settings = app.screen
 
         async def activate(selector):
-            button = settings.query_one(selector, Button)
-            await wait_for(pilot, lambda: not button.disabled and not button.has_class("-active"))
-            button.focus()
-            await pilot.press("enter")
+            await press_button(pilot, settings.query_one(selector, Button))
 
         async def stage():
             for key, value in zip(

@@ -12,6 +12,7 @@ from gucmail.tui.app import GUCmailApp
 from gucmail.tui.appearance_screen import ThemeBrowserScreen
 from gucmail.tui.write_coordinator import app_write_coordinator
 from test_tui_visual_regressions import _context
+from waiting import rounds
 
 
 @pytest.mark.asyncio
@@ -69,7 +70,7 @@ async def test_named_palette_theme_keeps_ui_loop_responsive_during_owned_disk_wr
             timer.start()
             try:
                 app._palette_apply_theme(invocation, CommandContext(offline_mode=True))
-                for _ in range(100):
+                for _ in rounds(100):
                     if started.is_set():
                         break
                     await asyncio.sleep(0.005)

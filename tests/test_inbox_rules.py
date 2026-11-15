@@ -37,6 +37,7 @@ from gucmail.tui.notification_settings_screen import NotificationSettingsScreen
 from test_cli import _environment
 from test_settings_secondpass import _context
 from test_tui import FakeGateway
+from waiting import wait_until
 
 
 class RuleServer:
@@ -258,19 +259,15 @@ class _Harness(App):
 async def test_mounted_uncertain_write_explains_outcome_and_offers_no_write_retry(server):
     app = _Harness(server.service)
     async with app.run_test(size=(100, 30)) as pilot:
-        for _ in range(30):
-            await pilot.pause(0.05)
-            if app.screen.rules:
-                break
+        await wait_until(pilot, lambda: app.screen.rules, interval=0.05, pause_first=True)
         screen = app.screen
         server.readback_fails = True
         screen.action_toggle_rule()
         await pilot.pause()
         await pilot.press("y")
-        for _ in range(100):
-            await pilot.pause(0.05)
-            if screen.view_state.value == "error":
-                break
+        await wait_until(
+            pilot, lambda: screen.view_state.value == "error", interval=0.05, pause_first=True
+        )
         from textual.widgets import Static
 
         text = str(screen.query_one("#area-state", Static).content)
@@ -285,10 +282,7 @@ async def test_mounted_uncertain_write_explains_outcome_and_offers_no_write_retr
 async def test_guided_native_rule_workflow_and_cancel_at_three_sizes(server, size):
     app = _Harness(server.service)
     async with app.run_test(size=size) as pilot:
-        for _ in range(30):
-            await pilot.pause(0.05)
-            if app.screen.rules:
-                break
+        await wait_until(pilot, lambda: app.screen.rules, interval=0.05, pause_first=True)
         screen = app.screen
         screen.action_toggle_rule()
         await pilot.pause()
@@ -303,17 +297,16 @@ async def test_guided_native_rule_workflow_and_cancel_at_three_sizes(server, siz
         app.screen.query_one("#inbox-rule-subjects", TextArea).load_text("Lecture\nTutorial")
         app.screen.query_one("#inbox-rule-mark-read", Checkbox).value = True
         await pilot.press("ctrl+s")
-        for _ in range(30):
-            await pilot.pause(0.05)
-            if isinstance(app.screen, ConfirmationScreen):
-                break
+        await wait_until(
+            pilot,
+            lambda: isinstance(app.screen, ConfirmationScreen),
+            interval=0.05,
+            pause_first=True,
+        )
         assert isinstance(app.screen, ConfirmationScreen)
         assert "Lecture" in app.screen.detail_text and not server.writes
         await pilot.press("y")
-        for _ in range(30):
-            await pilot.pause(0.05)
-            if len(screen.rules) == 2:
-                break
+        await wait_until(pilot, lambda: len(screen.rules) == 2, interval=0.05, pause_first=True)
         assert len(screen.rules) == 2 and len(server.writes) == 1
         assert not server.rules[-1].is_enabled
 
@@ -344,10 +337,12 @@ async def test_actual_mail_app_notification_button_opens_native_rules_without_mu
         button = screen.query_one("#notification-inbox-rules", Button)
         assert not button.disabled
         button.press()
-        for _ in range(30):
-            await pilot.pause(0.05)
-            if isinstance(app.screen, InboxRulesScreen) and app.screen.rules:
-                break
+        await wait_until(
+            pilot,
+            lambda: isinstance(app.screen, InboxRulesScreen) and app.screen.rules,
+            interval=0.05,
+            pause_first=True,
+        )
         assert isinstance(app.screen, InboxRulesScreen)
         assert len(app.screen.rules) == 1 and not server.writes
 

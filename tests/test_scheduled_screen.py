@@ -18,6 +18,7 @@ from gucmail.tui.scheduled_screen import (
     ScheduledScreen,
     SchedulerServiceBackend,
 )
+from waiting import wait_until
 
 NOW = datetime(2026, 8, 13, 12, 0, tzinfo=UTC)
 
@@ -186,8 +187,8 @@ async def test_scheduled_screen_is_full_height_and_offline_send_controls_are_dis
 
     app = Harness()
     async with app.run_test(size=(120, 36)) as pilot:
-        await pilot.pause(0.1)
         table = screen.query_one("#scheduled-table", DataTable)
+        await wait_until(pilot, lambda: table.row_count == 1, pause_first=True)
         assert table.row_count == 1
         assert table.region.height >= 7
         assert screen.query_one("#scheduled-send-now", Button).disabled
@@ -196,10 +197,12 @@ async def test_scheduled_screen_is_full_height_and_offline_send_controls_are_dis
             screen.query_one("#scheduled-detail", Static).render()
         )
         screen.configure_view(window="next")
-        for _ in range(20):
-            await pilot.pause(0.05)
-            if screen.query_one("#scheduled-window", Select).value == "next":
-                break
+        await wait_until(
+            pilot,
+            lambda: screen.query_one("#scheduled-window", Select).value == "next",
+            interval=0.05,
+            pause_first=True,
+        )
         assert screen.query_one("#scheduled-window", Select).value == "next"
         assert table.row_count == 1
 

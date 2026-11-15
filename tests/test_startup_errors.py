@@ -19,6 +19,7 @@ from gucmail.startup import (
     plan_repair_startup,
     plan_uninstall_startup,
 )
+from waiting import rounds
 
 
 def make_plan(tmp_path: Path, platform_name: str = "windows"):
@@ -451,7 +452,7 @@ async def test_normal_settings_startup_unknown_refresh_and_cancel(tmp_path, monk
     )
 
     async def wait(predicate):
-        for _ in range(120):
+        for _ in rounds(120):
             await pilot.pause(0.025)
             if predicate():
                 return

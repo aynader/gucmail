@@ -36,6 +36,7 @@ class NotificationReaderApp(App[None]):
         self.account = account
         self.reference = reference
         self._generation = 0
+        self._loading = False
 
     def compose(self) -> ComposeResult:
         yield Static("Opening notification… · Esc closes", id="toast-reader-status", markup=False)
@@ -48,8 +49,11 @@ class NotificationReaderApp(App[None]):
         self.action_reload()
 
     def action_reload(self) -> None:
-        if any(worker.is_running for worker in self.workers):
+        # Track loading ourselves: the worker thread keeps running for a moment after it
+        # has shown the message, and F5 must work as soon as the status says it does.
+        if self._loading:
             return
+        self._loading = True
         self._generation += 1
         self.query_one("#toast-reader-status", Static).update(
             "Loading selected message… · Esc closes"
@@ -97,6 +101,7 @@ class NotificationReaderApp(App[None]):
     def _complete(self, generation: int, content: str, failed: bool) -> None:
         if generation != self._generation:
             return
+        self._loading = False
         self.query_one("#toast-reader-content", Static).update(content)
         self.query_one("#toast-reader-status", Static).update(
             "Message unavailable · F5 retries · Esc closes"

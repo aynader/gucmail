@@ -13,6 +13,7 @@ from gucmail.services.index import IndexDocument, SearchIndex
 from gucmail.services.local_search import LocalSearchMode, LocalSearchService
 from gucmail.tui.local_search_screen import LocalSearchScreen, ServiceLocalSearchBackend
 from gucmail.tui.palette_routes import CATALOG_ROUTES, RouteKind, RouteTarget
+from waiting import rounds, wait_until
 
 
 def _service(path: Path) -> LocalSearchService:
@@ -250,10 +251,12 @@ async def test_local_search_screen_runs_and_reflows_at_wide_and_narrow_sizes(
     app = SearchHarness(screen)
 
     async with app.run_test(size=size) as pilot:
-        for _ in range(80):
-            await pilot.pause(0.025)
-            if screen.query_one("#local-search-table", DataTable).row_count >= 3:
-                break
+        await wait_until(
+            pilot,
+            lambda: screen.query_one("#local-search-table", DataTable).row_count >= 3,
+            interval=0.025,
+            pause_first=True,
+        )
 
         assert screen.query_one("#local-search-table", DataTable).row_count >= 3
         assert "Sources: local-index, backup" in str(
@@ -266,7 +269,7 @@ async def test_local_search_screen_runs_and_reflows_at_wide_and_narrow_sizes(
 
         screen.query_one("#local-search-query", Input).value = "shopping"
         screen.configure(mode=LocalSearchMode.INDEX, run=True)
-        for _ in range(60):
+        for _ in rounds(60):
             await pilot.pause(0.025)
             table = screen.query_one("#local-search-table", DataTable)
             if table.row_count == 1:

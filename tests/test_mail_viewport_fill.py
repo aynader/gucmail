@@ -11,6 +11,7 @@ from textual.widgets import DataTable, Input
 from gucmail.models import Address, MessageSummary
 from gucmail.tui.app import GUCmailApp
 from test_tui import FakeGateway, context_for
+from waiting import rounds, wait_until
 
 
 class ManyMessagesGateway(FakeGateway):
@@ -37,7 +38,7 @@ class ManyMessagesGateway(FakeGateway):
 
 
 async def wait_for_mail(pilot, app: GUCmailApp, count: int) -> None:
-    for _ in range(100):
+    for _ in rounds(100):
         await pilot.pause(0.05)
         if len(app._messages) >= count and app.ui.busy is None:
             return
@@ -172,18 +173,12 @@ async def test_filter_change_during_load_does_not_replace_filtered_view(tmp_path
         await wait_for_mail(pilot, app, 25)
         app.query_one("#message-table", DataTable).focus()
         await pilot.press("ctrl+end")
-        for _ in range(50):
-            await pilot.pause(0.02)
-            if started.is_set():
-                break
+        await wait_until(pilot, lambda: started.is_set(), interval=0.02, pause_first=True)
         assert started.is_set()
         app.query_one("#message-filter", Input).value = "message 2"
         await pilot.pause()
         finish.set()
-        for _ in range(50):
-            await pilot.pause(0.02)
-            if app.ui.busy is None:
-                break
+        await wait_until(pilot, lambda: app.ui.busy is None, interval=0.02, pause_first=True)
         assert app.ui.busy is None
         assert len(app._messages) == 25
         assert app.query_one("#message-table", DataTable).row_count == 6

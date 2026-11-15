@@ -8,6 +8,7 @@ from gucmail.tui.app import GUCmailApp
 from gucmail.tui.backup_screen import BackupPassphraseScreen
 from gucmail.tui.offline_pim_screen import OfflinePimScreen
 from test_settings_secondpass import _context
+from waiting import wait_until
 
 
 def _items():
@@ -63,20 +64,20 @@ async def test_offline_pim_reopen_browse_details_filter_paginate_and_resize(
     monkeypatch.setattr(app, "_ensure_gateway", forbidden)
     async with app.run_test(size=(100, 35)) as pilot:
         app._open_area(area)
-        for _ in range(80):
-            await pilot.pause(0.025)
-            if (
-                isinstance(app.screen, OfflinePimScreen) and app.screen.is_mounted
-            ) and app.screen._backups:
-                break
+        await wait_until(
+            pilot,
+            lambda: (
+                (isinstance(app.screen, OfflinePimScreen) and app.screen.is_mounted)
+                and app.screen._backups
+            ),
+            interval=0.025,
+            pause_first=True,
+        )
         screen = app.screen
         assert isinstance(screen, OfflinePimScreen)
         screen.page_size = 2
         screen.query_one("#offline-pim-backup", Select).value = "saved-pim"
-        for _ in range(80):
-            await pilot.pause(0.025)
-            if len(screen._items) == 2:
-                break
+        await wait_until(pilot, lambda: len(screen._items) == 2, interval=0.025, pause_first=True)
         table = screen.query_one("#offline-pim-table", DataTable)
         assert table.row_count == 2
         assert {item.kind for item in screen._items.values()} == {kind}
@@ -97,35 +98,39 @@ async def test_offline_pim_reopen_browse_details_filter_paginate_and_resize(
         # Search now runs across the archive in a cancellable worker. The match
         # is deliberately beyond the initial two-row page.
         screen.query_one("#offline-pim-filter", Input).value = "detail 2"
-        for _ in range(80):
-            await pilot.pause(0.025)
-            if table.row_count == 1 and not screen._operation_active:
-                break
+        await wait_until(
+            pilot,
+            lambda: table.row_count == 1 and not screen._operation_active,
+            interval=0.025,
+            pause_first=True,
+        )
         assert table.row_count == 1
         assert next(iter(screen._items.values())).reference == f"{kind}-2"
         screen.query_one("#offline-pim-filter", Input).value = ""
-        for _ in range(80):
-            await pilot.pause(0.025)
-            if table.row_count == 2 and not screen._operation_active:
-                break
+        await wait_until(
+            pilot,
+            lambda: table.row_count == 2 and not screen._operation_active,
+            interval=0.025,
+            pause_first=True,
+        )
         assert table.row_count == 2
         screen.query_one("#offline-pim-next", Button).press()
-        for _ in range(80):
-            await pilot.pause(0.025)
-            if len(screen._items) == 1:
-                break
+        await wait_until(pilot, lambda: len(screen._items) == 1, interval=0.025, pause_first=True)
         assert table.row_count == 1
         assert screen.query_one("#offline-pim-next", Button).disabled
         await pilot.resize_terminal(70, 24)
         await pilot.press("escape")
         assert screen.archive is None
         app._open_area(area)
-        for _ in range(80):
-            await pilot.pause(0.025)
-            if (
-                isinstance(app.screen, OfflinePimScreen) and app.screen.is_mounted
-            ) and app.screen._backups:
-                break
+        await wait_until(
+            pilot,
+            lambda: (
+                (isinstance(app.screen, OfflinePimScreen) and app.screen.is_mounted)
+                and app.screen._backups
+            ),
+            interval=0.025,
+            pause_first=True,
+        )
         assert "saved-pim" in app.screen._backups
 
 
@@ -138,33 +143,37 @@ async def test_encrypted_offline_pim_cancel_then_unlock(tmp_path):
     app = GUCmailApp(context, offline=True)
     async with app.run_test(size=(100, 35)) as pilot:
         app._open_area("contacts")
-        for _ in range(80):
-            await pilot.pause(0.025)
-            if (
-                isinstance(app.screen, OfflinePimScreen) and app.screen.is_mounted
-            ) and app.screen._backups:
-                break
+        await wait_until(
+            pilot,
+            lambda: (
+                (isinstance(app.screen, OfflinePimScreen) and app.screen.is_mounted)
+                and app.screen._backups
+            ),
+            interval=0.025,
+            pause_first=True,
+        )
         screen = app.screen
         select = screen.query_one("#offline-pim-backup", Select)
         select.value = "encrypted-pim"
-        for _ in range(80):
-            await pilot.pause(0.025)
-            if isinstance(app.screen, BackupPassphraseScreen) and app.screen.is_mounted:
-                break
+        await wait_until(
+            pilot,
+            lambda: isinstance(app.screen, BackupPassphraseScreen) and app.screen.is_mounted,
+            interval=0.025,
+            pause_first=True,
+        )
         assert isinstance(app.screen, BackupPassphraseScreen)
         await pilot.press("escape")
         assert screen.archive is None and not screen._items
         select.value = Select.BLANK
         await pilot.pause()
         select.value = "encrypted-pim"
-        for _ in range(80):
-            await pilot.pause(0.025)
-            if isinstance(app.screen, BackupPassphraseScreen) and app.screen.is_mounted:
-                break
+        await wait_until(
+            pilot,
+            lambda: isinstance(app.screen, BackupPassphraseScreen) and app.screen.is_mounted,
+            interval=0.025,
+            pause_first=True,
+        )
         app.screen.dismiss("synthetic-only")
-        for _ in range(100):
-            await pilot.pause(0.025)
-            if screen._items:
-                break
+        await wait_until(pilot, lambda: screen._items, interval=0.025, pause_first=True)
         assert len(screen._items) == 3
         assert screen.archive.read_only

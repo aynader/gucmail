@@ -17,6 +17,7 @@ from gucmail.services.quota import (
 from gucmail.settings import InMemoryRevisionStore, SettingsService
 from gucmail.tui.area_backends import StorageAreaBackend
 from gucmail.tui.storage_screen import StorageScreen, storage_battery
+from waiting import wait_until
 
 
 class _NoServerQuota:
@@ -166,27 +167,33 @@ async def test_storage_fallback_controls_remain_visible_in_a_narrow_terminal(
             assert button.region.bottom <= 26
 
         screen.queue_snapshot_focus("quota_thresholds")
-        for _ in range(100):
-            await pilot.pause(0.02)
-            if screen._queued_snapshot_focus is None:
-                break
+        await wait_until(
+            pilot,
+            lambda: screen._queued_snapshot_focus is None,
+            interval=0.02,
+            pause_first=True,
+        )
         detail = str(screen.query_one("#storage-detail", Static).render())
         assert "Server-reported total capacity: Unknown" in detail
 
         screen.queue_snapshot_focus("mailbox_usage")
-        for _ in range(100):
-            await pilot.pause(0.02)
-            if screen._queued_snapshot_focus is None:
-                break
+        await wait_until(
+            pilot,
+            lambda: screen._queued_snapshot_focus is None,
+            interval=0.02,
+            pause_first=True,
+        )
         detail = str(screen.query_one("#storage-detail", Static).render())
         assert "42.0 MiB" in detail
         assert "Bounded visible-item lower-bound estimate" in detail
 
         screen.queue_snapshot_focus("remaining_space")
-        for _ in range(100):
-            await pilot.pause(0.02)
-            if screen._queued_snapshot_focus is None:
-                break
+        await wait_until(
+            pilot,
+            lambda: screen._queued_snapshot_focus is None,
+            interval=0.02,
+            pause_first=True,
+        )
         detail = str(screen.query_one("#storage-detail", Static).render())
         assert "Remaining mailbox capacity: Unknown" in detail
         assert "42.0%" not in detail

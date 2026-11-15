@@ -24,6 +24,7 @@ from gucmail.tui.settings_screen import SettingsScreen
 from test_compose_preferences import wait_for
 from test_pim_creation_preferences import RecordingGateway, invoke, settings_for
 from test_settings_secondpass import _context
+from waiting import press_button
 
 NOW = datetime(2026, 10, 3, 23, 30, tzinfo=UTC)
 ANCHOR = date(2026, 10, 4)
@@ -284,11 +285,7 @@ async def test_normal_settings_repeat_defaults_and_fresh_form_preservation(
         screen = app.screen
 
         async def activate(selector):
-            button = screen.query_one(selector, Button)
-            await wait_for(pilot, lambda: not button.disabled and not button.has_class("-active"))
-            button.focus()
-            await pilot.pause()
-            await pilot.press("enter")
+            await press_button(pilot, screen.query_one(selector, Button))
 
         async def stage():
             for key, value in VALUES.items():

@@ -915,7 +915,9 @@ class SavedSearchScreen(Screen[None]):
         self.post_message(SavedSearchHelpRequested())
 
     def action_close(self) -> None:
-        self.app.pop_screen()
+        # dismiss() closes only this screen. A second close request (a double click
+        # on Close) must not close the screen underneath as well.
+        self.dismiss()
 
     @on(Button.Pressed)
     def _button_pressed(self, event: Button.Pressed) -> None:

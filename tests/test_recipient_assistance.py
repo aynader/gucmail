@@ -27,19 +27,11 @@ from test_compose_preferences import wait_for
 from test_mail_services import ComposeFake
 from test_settings_secondpass import _context
 from test_tui import _ready_composer_for_editing
+from waiting import press_button
 
 
 async def activate(pilot, screen, selector):
-    button = screen.query_one(selector, Button)
-    await wait_for(
-        pilot,
-        lambda: (
-            not button.disabled and not button.has_class("-active") and not screen._operation_active
-        ),
-    )
-    button.focus()
-    await pilot.pause()
-    await pilot.press("enter")
+    await press_button(pilot, screen.query_one(selector, Button))
 
 
 def sent_draft():

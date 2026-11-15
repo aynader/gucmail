@@ -17,6 +17,7 @@ from gucmail.tui.theme_repository import CustomThemeRepository
 from gucmail.tui.themes import ThemePreferences
 from gucmail.tui.write_coordinator import app_write_coordinator
 from test_tui_visual_regressions import _context
+from waiting import rounds
 
 
 class _Host(App[None]):
@@ -114,14 +115,15 @@ async def test_started_theme_write_keeps_lease_and_activates_on_ui_thread_after_
             await pilot.pause()
             screen = ThemeBrowserScreen(app.theme_browser_backend)
             if stop == "timeout":
-                screen.operation_timeout_seconds = 0.15
+                # Long enough for a busy machine to start the save; it is held for 7 s.
+                screen.operation_timeout_seconds = 1.0
             await app.push_screen(screen)
             await pilot.pause()
             screen._refresh_rows(preserve="builtin.default-light")
             timer.start()
             try:
                 screen.action_apply()
-                for _ in range(100):
+                for _ in rounds(100):
                     if started.is_set():
                         break
                     await asyncio.sleep(0.005)
@@ -131,7 +133,7 @@ async def test_started_theme_write_keeps_lease_and_activates_on_ui_thread_after_
                     await pilot.pause(0.01)
                     assert screen.view_state is ViewState.CANCELLED
                 elif stop == "timeout":
-                    for _ in range(100):
+                    for _ in rounds(100):
                         if not screen._operation_active:
                             break
                         await asyncio.sleep(0.005)
@@ -147,7 +149,7 @@ async def test_started_theme_write_keeps_lease_and_activates_on_ui_thread_after_
                 assert "still running" in str(screen.query_one("#theme-state", Static).content)
                 assert app_write_coordinator(app).pending and not saved.is_set()
                 release.set()
-                for _ in range(500):
+                for _ in rounds(500):
                     if (
                         saved.is_set()
                         and not app_write_coordinator(app).pending
@@ -221,7 +223,7 @@ async def test_held_theme_persistence_runs_outside_ui_loop_and_reserves_shared_w
         timer.start()
         try:
             screen.action_apply()
-            for _ in range(100):
+            for _ in rounds(100):
                 if started.is_set():
                     break
                 await asyncio.sleep(0.005)

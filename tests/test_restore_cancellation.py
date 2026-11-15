@@ -17,6 +17,7 @@ from gucmail.tui.area_backends import BackupAreaBackend
 from gucmail.tui.area_common import ConfirmationScreen
 from gucmail.tui.backup_screen import BackupScreen, RestorePlanScreen
 from gucmail.tui.write_coordinator import app_write_coordinator
+from waiting import rounds
 
 
 def test_backend_cancellation_after_one_create_stops_later_creations(tmp_path):
@@ -95,7 +96,7 @@ async def test_normal_restore_cancel_stops_batch_and_retains_result(tmp_path, si
     app = GUCmailApp(context, gateway=facade)
 
     async def wait(pilot, condition):
-        for _ in range(300):
+        for _ in rounds(300):
             await pilot.pause(0.02)
             if condition():
                 return
@@ -270,7 +271,7 @@ async def test_restore_close_keeps_pending_result_visible(tmp_path, size):
     app = GUCmailApp(context, gateway=facade)
 
     async def wait(pilot, condition):
-        for _ in range(300):
+        for _ in rounds(300):
             await pilot.pause(0.02)
             if condition():
                 return

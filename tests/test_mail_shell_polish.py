@@ -8,6 +8,7 @@ from textual.widgets import DataTable, Input, Tree
 from gucmail.models import FolderInfo
 from gucmail.tui.app import GUCmailApp
 from test_tui import FakeGateway, context_for
+from waiting import rounds
 
 
 class ManyFoldersGateway(FakeGateway):
@@ -35,7 +36,7 @@ async def test_tools_remain_reachable_above_long_folder_tree_and_filter_works(
 ) -> None:
     app = GUCmailApp(context_for(tmp_path), gateway=ManyFoldersGateway())
     async with app.run_test(size=size) as pilot:
-        for _ in range(100):
+        for _ in rounds(100):
             await pilot.pause(0.05)
             tree = app.query_one("#folder-tree", Tree)
             table = app.query_one("#message-table", DataTable)

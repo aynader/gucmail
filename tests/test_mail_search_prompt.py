@@ -9,10 +9,11 @@ from gucmail.settings import SettingsService
 from gucmail.tui.app import FolderNameScreen, GUCmailApp, PaletteScreen
 from test_tui import FakeGateway
 from test_ui_session import context_for
+from waiting import rounds
 
 
 async def wait(pilot, predicate):
-    for _ in range(100):
+    for _ in rounds(100):
         if predicate():
             return
         await pilot.pause(0.02)

@@ -18,6 +18,7 @@ from gucmail.tui.app import AreaScreen, GUCmailApp
 from gucmail.tui.area_common import ConfirmationScreen, ViewState
 from gucmail.tui.diagnostics_screen import DiagnosticsScreen, LocalDiagnosticsBackend
 from gucmail.tui.palette_routes import RouteKind, catalog_route
+from waiting import rounds, wait_until
 
 
 def _context(tmp_path: Path) -> AppContext:
@@ -178,35 +179,43 @@ async def test_mounted_diagnostics_actions_preview_and_execute(tmp_path: Path) -
 
     async with app.run_test(size=(100, 30)) as pilot:
         app._open_area("diagnostics")
-        for _ in range(40):
-            await pilot.pause(0.05)
-            if (
-                isinstance(app.screen, DiagnosticsScreen) and app.screen.is_mounted
-            ) and app.screen.view_state in {
-                ViewState.READY,
-                ViewState.ERROR,
-            }:
-                break
+        await wait_until(
+            pilot,
+            lambda: (
+                (isinstance(app.screen, DiagnosticsScreen) and app.screen.is_mounted)
+                and app.screen.view_state
+                in {
+                    ViewState.READY,
+                    ViewState.ERROR,
+                }
+            ),
+            interval=0.05,
+            pause_first=True,
+        )
         assert isinstance(app.screen, DiagnosticsScreen)
         screen = app.screen
 
         screen.action_repair_cache()
-        for _ in range(30):
-            await pilot.pause(0.05)
-            if isinstance(app.screen, ConfirmationScreen) and app.screen.is_mounted:
-                break
+        await wait_until(
+            pilot,
+            lambda: isinstance(app.screen, ConfirmationScreen) and app.screen.is_mounted,
+            interval=0.05,
+            pause_first=True,
+        )
         assert isinstance(app.screen, ConfirmationScreen)
         assert "item_references" in app.screen.detail_text
         app.screen.dismiss(True)
-        for _ in range(40):
-            await pilot.pause(0.05)
-            if (
+        await wait_until(
+            pilot,
+            lambda: (
                 not any(context.state.disposable_cache_counts().values())
                 and screen.view_state is ViewState.READY
                 and not screen._operation_active
                 and not screen.mutation_pending
-            ):
-                break
+            ),
+            interval=0.05,
+            pause_first=True,
+        )
         assert not any(context.state.disposable_cache_counts().values())
         assert screen.view_state is ViewState.READY and not screen.mutation_pending
         assert isinstance(app.screen, DiagnosticsScreen)
@@ -214,22 +223,26 @@ async def test_mounted_diagnostics_actions_preview_and_execute(tmp_path: Path) -
 
         screen.query_one("#diagnostics-index-limit").value = "25"  # type: ignore[attr-defined]
         screen.action_rebuild_index()
-        for _ in range(30):
-            await pilot.pause(0.05)
-            if isinstance(app.screen, ConfirmationScreen) and app.screen.is_mounted:
-                break
+        await wait_until(
+            pilot,
+            lambda: isinstance(app.screen, ConfirmationScreen) and app.screen.is_mounted,
+            interval=0.05,
+            pause_first=True,
+        )
         assert isinstance(app.screen, ConfirmationScreen)
         assert "Bounded metadata limit: 25" in app.screen.detail_text
         app.screen.dismiss(True)
-        for _ in range(40):
-            await pilot.pause(0.05)
-            if (
+        await wait_until(
+            pilot,
+            lambda: (
                 SearchIndex(context.paths.index_database).stats().documents == 2
                 and screen.view_state is ViewState.READY
                 and not screen._operation_active
                 and not screen.mutation_pending
-            ):
-                break
+            ),
+            interval=0.05,
+            pause_first=True,
+        )
         assert SearchIndex(context.paths.index_database).stats().documents == 2
         assert screen.view_state is ViewState.READY and not screen.mutation_pending
         assert isinstance(app.screen, DiagnosticsScreen)
@@ -239,17 +252,20 @@ async def test_mounted_diagnostics_actions_preview_and_execute(tmp_path: Path) -
             destination
         )
         app.screen.action_export_bundle()
-        for _ in range(30):
-            await pilot.pause(0.05)
-            if isinstance(app.screen, ConfirmationScreen) and app.screen.is_mounted:
-                break
+        await wait_until(
+            pilot,
+            lambda: isinstance(app.screen, ConfirmationScreen) and app.screen.is_mounted,
+            interval=0.05,
+            pause_first=True,
+        )
         assert isinstance(app.screen, ConfirmationScreen)
         assert "no credentials" in app.screen.detail_text.casefold()
         app.screen.dismiss(True)
-        for _ in range(30):
-            if destination.is_file() and screen.view_state is ViewState.READY:
-                break
-            await pilot.pause(0.05)
+        await wait_until(
+            pilot,
+            lambda: destination.is_file() and screen.view_state is ViewState.READY,
+            interval=0.05,
+        )
         assert destination.is_file()
 
 
@@ -268,7 +284,7 @@ async def test_diagnostics_palette_executes_views_reconnect_and_bounded_log_brow
     handlers = app._palette_handlers()
 
     async def wait_for_view(pilot: Pilot[None], view: str) -> DiagnosticsScreen:
-        for _ in range(80):
+        for _ in rounds(80):
             await pilot.pause(0.025)
             if (
                 isinstance(app.screen, DiagnosticsScreen)
@@ -311,7 +327,7 @@ async def test_diagnostics_palette_executes_views_reconnect_and_bounded_log_brow
             await wait_for_view(pilot, view)
 
         handlers["diagnostics.logs"](CommandInvocation("diagnostics.logs"), app._palette_context())
-        for _ in range(80):
+        for _ in rounds(80):
             await pilot.pause(0.025)
             if isinstance(app.screen, AreaScreen):
                 content = str(app.screen.query_one("#area-content", Static).render())

@@ -15,6 +15,7 @@ from gucmail.errors import ConfigurationError, NetworkError
 from gucmail.models import Address, MessageSummary
 from gucmail.services.unanswered import UnansweredService
 from gucmail.tui.unanswered_screen import UnansweredScreen
+from waiting import wait_until
 
 
 def message(reference, hour, *, sender="other@example.test", conversation="thread"):
@@ -186,10 +187,12 @@ async def test_screen_analyzes_scope_then_opens_message_and_keeps_actions_visibl
         # Widget regions use screen coordinates; size excludes this screen's padding.
         assert button.region.y >= 0 and button.region.bottom <= screen.region.bottom
         assert await pilot.click("#response-analyze")
-        for _ in range(100):
-            await pilot.pause(0.025)
-            if screen._report and not screen._operation_active:
-                break
+        await wait_until(
+            pilot,
+            lambda: screen._report and not screen._operation_active,
+            interval=0.025,
+            pause_first=True,
+        )
         assert screen.query_one("#response-table", DataTable).row_count == 1
         assert "1 without a later self message" in str(
             screen.query_one("#area-state", Static).render()
@@ -199,10 +202,12 @@ async def test_screen_analyzes_scope_then_opens_message_and_keeps_actions_visibl
         assert screen._report is None
         assert screen.query_one("#response-open", Button).disabled
         screen.action_refresh()
-        for _ in range(100):
-            await pilot.pause(0.025)
-            if screen._report and not screen._operation_active:
-                break
+        await wait_until(
+            pilot,
+            lambda: screen._report and not screen._operation_active,
+            interval=0.025,
+            pause_first=True,
+        )
         screen.query_one("#response-table", DataTable).focus()
         await pilot.press("enter")
         assert opened == ["incoming"] and app.screen is not screen
@@ -249,10 +254,7 @@ async def test_scope_edit_cancels_inflight_scan_and_discards_its_late_result():
         async with app.run_test(size=(80, 24)) as pilot:
             await app.push_screen(screen)
             screen.action_refresh()
-            for _ in range(100):
-                await pilot.pause(0.01)
-                if started.is_set():
-                    break
+            await wait_until(pilot, lambda: started.is_set(), interval=0.01, pause_first=True)
             assert started.is_set()
             screen.query_one("#response-sent", Input).value = "Another folder"
             await pilot.pause()

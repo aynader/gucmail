@@ -1,19 +1,23 @@
 """Shared test setup.
 
-Two things keep the parallel run (qa/test.py) fast and steady:
-
-* The slowest tests start first, so no worker is left with a 2-minute test at the end.
-* Interface tests that wait with "pause a little, check, repeat N times" can be given
-  more time on a slow machine with GUCMAIL_TEST_PAUSE_SCALE=2 (or higher). Loops still
-  stop as soon as the check passes.
+* The slowest tests start first, so no worker in the parallel run (qa/test.py) is left
+  with a 2-minute test at the end.
+* Interface tests wait with tests/waiting.py, which waits for a result rather than for a
+  fixed number of pauses.
+* GUCMAIL_TEST_SLOW_WORKERS=0.2 makes every background worker start and report back
+  0.2 seconds late, like a slow PC. Run the suite that way to find tests that read the
+  screen before the app has updated it (qa/test.py --slow does this).
 """
 
 from __future__ import annotations
 
 import os
+import time
+from collections.abc import Callable
+from concurrent.futures import Future, ThreadPoolExecutor
 
 import pytest
-from textual.pilot import Pilot
+from textual.app import App
 
 # Slowest first (measured with --durations). Prefix match on the test id.
 SLOW_FIRST = (
@@ -45,13 +49,36 @@ def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
     items.sort(key=rank)  # stable: everything else keeps its normal order
 
 
-_PAUSE_SCALE = float(os.environ.get("GUCMAIL_TEST_PAUSE_SCALE", "1"))
-_original_pause = Pilot.pause
+_SLOW_WORKERS = float(os.environ.get("GUCMAIL_TEST_SLOW_WORKERS", "0"))
 
+if _SLOW_WORKERS > 0:
+    # Slow down the thread pool itself, so worker functions stay exactly as the app made
+    # them. Late start: the screen shows "loading" longer. Late finish: the work is done
+    # (a fake server already saw it) but the screen hasn't heard yet. Tests that check
+    # the screen must wait for the screen, not for the fake server.
+    _original_submit = ThreadPoolExecutor.submit
 
-async def _scaled_pause(self: Pilot[object], delay: float | None = None) -> None:
-    await _original_pause(self, None if delay is None else delay * _PAUSE_SCALE)
+    def _slow_submit(
+        self: ThreadPoolExecutor, fn: Callable[..., object], /, *args: object, **kwargs: object
+    ) -> Future[object]:
+        def late() -> object:
+            time.sleep(_SLOW_WORKERS)
+            try:
+                return fn(*args, **kwargs)
+            finally:
+                time.sleep(_SLOW_WORKERS)
 
+        return _original_submit(self, late)
 
-if _PAUSE_SCALE != 1:
-    Pilot.pause = _scaled_pause  # type: ignore[method-assign]
+    ThreadPoolExecutor.submit = _slow_submit  # type: ignore[assignment,method-assign]
+
+    # After each hand-over to the screen, the worker carries on a little later. This opens
+    # the gap between "the screen got the result" and "the worker finished".
+    _original_call_from_thread = App.call_from_thread
+
+    def _slow_call_from_thread(self: App[object], *args: object, **kwargs: object) -> object:
+        result: object = _original_call_from_thread(self, *args, **kwargs)  # type: ignore[arg-type]
+        time.sleep(_SLOW_WORKERS)
+        return result
+
+    App.call_from_thread = _slow_call_from_thread  # type: ignore[assignment,method-assign]

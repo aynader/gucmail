@@ -285,7 +285,11 @@ class Guard:
         }
         retained_paths = {}
         for key in tuple(os.environ):
-            if key.startswith("GUCMAIL_") and not key.startswith("GUCMAIL_AUDIT_"):
+            # GUCMAIL_TEST_* are test-suite switches (wait limit, slow mode); the app never
+            # reads them, so they pass through. Every app setting is removed.
+            if key.startswith("GUCMAIL_") and not key.startswith(
+                ("GUCMAIL_AUDIT_", "GUCMAIL_TEST_")
+            ):
                 if inherited and (key.endswith("_DIR") or key == "GUCMAIL_CONFIG"):
                     value = Path(os.environ[key]).resolve()
                     if not self.inside(value, self.private):

@@ -33,6 +33,7 @@ from gucmail.tui.storage_screen import (
     StorageSnapshotView,
     StorageUsageRow,
 )
+from waiting import rounds
 
 
 def _context(tmp_path: Path, gateway: object | None = None) -> AppContext:
@@ -297,12 +298,25 @@ async def _wait_for(
     *,
     attempts: int = 80,
 ) -> None:
-    for _ in range(attempts):
+    for _ in rounds(attempts):
         if predicate():
             await pilot.pause()
             return
         await pilot.pause(0.02)
     assert predicate()
+
+
+_FOLDER_WORK = {"folder-load", "folder-mutation", "folder-move"}
+
+
+def _folder_shown(app: GUCmailApp, reference: str) -> bool:
+    """The folder is in the tree and no folder change or reload is still running.
+
+    Right after a change the tree still shows the old layout; the reload that follows
+    replaces those nodes, so a node found too early can vanish before it is selected.
+    """
+    busy = any(worker.is_running and worker.group in _FOLDER_WORK for worker in app.workers)
+    return not busy and not app._folder_refresh_in_progress and reference in app._folder_nodes
 
 
 def _select(app: GUCmailApp, reference: str) -> None:
@@ -454,7 +468,7 @@ async def test_textual_folder_mutations_use_prompts_and_scoped_confirmations(
     app = GUCmailApp(context, gateway=gateway)
 
     async with app.run_test(size=(120, 36)) as pilot:
-        await _wait_for(pilot, lambda: "projects" in app._folder_nodes)
+        await _wait_for(pilot, lambda: _folder_shown(app, "projects"))
         _select(app, "projects")
         await pilot.pause()
 
@@ -471,7 +485,7 @@ async def test_textual_folder_mutations_use_prompts_and_scoped_confirmations(
         assert await pilot.click("#confirm")
         await _wait_for(pilot, lambda: bool(gateway.created))
         assert gateway.created == [("projects", "Neue Ablage")]
-        await _wait_for(pilot, lambda: "created-1" in app._folder_nodes)
+        await _wait_for(pilot, lambda: _folder_shown(app, "created-1"))
         await pilot.pause()
 
         _select(app, "created-1")
@@ -486,7 +500,7 @@ async def test_textual_folder_mutations_use_prompts_and_scoped_confirmations(
         await _wait_for(pilot, lambda: isinstance(app.screen, ConfirmationScreen))
         assert await pilot.click("#confirm")
         await _wait_for(pilot, lambda: gateway.renamed == [("created-1", "Umbenannt")])
-        await _wait_for(pilot, lambda: "created-1" in app._folder_nodes)
+        await _wait_for(pilot, lambda: _folder_shown(app, "created-1"))
 
         _select(app, "created-1")
         app._catalog_direct(
@@ -508,7 +522,7 @@ async def test_textual_folder_mutations_use_prompts_and_scoped_confirmations(
         assert await pilot.click("#confirm")
         await _wait_for(pilot, lambda: gateway.emptied == ["created-1"])
 
-        await _wait_for(pilot, lambda: "created-1" in app._folder_nodes)
+        await _wait_for(pilot, lambda: _folder_shown(app, "created-1"))
         _select(app, "created-1")
         app._catalog_direct(
             catalog_route("folders.move_folder"),
@@ -518,10 +532,10 @@ async def test_textual_folder_mutations_use_prompts_and_scoped_confirmations(
         assert await pilot.click("#confirm")
         await _wait_for(pilot, lambda: gateway.moved == [("created-1", "private")])
 
-        await _wait_for(pilot, lambda: "private" in app._folder_nodes)
+        await _wait_for(pilot, lambda: _folder_shown(app, "private"))
         tree = app.query_one("#folder-tree", Tree)
         tree.get_node_by_id(app._folder_nodes["private"]).expand()
-        await _wait_for(pilot, lambda: "created-1" in app._folder_nodes)
+        await _wait_for(pilot, lambda: _folder_shown(app, "created-1"))
         _select(app, "created-1")
         app._catalog_direct(
             catalog_route("folders.delete_folder"),

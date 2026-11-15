@@ -27,6 +27,7 @@ from gucmail.tui.pim_screens import (
 )
 from test_acceptance_ews_regressions import projected_gateway as _projected_gateway
 from test_cli import _environment
+from waiting import wait_until
 
 projected_gateway = _projected_gateway
 
@@ -184,10 +185,12 @@ async def test_ui_empty_page_still_offers_next_and_changed_query_resets_offset(k
     app = App()
     async with app.run_test(size=size) as pilot:
         await app.push_screen(screen)
-        for _ in range(100):
-            await pilot.pause(0.025)
-            if gateway.offsets and not screen._operation_active:
-                break
+        await wait_until(
+            pilot,
+            lambda: gateway.offsets and not screen._operation_active,
+            interval=0.025,
+            pause_first=True,
+        )
         table = screen.query_one(f"#{kind}-table", DataTable)
         next_button = screen.query_one(f"#{kind}-next", Button)
         assert table.row_count == 0 and not next_button.disabled
@@ -198,10 +201,12 @@ async def test_ui_empty_page_still_offers_next_and_changed_query_resets_offset(k
         assert "More available" in str(state.render())
         assert "later candidates" in str(state.tooltip)
         next_button.press()
-        for _ in range(100):
-            await pilot.pause(0.025)
-            if table.row_count == 1 and not screen._operation_active:
-                break
+        await wait_until(
+            pilot,
+            lambda: table.row_count == 1 and not screen._operation_active,
+            interval=0.025,
+            pause_first=True,
+        )
         assert table.row_count == 1 and next_button.disabled, (
             gateway.offsets,
             screen.query_one("#area-state", Static).render(),
@@ -209,18 +214,22 @@ async def test_ui_empty_page_still_offers_next_and_changed_query_resets_offset(k
         assert gateway.offsets[-1] == 200
         assert not screen.query_one(f"#{kind}-prev", Button).disabled
         screen.query_one(f"#{kind}-prev", Button).press()
-        for _ in range(100):
-            await pilot.pause(0.025)
-            if gateway.offsets[-1] == 0 and not screen._operation_active:
-                break
+        await wait_until(
+            pilot,
+            lambda: gateway.offsets[-1] == 0 and not screen._operation_active,
+            interval=0.025,
+            pause_first=True,
+        )
         assert table.row_count == 0
         # A changed query must not inherit the previous query's Next offset.
         screen.query_one(f"#{kind}-search", Input).value = "new query"
         next_button.press()
-        for _ in range(100):
-            await pilot.pause(0.025)
-            if gateway.queries[-1].text == "new query" and not screen._operation_active:
-                break
+        await wait_until(
+            pilot,
+            lambda: gateway.queries[-1].text == "new query" and not screen._operation_active,
+            interval=0.025,
+            pause_first=True,
+        )
         assert gateway.offsets[-1] == 0 and gateway.queries[-1].text == "new query"
         assert screen.query_one(f"#{kind}-prev", Button).disabled
 

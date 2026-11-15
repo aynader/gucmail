@@ -27,6 +27,7 @@ from test_compose_preferences import wait_for
 from test_mail_preferences import SortGateway
 from test_scheduler import NOW
 from test_settings_secondpass import _context
+from waiting import press_button
 
 VALUES = {
     "mail.delete_behavior": "move_to_folder",
@@ -309,11 +310,7 @@ async def test_normal_settings_cancel_apply_grouping_keeps_selection_and_delete_
         screen = app.screen
 
         async def activate(identifier):
-            button = screen.query_one(identifier, Button)
-            await wait_for(pilot, lambda: not button.has_class("-active") and not button.disabled)
-            button.focus()
-            await pilot.pause()
-            await pilot.press("enter")
+            await press_button(pilot, screen.query_one(identifier, Button))
 
         async def stage():
             for identifier, value in VALUES.items():

@@ -23,6 +23,7 @@ from gucmail.tui.message_columns_preview import MessageColumnsPreviewScreen
 from gucmail.tui.message_columns_screen import MessageColumnsScreen
 from gucmail.tui.settings_screen import SettingsScreen
 from test_settings_secondpass import _context
+from waiting import rounds
 
 
 def test_column_preferences_export_import_reset_undo_and_reopen(tmp_path):
@@ -91,7 +92,7 @@ def test_default_adaptive_columns_and_explicit_horizontal_scroll_widths():
 
 
 async def wait_for(pilot, condition):
-    for _ in range(100):
+    for _ in rounds(100):
         if condition():
             return
         await pilot.pause(0.02)

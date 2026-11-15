@@ -32,6 +32,7 @@ from gucmail.tui.pim_screens import (
     CorrespondentsScreen,
     PimActionRequested,
 )
+from waiting import rounds, wait_until
 
 
 class _ContactsGateway:
@@ -267,7 +268,7 @@ async def test_contacts_screen_directory_correspondence_and_responsiveness(
     app = _ContactsHarness(backend)
 
     async with app.run_test(size=size) as pilot:
-        for _ in range(30):
+        for _ in rounds(30):
             await pilot.pause(0.05)
             screen = app.screen
             if (
@@ -282,23 +283,29 @@ async def test_contacts_screen_directory_correspondence_and_responsiveness(
 
         contacts_screen.query_one("#contacts-search", Input).value = "Ada"
         contacts_screen.action_directory()
-        for _ in range(30):
-            await pilot.pause(0.05)
-            if "Exchange directory" in str(
-                contacts_screen.query_one("#contacts-detail", Static).content
-            ):
-                break
+        await wait_until(
+            pilot,
+            lambda: (
+                "Exchange directory"
+                in str(contacts_screen.query_one("#contacts-detail", Static).content)
+            ),
+            interval=0.05,
+            pause_first=True,
+        )
         assert "Ambiguous result" in str(
             contacts_screen.query_one("#contacts-detail", Static).content
         )
 
         contacts_screen.action_correspondence()
-        for _ in range(30):
-            await pilot.pause(0.05)
-            if "Correspondence history" in str(
-                contacts_screen.query_one("#contacts-detail", Static).content
-            ):
-                break
+        await wait_until(
+            pilot,
+            lambda: (
+                "Correspondence history"
+                in str(contacts_screen.query_one("#contacts-detail", Static).content)
+            ),
+            interval=0.05,
+            pause_first=True,
+        )
         assert "message-out" in str(contacts_screen.query_one("#contacts-detail", Static).content)
 
         contacts_screen.action_open_correspondence()
@@ -323,10 +330,12 @@ async def test_contact_create_can_be_prefilled_from_a_message_sender() -> None:
     )
 
     async with app.run_test(size=(100, 30)) as pilot:
-        for _ in range(30):
-            await pilot.pause(0.05)
-            if isinstance(app.screen, ContactsScreen) and app.screen.is_mounted:
-                break
+        await wait_until(
+            pilot,
+            lambda: isinstance(app.screen, ContactsScreen) and app.screen.is_mounted,
+            interval=0.05,
+            pause_first=True,
+        )
         screen = app.screen
         assert isinstance(screen, ContactsScreen)
         screen.action_create_prefilled(Address("sender@example.test", "Selected Sender"))
@@ -359,10 +368,12 @@ async def test_correspondents_screen_is_bounded_actionable_and_responsive(order:
     app = _CorrespondentsHarness(screen)
 
     async with app.run_test(size=(79, 26)) as pilot:
-        for _ in range(30):
-            await pilot.pause(0.05)
-            if screen.query_one("#correspondents-table", DataTable).row_count == 2:
-                break
+        await wait_until(
+            pilot,
+            lambda: screen.query_one("#correspondents-table", DataTable).row_count == 2,
+            interval=0.05,
+            pause_first=True,
+        )
         assert screen.query_one("#correspondents-table", DataTable).row_count == 2
         assert screen.query_one("#correspondents-content").region.height > 0
         assert "Messages:" in str(screen.query_one("#correspondents-detail", Static).content)

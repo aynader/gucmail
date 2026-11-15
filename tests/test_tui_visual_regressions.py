@@ -43,6 +43,7 @@ from gucmail.tui.themes import (
     validate_theme,
 )
 from test_tui import _ready_composer_for_editing
+from waiting import rounds, wait_until
 
 
 @pytest.fixture(autouse=True)
@@ -435,10 +436,7 @@ async def test_settings_dropdown_stages_and_persists_choice(tmp_path: Path) -> N
         await pilot.pause()
         screen = app.screen
         assert isinstance(screen, SettingsScreen)
-        for _ in range(100):
-            if screen._catalog is not None:
-                break
-            await pilot.pause(0.05)
+        await wait_until(pilot, lambda: screen._catalog is not None, interval=0.05)
         assert screen._catalog is not None, str(screen.query_one("#area-state", Static).render())
         assert screen.action_select_setting("mail.mark_read_on_open")
         await pilot.pause()
@@ -561,7 +559,7 @@ async def test_main_tui_branding_table_and_responsive_geometry(tmp_path: Path) -
         assert header.region.height == 1
         # display changes synchronously, but Textual's hit map is rebuilt on refresh.
         # Wait for the restored banner to be laid out before calculating click coordinates.
-        for _ in range(30):
+        for _ in rounds(30):
             region = expanded_brand.region
             if region.height and app.get_widget_at(region.x, region.y)[0] is expanded_brand:
                 break
@@ -637,16 +635,10 @@ async def test_tui_focus_scroll_and_modal_readability(tmp_path: Path) -> None:
         preview = app.query_one("#preview-scroll", VerticalScroll)
         app.query_one("#preview", Static).update("\n".join(f"Line {index}" for index in range(200)))
         preview.focus()
-        for _ in range(80):
-            await pilot.pause(0.025)
-            if preview.max_scroll_y > 0:
-                break
+        await wait_until(pilot, lambda: preview.max_scroll_y > 0, interval=0.025, pause_first=True)
         assert preview.max_scroll_y > 0
         await pilot.press("end")
-        for _ in range(80):
-            await pilot.pause(0.025)
-            if preview.scroll_y > 0:
-                break
+        await wait_until(pilot, lambda: preview.scroll_y > 0, interval=0.025, pause_first=True)
         assert preview.scroll_y > 0
 
         await pilot.press("?")
@@ -1015,10 +1007,12 @@ async def test_contact_repeatable_fields_preserve_values_and_validate_duplicates
         assert app.screen is screen
         assert "different type" in str(screen.query_one("#contact-editor-error", Static).render())
         rows[1].query_one(".contact-value-remove", Button).press()
-        for _ in range(40):
-            await pilot.pause(0.025)
-            if len(phones.query(ContactValueRow)) == 1:
-                break
+        await wait_until(
+            pilot,
+            lambda: len(phones.query(ContactValueRow)) == 1,
+            interval=0.025,
+            pause_first=True,
+        )
         assert len(phones.query(ContactValueRow)) == 1
         assert screen._value().phones == contact.phones
 
@@ -1031,10 +1025,7 @@ async def test_restore_palette_has_one_exact_confirmation(tmp_path: Path, monkey
     executed = []
     monkeypatch.setattr(app, "_execute_message_mutation", lambda plan, **kw: executed.append(plan))
     async with app.run_test(size=(140, 45)) as pilot:
-        for _ in range(100):
-            await pilot.pause(0.03)
-            if not app.ui.busy:
-                break
+        await wait_until(pilot, lambda: not app.ui.busy, interval=0.03, pause_first=True)
         # Only the presentation context is connected. The preview does not access EWS.
         app.offline = False
         app.ui.online = True
@@ -1070,10 +1061,9 @@ async def test_settings_numeric_range_and_advanced_disclosure(tmp_path: Path) ->
         app._open_area("settings")
         screen = app.screen
         assert isinstance(screen, SettingsScreen)
-        for _ in range(100):
-            await pilot.pause(0.05)
-            if screen._catalog is not None:
-                break
+        await wait_until(
+            pilot, lambda: screen._catalog is not None, interval=0.05, pause_first=True
+        )
         assert screen._catalog is not None
         setting = next(s for s in screen._catalog.settings if s.setting_id.endswith("page_size"))
         assert screen.action_select_setting(setting.setting_id)
@@ -1264,10 +1254,11 @@ async def test_attachment_workspace_opens_requested_tab_and_fits_toolbar(tmp_pat
         screen = app.screen
         assert isinstance(screen, DraftAttachmentScreen)
         assert screen.query_one(TabbedContent).active == "draft-workspace-attachments-tab"
-        for _ in range(100):
-            if screen.query_one("#attachment-table", DataTable).row_count:
-                break
-            await pilot.pause(0.03)
+        await wait_until(
+            pilot,
+            lambda: screen.query_one("#attachment-table", DataTable).row_count,
+            interval=0.03,
+        )
         assert screen.query_one("#attachment-table", DataTable).row_count == 1
         for width, height in ((140, 45), (80, 24)):
             await pilot.resize_terminal(width, height)
@@ -1323,10 +1314,7 @@ async def test_settings_show_catalog_names_but_keep_exact_choice_values(tmp_path
         await app.workers.wait_for_complete()
         screen = app.screen
         assert isinstance(screen, SettingsScreen)
-        for _ in range(100):
-            if screen._catalog is not None:
-                break
-            await pilot.pause(0.05)
+        await wait_until(pilot, lambda: screen._catalog is not None, interval=0.05)
         assert screen._catalog is not None, str(screen.query_one("#area-state", Static).render())
         assert screen.action_select_setting("appearance.branding")
         await pilot.pause()

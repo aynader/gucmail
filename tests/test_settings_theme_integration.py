@@ -15,6 +15,7 @@ from gucmail.tui.settings_form import SettingRow
 from gucmail.tui.settings_screen import SettingsScreen
 from test_settings_visual_layout import ready
 from test_tui import context_for
+from waiting import wait_until
 
 
 @pytest.mark.asyncio
@@ -51,10 +52,7 @@ async def test_settings_back_reviews_dirty_changes_and_can_keep_editing(tmp_path
         if preview:
             assert app.active_theme.id == "builtin.default-light"
         await pilot.press("escape", "y")
-        for _ in range(100):
-            await pilot.pause(0.01)
-            if app.screen is not screen:
-                break
+        await wait_until(pilot, lambda: app.screen is not screen, interval=0.01, pause_first=True)
         assert len(app.screen_stack) == 1
         assert app.active_theme.id == original_theme
         from gucmail.settings import SettingsService
@@ -147,10 +145,12 @@ async def test_settings_theme_preview_discard_save_and_restart(
         await pilot.pause()
         screen.query_one("#settings-choice", Select).value = "builtin.default-light"
         assert await pilot.click("#settings-preview")
-        for _ in range(100):
-            await pilot.pause(0.03)
-            if screen._preview is not None and not screen._operation_active:
-                break
+        await wait_until(
+            pilot,
+            lambda: screen._preview is not None and not screen._operation_active,
+            interval=0.03,
+            pause_first=True,
+        )
         assert app.active_theme.id == "builtin.default-light"
         assert_palette(app, screen)
         assert context.paths.config_file.read_bytes() == before
@@ -163,10 +163,12 @@ async def test_settings_theme_preview_discard_save_and_restart(
         await pilot.pause()
         screen.query_one("#settings-choice", Select).value = "builtin.default-light"
         assert await pilot.click("#settings-preview")
-        for _ in range(100):
-            await pilot.pause(0.03)
-            if screen._preview is not None and not screen._operation_active:
-                break
+        await wait_until(
+            pilot,
+            lambda: screen._preview is not None and not screen._operation_active,
+            interval=0.03,
+            pause_first=True,
+        )
         await pilot.press("ctrl+s")
         await ready(pilot, screen)
         assert not screen._staged and app.active_theme.id == "builtin.default-light"
@@ -194,10 +196,12 @@ async def test_rich_workspace_titles_recolor_beneath_an_open_dialog(
     async with app.run_test(size=(120, 36)) as pilot:
         app._open_area("activity")
         activity = app.screen
-        for _ in range(100):
-            await pilot.pause(0.03)
-            if activity._snapshot is not None and not activity._operation_active:
-                break
+        await wait_until(
+            pilot,
+            lambda: activity._snapshot is not None and not activity._operation_active,
+            interval=0.03,
+            pause_first=True,
+        )
         assert activity._snapshot is not None
         await pilot.pause()
         title = activity.query_one("#activity-title", Label)

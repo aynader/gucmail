@@ -25,6 +25,7 @@ from test_mail_services import ComposeFake
 from test_scheduler import NOW, make_services
 from test_settings_secondpass import _context
 from test_tui import _ready_composer_for_editing
+from waiting import rounds
 
 
 def draft(**changes):
@@ -400,7 +401,7 @@ def test_undo_queue_records_reviewed_empty_subject_permission(tmp_path):
 
 
 async def wait_for(pilot, condition):
-    for _ in range(150):
+    for _ in rounds(150):
         if condition():
             return
         await pilot.pause(0.02)

@@ -11,7 +11,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass
 from enum import StrEnum
-from threading import Event
+from threading import Event, Lock
 from typing import ClassVar
 
 from rich.cells import cell_len
@@ -86,6 +86,46 @@ class OperationProgress:
 ProgressReporter = Callable[[OperationProgress], None]
 BlockingOperation = Callable[[Event, ProgressReporter], object]
 OperationSuccess = Callable[[object], None]
+
+
+class _LatestProgress:
+    """The newest progress from a background operation, waiting to be shown.
+
+    The operation never waits for the screen to redraw, and reports that arrive faster
+    than the screen redraws become one update showing the newest one.
+    """
+
+    def __init__(self) -> None:
+        self._lock = Lock()
+        self._progress: OperationProgress | None = None
+        self._closed = False
+
+    def put(self, progress: OperationProgress) -> bool:
+        """Store ``progress``; True when the screen must be told (nothing was waiting)."""
+        with self._lock:
+            if self._closed:
+                return False
+            waiting = self._progress is not None
+            self._progress = progress
+            return not waiting
+
+    def take(self) -> OperationProgress | None:
+        with self._lock:
+            progress, self._progress = self._progress, None
+            return progress
+
+    def close(self) -> None:
+        """Drop unshown progress; called before the result is shown."""
+        with self._lock:
+            self._closed = True
+            self._progress = None
+
+
+class _ProgressReady(Message, bubble=False):
+    def __init__(self, generation: int, latest: _LatestProgress) -> None:
+        super().__init__()
+        self.generation = generation
+        self.latest = latest
 
 
 class PublicOperationError(RuntimeError):
@@ -441,11 +481,11 @@ class OperationalScreen(Screen[None]):
         if lease is not None and not lease.start():
             return
 
+        latest = _LatestProgress()
+
         def report(progress: OperationProgress) -> None:
-            try:
-                self.app.call_from_thread(self._show_progress, generation, progress)
-            except RuntimeError:
-                return
+            if latest.put(progress):
+                self.post_message(_ProgressReady(generation, latest))
 
         result: object | None = None
         error: BaseException | None = None
@@ -455,6 +495,7 @@ class OperationalScreen(Screen[None]):
         except BaseException as exc:  # the UI translates and contains backend failures
             error = exc
         finally:
+            latest.close()
             if lease is not None:
                 lease.finish()
         try:
@@ -468,6 +509,12 @@ class OperationalScreen(Screen[None]):
             )
         except RuntimeError:
             return
+
+    @on(_ProgressReady)
+    def _progress_ready(self, message: _ProgressReady) -> None:
+        progress = message.latest.take()
+        if progress is not None:
+            self._show_progress(message.generation, progress)
 
     def _show_progress(self, generation: int, progress: OperationProgress) -> None:
         if generation != self._operation_generation or not self.is_mounted:
