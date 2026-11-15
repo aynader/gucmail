@@ -529,8 +529,12 @@ async def test_backup_repository_controls_export_prune_and_open_safely() -> None
         assert backend.prune_plans == [7]
 
         assert await pilot.click("#backup-open-folder")
-        await _wait_for(pilot, lambda: backend.opened_folders == 1)
-        assert "C:/synthetic/backups" in str(screen.query_one("#area-state", Static).render())
+        # The status line updates after the worker returns, a moment after the backend call.
+        await _wait_for(
+            pilot,
+            lambda: backend.opened_folders == 1
+            and "C:/synthetic/backups" in str(screen.query_one("#area-state", Static).render()),
+        )
 
 
 @pytest.mark.asyncio
