@@ -235,7 +235,11 @@ async def test_recent_mail_button_runs_worker_dry_run_without_provider_delivery(
     )
     app = NotificationSettingsHarness(screen)
     async with app.run_test(size=(100, 35)) as pilot:
-        await pilot.pause()
+        # Press only after the settings load; otherwise the load result replaces the report.
+        for _ in range(300):
+            await pilot.pause(0.05)
+            if screen._profiles and not screen._operation_active:
+                break
         screen.query_one("#notification-tabs", TabbedContent).active = "notification-rules-tab"
         screen.query_one("#notification-rule-recent", Button).press()
         for _ in range(300):  # sampling and the dry run are two worker steps
