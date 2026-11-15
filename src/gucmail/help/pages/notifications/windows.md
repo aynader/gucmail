@@ -1,5 +1,17 @@
 # Windows desktop notifications
 
+## The easy way
+
+Press **Ctrl+K** and choose **Turn on notifications**, or flip **Notify me about new mail** at
+the top of notification settings. From the command line: `gucmail notifications on`.
+
+This registers gucmail with Windows, starts the background task and sends a test
+notification. Each step shows ✓ or ✗ with a short reason. Turning it on again repairs
+anything that broke. `gucmail notifications off` turns notifications off; scheduled mail
+still gets sent.
+
+The rest of this page covers the details behind that switch.
+
 A desktop notification is produced locally after the watcher detects an event. Availability depends on the installed Windows provider; the application should report unavailable rather than pretending a toast was delivered.
 
 ## Privacy choices

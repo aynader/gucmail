@@ -271,8 +271,13 @@ def headless_run(
     console: bool = typer.Option(False, "--console/--no-console"),
     event_log: Path | None = typer.Option(None, help="Append redacted events as NDJSON."),
     webhooks: bool = typer.Option(True, "--webhooks/--no-webhooks"),
+    send_scheduled: bool = typer.Option(
+        True,
+        "--send-scheduled/--no-send-scheduled",
+        help="Also send scheduled messages when they're due (checked every 30 seconds).",
+    ),
 ) -> None:
-    """Run a single-instance, TUI-free watcher with durable health and control state."""
+    """Check for new mail in the background and send scheduled messages."""
 
     providers: list[ProviderBinding] = []
     close_after: list[WebhookNotificationProvider] = []
@@ -361,7 +366,8 @@ def headless_run(
                 poll_interval_seconds=int(poll_interval),
             )
 
-        cycles = run_headless_cycles(runtime, cycle, max_cycles=None if forever else 1)
+        tick = _scheduled_sender(ctx) if send_scheduled else None
+        cycles = run_headless_cycles(runtime, cycle, max_cycles=None if forever else 1, tick=tick)
         return {
             "cycles": cycles,
             "profile": profile,
@@ -375,6 +381,20 @@ def headless_run(
     finally:
         for provider in close_after:
             provider.close()
+
+
+def _scheduled_sender(ctx: typer.Context) -> Any:
+    """Send due scheduled messages; a failure is logged and never stops mail checks."""
+
+    scheduler = core.scheduler(ctx)
+
+    def tick() -> None:
+        try:
+            scheduler.run_once(limit=20)
+        except Exception:  # keep checking mail; the job keeps its state for the next try
+            logging.getLogger(__name__).warning("Sending scheduled mail failed.", exc_info=True)
+
+    return tick
 
 
 def _startup_plan(

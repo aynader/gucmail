@@ -61,6 +61,7 @@ from gucmail.services.notification_simulation import (
     NotificationSample,
     NotificationSimulationService,
 )
+from gucmail.services.notification_switch import NotificationSwitch
 from gucmail.services.notifications import (
     DeliveryResult,
     NotificationDispatcher,
@@ -671,6 +672,7 @@ class AreasMixin(AppCore):
                     recent_simulation_source=None if self.offline else self._recent_rule_sample,
                     automatic_replies_available=not self.offline,
                     desktop_setup=self._open_desktop_setup,
+                    switch=NotificationSwitch(self.context),
                 )
             )
             return

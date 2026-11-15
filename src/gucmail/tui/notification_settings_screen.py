@@ -31,6 +31,7 @@ from textual.widgets import (
     Input,
     Label,
     Static,
+    Switch,
     TabbedContent,
     TabPane,
     TextArea,
@@ -72,6 +73,7 @@ from gucmail.services.notification_configuration import (
     ProviderConfigurationMetadata,
 )
 from gucmail.services.notification_simulation import NotificationSample
+from gucmail.services.notification_switch import NotificationSwitch, SwitchResult
 from gucmail.services.notifications import (
     EVENT_FIELDS,
     DeliveryResult,
@@ -1660,6 +1662,11 @@ class NotificationSettingsScreen(OperationalScreen):
     NotificationSettingsScreen { layout: vertical; }
     #notification-settings-root { width: 100%; height: 100%; padding: 1 2; }
     #notification-settings-title { height: 2; text-style: bold; }
+    #notification-switch-row { height: 3; }
+    #notification-switch-label { width: auto; padding: 1 1 0 0; text-style: bold; }
+    #notification-switch-status { width: 1fr; padding: 1 0 0 2; }
+    #notification-switch-steps { height: auto; margin-bottom: 1; }
+    #notification-advanced-label { height: 1; color: $text-muted; }
     #notification-profile-toolbar { height: 3; }
     #notification-profile-select { width: 1fr; margin-right: 1; }
     #notification-profile-toolbar Button { margin-right: 1; }
@@ -1701,8 +1708,11 @@ class NotificationSettingsScreen(OperationalScreen):
         recent_simulation_source: RecentSimulationSource | None = None,
         automatic_replies_available: bool = False,
         desktop_setup: Callable[[], None] | None = None,
+        switch: NotificationSwitch | None = None,
     ) -> None:
         super().__init__(area_name="notification-settings", offline=True)
+        self.switch = switch
+        self._switch_syncing = False
         self.service = service
         self.webhook_registry = webhook_registry
         self.webhook_delivery = webhook_delivery
@@ -1733,6 +1743,16 @@ class NotificationSettingsScreen(OperationalScreen):
     def compose(self) -> ComposeResult:
         with Vertical(id="notification-settings-root"):
             yield Label("Notifications & Monitoring", id="notification-settings-title")
+            if self.switch is not None:
+                with Horizontal(id="notification-switch-row"):
+                    yield Label("Notify me about new mail", id="notification-switch-label")
+                    yield Switch(value=False, id="notification-switch")
+                    yield Static("", id="notification-switch-status", markup=False)
+                yield Static("", id="notification-switch-steps", markup=False)
+                yield Label(
+                    "Advanced: profiles, rules, quiet hours, destinations and webhooks",
+                    id="notification-advanced-label",
+                )
             with Horizontal(id="notification-profile-toolbar"):
                 yield Select(
                     (), prompt="Choose monitoring profile", id="notification-profile-select"
@@ -2025,7 +2045,59 @@ class NotificationSettingsScreen(OperationalScreen):
         self.query_one("#notification-routing-table", DataTable).add_columns(
             "Rule", "Provider", "Mode"
         )
+        if self.switch is not None:
+            self.query_one("#notification-switch-steps", Static).display = False
+            self._show_switch(self.switch.notifications_on())
         self.call_after_refresh(self.action_refresh)
+
+    # --- the one switch -------------------------------------------------------------
+
+    def _show_switch(self, on: bool, result: SwitchResult | None = None) -> None:
+        self._switch_syncing = True
+        switch = self.query_one("#notification-switch", Switch)
+        switch.value = on
+        self._switch_syncing = False
+        status = result.summary if result is not None else ("On" if on else "Off")
+        self.query_one("#notification-switch-status", Static).update(status)
+        steps = self.query_one("#notification-switch-steps", Static)
+        if result is None:
+            steps.display = False
+            return
+        steps.update(
+            "\n".join(
+                f"{'✓' if step.ok else '✗'} {step.label}: {step.detail}" for step in result.steps
+            )
+        )
+        steps.display = True
+
+    @on(Switch.Changed, "#notification-switch")
+    def _switch_changed(self, event: Switch.Changed) -> None:
+        if self._switch_syncing or self.switch is None:
+            return
+        self.turn_notifications(event.value)
+
+    def turn_notifications(self, on: bool) -> None:
+        """Run the full on/off setup in a worker; the settings below reload afterwards."""
+        switch = self.switch
+        if switch is None:
+            return
+        self.query_one("#notification-switch", Switch).disabled = True
+        self.query_one("#notification-switch-status", Static).update(
+            "Setting up…" if on else "Turning off…"
+        )
+
+        def done(value: object) -> None:
+            self.query_one("#notification-switch", Switch).disabled = False
+            result = cast(SwitchResult, value)
+            self._show_switch(switch.notifications_on(), result)
+            self.call_after_refresh(self.action_refresh)
+
+        self._begin_operation(
+            "Turning on notifications" if on else "Turning off notifications",
+            lambda cancel, progress: switch.turn_on() if on else switch.turn_off(),
+            done,
+            timeout_seconds=120.0,
+        )
 
     def _layout_action_rows(self) -> None:
         """Keep complete action labels and rows inside the scrollable pane."""
@@ -2784,8 +2856,11 @@ class NotificationSettingsScreen(OperationalScreen):
         self._change_local_configuration("Configure monitored folders", change, saved)
 
     def action_set_desktop_notifications(self, enabled: bool = True) -> None:
-        """Enable or disable the desktop destination the watcher actually consumes."""
+        """Turn notifications on or off (the whole setup when the switch is available)."""
         if self._defer_until_loaded(lambda: self.action_set_desktop_notifications(enabled)):
+            return
+        if self.switch is not None:
+            self.turn_notifications(enabled)
             return
 
         def change() -> object:
@@ -2857,9 +2932,7 @@ class NotificationSettingsScreen(OperationalScreen):
         def saved(value: object) -> None:
             updated = cast(MonitoringProfile, value)
             self._selected_profile_id = updated.profile_id.casefold()
-            self._set_configuration_notice(
-                f"Notifications now show: {privacy_mode.label.lower()}."
-            )
+            self._set_configuration_notice(f"Notifications now show: {privacy_mode.label.lower()}.")
 
         self._change_local_configuration("Update notification privacy", change, saved)
 

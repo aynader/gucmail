@@ -1058,12 +1058,15 @@ def run_headless_cycles(
     *,
     max_cycles: int | None = None,
     monotonic: MonotonicClock = time.monotonic,
+    tick: Callable[[], None] | None = None,
+    tick_seconds: float = 30.0,
 ) -> int:
     """Run cooperative cycles; return the number attempted.
 
-    This intentionally does not implement Exchange retry policy.  The monitoring
-    service returns the appropriate delay in each result, while this function
-    handles pause/stop controls and keeps the process record current.
+    The monitoring service decides the delay between mail checks; this loop handles
+    pause/stop requests and keeps the process record current. ``tick`` (sending due
+    scheduled mail) runs after each check and every ``tick_seconds`` while waiting, so
+    a long mail interval doesn't delay scheduled messages.
     """
 
     attempted = 0
@@ -1081,12 +1084,15 @@ def run_headless_cycles(
             result = cycle()
             runtime.heartbeat(result)
             attempted += 1
+            if tick is not None:
+                tick()
             if max_cycles is not None and attempted >= max_cycles:
                 break
             elapsed = max(0.0, monotonic() - started)
             delay = max(0.0, result.backoff_seconds or runtime.spec.poll_interval_seconds)
             remaining = max(0.0, delay - elapsed)
             heartbeat_due = monotonic() + 30.0
+            tick_due = monotonic() + tick_seconds
             while remaining > 0 and not runtime.controller.stop_requested:
                 before_wait = monotonic()
                 runtime.controller.wait(min(1.0, remaining))
@@ -1099,4 +1105,7 @@ def run_headless_cycles(
                 if after_wait >= heartbeat_due and not runtime.controller.stop_requested:
                     runtime.heartbeat()
                     heartbeat_due = after_wait + 30.0
+                if tick is not None and after_wait >= tick_due and not runtime.controller.paused:
+                    tick()
+                    tick_due = after_wait + tick_seconds
     return attempted

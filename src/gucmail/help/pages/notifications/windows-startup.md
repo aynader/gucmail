@@ -1,6 +1,10 @@
 # Start monitoring with Windows
 
-Automatic startup runs the headless new-mail watcher after sign-in. The TUI does not need to remain open. Your PC must still be awake, connected, and able to unlock the configured credentials. Delayed-send scheduling uses a separate worker definition and should not be confused with mailbox monitoring.
+The background task checks for new mail after you sign in, and sends scheduled messages when
+they're due. The app doesn't need to stay open, but your PC must be awake and online.
+
+**The easy way:** `gucmail notifications on` (or **Turn on notifications** in the Ctrl+K
+palette) installs and starts this task for you. The steps below are for setting it up by hand.
 
 ## Easy path in Settings
 

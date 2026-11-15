@@ -3,6 +3,19 @@
 What changed in each release, newest first. Each release gets a short entry written for the
 people using gucmail, not for its developers.
 
+## 1.3.0 (unreleased)
+
+### Improved
+- One switch for notifications. `gucmail notifications on` (or **Turn on notifications** in
+  the Ctrl+K palette, or the **Notify me about new mail** switch in notification settings)
+  registers gucmail with Windows, starts the background task and sends a test, then shows
+  ✓ or ✗ for each step. `gucmail notifications off` turns them off.
+- One background task instead of two. The new-mail task now also sends scheduled messages
+  (checked every 30 seconds), and turning notifications on removes the old separate
+  Scheduler task. Turning notifications off keeps the task running while scheduled mail
+  is still waiting.
+- `gucmail notifications status` gives a plain answer: on or off, and whether the task runs.
+
 ## 1.2.0 (unreleased)
 
 ### Fixed

@@ -46,6 +46,7 @@ from gucmail.services.notification_configuration import (
     NotificationConfigurationService,
 )
 from gucmail.services.notification_simulation import NotificationSimulationService
+from gucmail.services.notification_switch import NotificationSwitch
 from gucmail.services.notifications import (
     ConsoleNotificationProvider,
     DeliveryState,
@@ -62,7 +63,9 @@ from gucmail.services.windows_desktop import (
     desktop_setup_service,
 )
 
-notifications_app = typer.Typer(help="Get told about new mail.")
+notifications_app = typer.Typer(
+    help="Get told about new mail. Start with: gucmail notifications on"
+)
 
 
 notification_rules_app = typer.Typer(
@@ -83,9 +86,7 @@ notification_providers_app = typer.Typer(
 )
 
 
-desktop_notifications_app = typer.Typer(
-    help="Set up Windows desktop notifications."
-)
+desktop_notifications_app = typer.Typer(help="Set up Windows desktop notifications.")
 
 
 webhooks_app = typer.Typer(help="(Advanced) Send new-mail events to a web address.")
@@ -202,23 +203,85 @@ def _ensure_notification_provider_policy(
     )
 
 
+def _switch(ctx: typer.Context) -> NotificationSwitch:
+    return NotificationSwitch(core.cli_state(ctx).context)
+
+
+def _switch_human(result: dict[str, object]) -> dict[str, object]:
+    rows: dict[str, object] = {"": result["summary"]}
+    for step in result["steps"]:  # type: ignore[attr-defined]
+        rows[step["step"]] = ("✓ " if step["ok"] else "✗ ") + step["detail"]
+    return rows
+
+
+@notifications_app.command("on")
+def notifications_on(
+    ctx: typer.Context,
+    test: bool = typer.Option(True, "--test/--no-test", help="Send a test notification."),
+) -> None:
+    """Turn on new-mail notifications. Sets up everything, then sends a test.
+
+    Example: gucmail notifications on
+    """
+
+    core.run(
+        ctx,
+        "notifications on",
+        lambda: _switch(ctx).turn_on(test=test).as_dict(),
+        title="Notifications",
+        source="local_system",
+        human_data=_switch_human,
+    )
+
+
+@notifications_app.command("off")
+def notifications_off(ctx: typer.Context) -> None:
+    """Turn off new-mail notifications. Scheduled mail still gets sent.
+
+    Example: gucmail notifications off
+    """
+
+    core.run(
+        ctx,
+        "notifications off",
+        lambda: _switch(ctx).turn_off().as_dict(),
+        title="Notifications",
+        source="local_system",
+        human_data=_switch_human,
+    )
+
+
 @notifications_app.command("status")
 def notifications_status(ctx: typer.Context) -> None:
-    """Inspect active monitoring configuration and watcher state without Exchange access."""
+    """Show whether notifications are on and the background task is running."""
 
     def action() -> dict[str, object]:
         service = _notification_service(ctx)
-        active = service.profiles.active_profile()
         context = core.cli_state(ctx).context
-        watcher_rows = context.state.list_watcher_status()
         return {
-            "active_profile": active,
+            **_switch(ctx).status().as_dict(),
+            "active_profile": service.profiles.active_profile(),
             "profiles": service.profiles.list_profiles(),
             "configured_providers": service.providers.list_providers(),
-            "watchers": watcher_rows,
+            "watchers": context.state.list_watcher_status(),
         }
 
-    core.run(ctx, "notifications status", action, title="Notification status", source="local")
+    def human(result: dict[str, object]) -> dict[str, object]:
+        return {
+            "Notifications": result["notifications"],
+            "Background task": result["background_task"],
+            "Scheduled messages waiting": result["scheduled_messages_waiting"],
+            "": result["summary"],
+        }
+
+    core.run(
+        ctx,
+        "notifications status",
+        action,
+        title="Notifications",
+        source="local",
+        human_data=human,
+    )
 
 
 @notification_profiles_app.command("list")
@@ -779,7 +842,7 @@ def notification_providers_test(
 
 @notifications_app.command("test")
 def notifications_test(ctx: typer.Context) -> None:
-    """Emit one synthetic redacted local notification; no mailbox or webhook call."""
+    """Show a sample notification in this terminal. Nothing is sent anywhere."""
 
     event = NotificationEvent(
         event_id="test-local-notification",
@@ -871,7 +934,7 @@ def notifications_history(
     ctx: typer.Context,
     limit: int = typer.Option(50, min=1, max=500),
 ) -> None:
-    """Show bounded, sanitized local provider delivery history."""
+    """Show recent notifications and whether each one was delivered."""
 
     core.run(
         ctx,

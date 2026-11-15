@@ -102,29 +102,27 @@ Saved searches, per-folder or whole-mailbox scope, and a search box in every vie
 
 ## Notifications, even with the terminal closed
 
-A small background watcher checks your Inbox about once a minute and shows a Windows toast
-for new mail. It runs as a Windows task that starts when you sign in, with no window and no
-terminal. Clicking a toast opens the message.
-
-In the interface: press **Ctrl+K** and open **notification settings**.
-
-1. Choose **New / setup** to create a monitoring profile for your Inbox, then **Enable** it.
-2. Under **Providers & Privacy**, choose **Desktop setup…**, then **Add provider → Desktop**.
-3. Go to **Settings**, search for **start**, and choose **Start monitoring with Windows →
-   Open setup**. Your active profile is filled in. Press **Enable…** and monitoring starts
-   straight away, then again every time you sign in.
-
-Or from the command line:
+Turn them on with one switch. In the app, press **Ctrl+K** and choose **Turn on
+notifications**, or open **notification settings** and flip **Notify me about new mail**.
+From the command line:
 
 ```powershell
-gucmail notifications profiles create primary --name "Inbox" --enabled --activate
-gucmail notifications desktop setup --apply          # lets Windows show gucmail toasts
-gucmail startup enable --profile primary --apply     # the background task
+gucmail notifications on
 ```
 
-The Desktop provider is added in the interface, as above. Quiet hours, rules ("only mail
-from @guc.edu.eg with 'exam' in the subject") and signed webhooks are optional.
-[Details](https://github.com/aynader/gucmail/blob/main/docs/monitoring/headless-deployment.md).
+That one step sets everything up: it registers gucmail with Windows notifications, starts a
+small background task that checks your Inbox about once a minute, and sends a test
+notification so you can see it works. The task has no window, starts again when you sign in,
+and also sends your scheduled messages on time. Clicking a notification opens the message.
+
+```powershell
+gucmail notifications status    # is it on, and is the background task running?
+gucmail notifications off       # stop notifications (scheduled mail still goes out)
+```
+
+Rules ("only mail from @guc.edu.eg with 'exam' in the subject"), quiet hours, other
+destinations and signed webhooks are optional; they're under **Advanced** in notification
+settings. [Details](https://github.com/aynader/gucmail/blob/main/docs/monitoring/headless-deployment.md).
 
 ## Backups you can read without a connection
 

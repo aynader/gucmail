@@ -126,7 +126,7 @@ their reviewed choice when defaults change; changing a scheduled draft requires 
 |---|---|
 | `quota` | `show`, `folders`, `local` |
 | `ews` | `operations`, `capabilities`, `describe`, `support-matrix`, `diagnostics`, `request-preview`, `delegates` |
-| `notifications` | `status`, `test`, `history`, `rules`, `profiles`, `providers`, `desktop` |
+| `notifications` | `on`, `off`, `status`, `test`, `history`, `rules`, `profiles`, `providers`, `desktop` |
 | `webhooks` | `list`, `add`, `remove`, `enable`, `disable`, `test`, `migrate-secrets` |
 | `automatic-replies` | `show`, `set` |
 | `inbox-rules` | `list`, `show`, `create`, `enable`, `disable`, `delete` |

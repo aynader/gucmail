@@ -2410,6 +2410,24 @@ def build_core_command_registry() -> CommandRegistry:
             "Open Local Search",
             ("open local search", "local search", "search all data", "search search all data"),
         ),
+        # These now run the whole one-switch setup, not only the desktop setting.
+        "notifications.enable_desktop_notifications": (
+            "Turn on notifications",
+            (
+                "turn on notifications",
+                "notify me",
+                "enable notifications",
+                "enable desktop notifications",
+            ),
+        ),
+        "notifications.disable_desktop_notifications": (
+            "Turn off notifications",
+            (
+                "turn off notifications",
+                "disable notifications",
+                "disable desktop notifications",
+            ),
+        ),
     }
     specs = [
         replace(
