@@ -65,8 +65,8 @@ Drafts save themselves, and if your laptop dies mid-sentence, the draft is waiti
 ![The scheduled-mail queue](https://raw.githubusercontent.com/aynader/gucmail/main/docs/img/scheduled.png)
 
 ```powershell
-gucmail send --to ta@example.edu --subject "Lab 6" --body-file report.txt --at "Monday 8:30"
-gucmail send --to me@example.edu --subject "Reminder" --body "Submit thesis" --in "2 hours"
+gucmail send --to laila.samir@guc.edu.eg --subject "Lab 6" --body-file report.txt --at "Monday 8:30"
+gucmail send --to nada.mostafa@student.guc.edu.eg --subject "Reminder" --body "Submit thesis" --in "2 hours"
 gucmail scheduled list
 ```
 

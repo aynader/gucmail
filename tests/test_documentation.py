@@ -112,4 +112,11 @@ def test_synthetic_examples_parse_and_use_example_domains() -> None:
             continue
         emails.update(re.findall(r"[\w.+-]+@([\w.-]+\.[A-Za-z]{2,})", text))
     assert emails
-    assert all(domain.casefold().startswith("example.") for domain in emails)
+    # Examples use example domains, or GUC's own domain with made-up people so the
+    # README reads like a real GUC mailbox.
+    assert all(
+        domain.casefold().startswith("example.")
+        or domain.casefold() == "guc.edu.eg"
+        or domain.casefold().endswith(".guc.edu.eg")
+        for domain in emails
+    ), sorted(emails)
