@@ -5,7 +5,9 @@ from __future__ import annotations
 import asyncio
 import contextlib
 from collections.abc import Sequence
+from dataclasses import replace
 from typing import Any, ClassVar, Literal, TypeVar, overload
+from urllib.parse import urlsplit
 from uuid import uuid4
 
 from rich.console import RenderableType
@@ -50,6 +52,7 @@ from gucmail.services.keyboard_preferences import KeyboardPreferencesService
 from gucmail.services.shell_preferences import (
     status_text,
 )
+from gucmail.services.sign_in import SignInResult, needs_sign_in, sign_in
 from gucmail.services.ui_session import (
     FOCUS_TARGETS,
     MAX_SCROLL,
@@ -167,12 +170,14 @@ from gucmail.tui.shortcuts_screen import (
     ShortcutSettingRequested,
     ShortcutsRequested,
 )
+from gucmail.tui.sign_in_screen import SignInScreen
 from gucmail.tui.stable_footer import StableFooter as Footer
 from gucmail.tui.themes import (
     ThemeDefinition,
 )
 from gucmail.tui.tutorial_screen import TutorialHelpRequested
 from gucmail.tui.visual_language import FRONTEND_CSS
+from gucmail.tui.welcome_tour import WelcomeTourScreen
 from gucmail.tui.write_coordinator import (
     CHANGE_IN_PROGRESS_MESSAGE,
     PENDING_CHANGE_MESSAGE,
@@ -477,10 +482,48 @@ class GUCmailApp(
         self._restore_session_focus()
         self._session_capture_timer = self.set_interval(1, self._capture_session)
         if not self.offline:
-            self._request_folder_children(parent_reference=None, node_id=self._folder_root_node_id)
-        if not self.offline:
-            # Wait for layout so the initial request can match the visible rows.
-            self.call_after_refresh(self._initial_mailbox_refresh)
+            if self.gateway is None and needs_sign_in(self.context):
+                self.call_after_refresh(self._show_sign_in)
+            else:
+                self._start_online()
+
+    def _start_online(self) -> None:
+        self._request_folder_children(parent_reference=None, node_id=self._folder_root_node_id)
+        # Wait for layout so the initial request can match the visible rows.
+        self.call_after_refresh(self._initial_mailbox_refresh)
+
+    def _show_sign_in(self) -> None:
+        """Ask for an account and password; load the mailbox once they work."""
+
+        if isinstance(self.screen, SignInScreen):
+            return
+
+        def sign(email: str, password: str, username: str | None) -> SignInResult:
+            return sign_in(self.context, email, password, username=username)
+
+        def finished(result: SignInResult | None) -> None:
+            if result is None:
+                self._set_status("Not signed in · press F5 to sign in")
+                return
+            self._refresh_shell_status()
+            self._start_online()
+            if result.warning:
+                self.notify(result.warning, severity="warning", timeout=12)
+            if not self.context.config.onboarding_complete:
+                self.push_screen(WelcomeTourScreen(), lambda _: self._finish_onboarding())
+
+        host = urlsplit(self.context.config.endpoint).hostname or ""
+        self.push_screen(
+            SignInScreen(sign, email=self.context.config.email or "", server=host), finished
+        )
+
+    def _finish_onboarding(self) -> None:
+        updated = replace(self.context.config, onboarding_complete=True)
+        try:
+            self.context.config_store.save(updated)
+        except Exception:
+            return
+        self.context.config = updated
 
     @on(Button.Pressed, "#workspace-tabs Button")
     def workspace_tab_pressed(self, event: Button.Pressed) -> None:

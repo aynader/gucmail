@@ -384,15 +384,15 @@ async def _activate(pilot, screen: OperationalScreen, identifier: str) -> None:
     button = screen.query_one(identifier, Button)
     assert not button.disabled
     button.focus()
-    await wait_until(
-        pilot,
-        lambda: (
-            button.region.intersection(screen.region).height == button.region.height
-            and not button.has_class("-active")
-        ),
-        interval=0.02,
-        pause_first=True,
-    )
+
+    def shown() -> bool:
+        if button.region.intersection(screen.region).height == button.region.height:
+            return not button.has_class("-active")
+        # A scroll asked for before the layout settled can be lost; ask again.
+        button.scroll_visible(animate=False)
+        return False
+
+    await wait_until(pilot, shown, interval=0.02, pause_first=True)
     assert button.region.intersection(screen.region).height == button.region.height
     await pilot.press("enter")
     await pilot.pause()

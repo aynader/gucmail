@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import contextlib
+import os
 import shutil
 import zipfile
 from datetime import UTC, datetime, timedelta
@@ -536,3 +537,37 @@ def test_tui_backup_backend_exports_prunes_and_opens_validated_repository(tmp_pa
     opened_path = backend.open_backup_folder(cancel=cancel, progress=progress)
     assert opened == [root.resolve()]
     assert opened_path == str(root.resolve())
+
+
+def test_backup_publish_retries_a_brief_windows_access_denial(tmp_path, monkeypatch):
+    import gucmail.services.backup as backup_module
+
+    calls = []
+    real_replace = os.replace
+
+    def flaky_replace(source, target):
+        calls.append(source)
+        if len(calls) < 3:
+            raise PermissionError(5, "Access is denied")
+        real_replace(source, target)
+
+    monkeypatch.setattr(backup_module, "_WINDOWS", True)
+    monkeypatch.setattr(backup_module.os, "replace", flaky_replace)
+    monkeypatch.setattr(backup_module.time, "sleep", lambda _seconds: None)
+    source = tmp_path / "x.partial"
+    source.mkdir()
+    backup_module._publish_directory(source, tmp_path / "x")
+    assert len(calls) == 3 and (tmp_path / "x").is_dir()
+
+
+def test_backup_publish_reports_a_lasting_denial(tmp_path, monkeypatch):
+    import gucmail.services.backup as backup_module
+
+    def denied(source, target):
+        raise PermissionError(5, "Access is denied")
+
+    monkeypatch.setattr(backup_module, "_WINDOWS", True)
+    monkeypatch.setattr(backup_module.os, "replace", denied)
+    monkeypatch.setattr(backup_module.time, "sleep", lambda _seconds: None)
+    with pytest.raises(PermissionError):
+        backup_module._publish_directory(tmp_path / "a", tmp_path / "b")

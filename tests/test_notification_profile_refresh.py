@@ -33,8 +33,12 @@ def counted_screen(service):
 async def test_idle_programmatic_profile_render_stops_after_initial_refresh(tmp_path, size):
     screen, refreshes = counted_screen(_service(tmp_path / "state.sqlite3"))
     app = NotificationSettingsHarness(screen)
-    async with app.run_test(size=size):
-        await asyncio.sleep(0.15)
+    async with app.run_test(size=size) as pilot:
+        # Let the first load finish (slower on a busy machine), then watch it stay idle.
+        await wait(
+            pilot,
+            lambda: screen._selected_profile_id == "campus" and not screen._operation_active,
+        )
         initial = len(refreshes)
         assert initial >= 1
         await asyncio.sleep(0.25)

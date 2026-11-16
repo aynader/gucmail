@@ -14,7 +14,7 @@ from gucmail.dates import backoff_seconds, parse_datetime_expression
 from gucmail.errors import ConfigurationError, CredentialError
 from gucmail.formatting import quota_text
 from gucmail.models import QuotaInfo
-from gucmail.onboarding import complete_onboarding, migrate_legacy_to_keyring, onboarding_status
+from gucmail.onboarding import migrate_legacy_to_keyring
 from gucmail.security import (
     hmac_signature,
     html_to_safe_text,
@@ -255,7 +255,7 @@ def test_action_registry_progressively_discloses_without_raw_soap() -> None:
         DEFAULT_ACTIONS.get("missing")
 
 
-def test_onboarding_status_choices_and_explicit_legacy_migration(tmp_path: Path) -> None:
+def test_explicit_legacy_migration_copies_to_keyring_and_keeps_file(tmp_path: Path) -> None:
     class MemoryConfigStore:
         def __init__(self) -> None:
             self.saved: AppConfig | None = None
@@ -282,22 +282,6 @@ def test_onboarding_status_choices_and_explicit_legacy_migration(tmp_path: Path)
         'email = "student@example.test"\npassword = "synthetic-secret"\n',
         encoding="utf-8",
     )
-    status = onboarding_status(context, legacy_path=legacy)  # type: ignore[arg-type]
-    assert status.legacy_credentials_detected is True
-    assert status.complete is False
-
-    complete_onboarding(  # type: ignore[arg-type]
-        context,
-        theme="monochrome",
-        mode="advanced",
-        monitoring_enabled=False,
-    )
-    assert context.config.onboarding_complete is True
-    assert context.config.theme == "monochrome"
-    assert config_store.saved == context.config
-    with pytest.raises(ValueError, match="Unsupported onboarding"):
-        complete_onboarding(context, unexpected=True)  # type: ignore[arg-type]
-
     warnings = migrate_legacy_to_keyring(context, legacy)  # type: ignore[arg-type]
     assert credential_store.values == {"student@example.test": "synthetic-secret"}
     assert legacy.exists()

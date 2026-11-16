@@ -55,6 +55,7 @@ from gucmail.services.messages import MessageService
 from gucmail.services.quota import (
     compact_quota_status,
 )
+from gucmail.services.sign_in import needs_sign_in
 from gucmail.services.ui_session import (
     MailSession,
 )
@@ -1698,6 +1699,10 @@ class MailMixin(AppCore):
             self.call_from_thread(self._set_status, _safe_failure(exc))
 
     def action_refresh(self) -> None:
+        if not self.offline and self.gateway is None and needs_sign_in(self.context):
+            # Someone who chose "Not now" at startup signs in with F5.
+            self._show_sign_in()
+            return
         if not self.offline and self._folder_root_node_id is not None:
             try:
                 self._folder_selection_to_restore = self.ui.folder

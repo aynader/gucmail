@@ -25,7 +25,7 @@ from test_mail_services import ComposeFake
 from test_scheduler import NOW, make_services
 from test_settings_secondpass import _context
 from test_tui import _ready_composer_for_editing
-from waiting import rounds
+from waiting import press_button, rounds
 
 
 def draft(**changes):
@@ -578,7 +578,7 @@ async def test_normal_send_review_queues_approved_empty_subject_and_persists_rec
         )
         assert stored.subject == "" and stored.body_html is not None
         assert stored.request_read_receipt and stored.request_delivery_receipt
-        scheduled.query_one("#scheduled-undo", Button).press()
+        await press_button(pilot, scheduled.query_one("#scheduled-undo", Button))
         await wait_for(pilot, lambda: isinstance(app.screen, OperationalConfirmation))
         await pilot.pause()
         app.screen.query_one("#operational-confirm-yes", Button).press()

@@ -28,9 +28,12 @@ environment and puts the `gucmail` command on your PATH:
 py -m pip install --user pipx
 py -m pipx ensurepath                 # then open a new terminal
 pipx install "gucmail[desktop]"
-gucmail login                         # asks for your GUC password, stores it in Windows Credential Manager
-gucmail tui                           # opens the full-screen interface
+gucmail                               # opens the app; the first time, it asks you to sign in
 ```
+
+The first time, gucmail shows one sign-in screen: your GUC email, your password, **Test & save**.
+It checks them with the server and saves the password in Windows Credential Manager only if they
+work. A three-step tour follows. (`gucmail login` does the same from the terminal.)
 
 Update with `pipx upgrade gucmail`. Plain `pip install "gucmail[desktop]"` works too.
 Leave out `[desktop]` if you don't want Windows notifications.

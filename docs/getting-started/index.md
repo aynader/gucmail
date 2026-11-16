@@ -133,21 +133,24 @@ directory, run `pipx install .`, or `python -m pip install .` inside a virtual e
 
 ## First launch and secure login
 
-Start the guided setup:
+Run `gucmail`. The first time, it shows one sign-in screen:
 
-```text
-gucmail login
-```
+1. Type your GUC email and password.
+2. Press **Test & save**. gucmail makes one small request to the GUC mail server to check them.
+3. If they work, the password is saved and your inbox loads. If not, you get a plain reason
+   ("That email or password didn't work", "Couldn't reach the GUC mail server") and nothing is
+   saved.
 
-The setup explains that the client is unofficial, asks for an email and optional separate login
-name, and obtains the password through a hidden prompt. Pressing Enter for the login name uses the
-email address. For example, documentation and practice data should look like:
+Then a three-step tour shows the essentials: arrows to move, Enter to open, Ctrl+K for anything
+else. Press Esc to skip it; it only appears once.
 
-```text
-Email: student@example.invalid
-Login username: student.example
-Password: [hidden]
-```
+**Not now** closes the sign-in screen. Press F5 when you're ready to sign in.
+
+If your email doesn't work as the sign-in name, open **More options** and type your sign-in name
+(usually `firstname.lastname`).
+
+Prefer the terminal? `gucmail login` does the same: it asks for the password with a hidden prompt,
+tests it, and saves it only if it works (`--no-check` saves without testing).
 
 The password is not a field in `config.toml`. When keyring storage is selected, it is stored under
 the application service name in the operating-system keyring (Windows Credential Manager on

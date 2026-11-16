@@ -46,6 +46,7 @@ from gucmail.services.notifications import (
     NDJSONNotificationProvider,
     ProviderBinding,
 )
+from gucmail.services.sign_in import sign_in
 from gucmail.services.webhooks import (
     WebhookNotificationProvider,
     WebhookRegistry,
@@ -56,12 +57,21 @@ from gucmail.services.windows_desktop import (
 
 app = typer.Typer(
     name="gucmail",
-    help="Read and send your GUC email from the terminal. `gucmail tui` opens the full app.",
-    no_args_is_help=True,
+    help=(
+        "Read and send your GUC email from the terminal. `gucmail` on its own opens the full "
+        "app (in a terminal; elsewhere it prints this help)."
+    ),
+    no_args_is_help=False,
     add_completion=False,
     context_settings=CONTEXT_SETTINGS,
     cls=NaturalOrderGroup,
 )
+
+
+def _at_terminal() -> bool:
+    """A person is typing here (not a script or a pipe)."""
+
+    return sys.stdin.isatty() and sys.stdout.isatty()
 
 
 def _version_callback(value: bool) -> bool:
@@ -82,7 +92,7 @@ def _tolerate_narrow_console_encoding() -> None:
                 reconfigure(errors="replace")
 
 
-@app.callback()
+@app.callback(invoke_without_command=True)
 def main_callback(
     ctx: typer.Context,
     config: Path | None = typer.Option(
@@ -143,6 +153,14 @@ def main_callback(
     )
     if debug:
         logging.getLogger("gucmail").setLevel(logging.DEBUG)
+    if ctx.invoked_subcommand is None:
+        # Bare `gucmail` opens the app for a person at a terminal; scripts and pipes get
+        # the help text, as before.
+        if _at_terminal() and output_format is OutputFormat.HUMAN:
+            tui_command(ctx, offline=False)
+        else:
+            typer.echo(ctx.get_help())
+        raise typer.Exit()
 
 
 @app.command()
@@ -195,22 +213,17 @@ def login(
             password = typer.prompt("Exchange password", hide_input=True, confirmation_prompt=False)
         if not password:
             raise typer.BadParameter("The password may not be empty.")
-        CredentialStore().set(account_email, password)
-        updated = replace(
-            context.config,
-            email=account_email,
-            username=(username or context.config.username or account_email).strip(),
-        ).validate()
-        context.config_store.save(updated)
-        context.config = updated
+        # With --check the password is tested first and stored only if it works.
+        signed_in = sign_in(context, account_email, password, username=username, check=check)
         result: dict[str, Any] = {
-            "credential": "stored_in_os_keyring",
-            "email": updated.redacted_dict()["email"],
-            "checked": False,
+            "credential": "stored_in_os_keyring" if signed_in.stored else "not_stored",
+            "email": context.config.redacted_dict()["email"],
+            "checked": signed_in.checked,
         }
-        if check:
-            result["status"] = context.gateway(interactive=False).status()
-            result["checked"] = True
+        if signed_in.status is not None:
+            result["status"] = signed_in.status
+        if signed_in.warning:
+            result["warning"] = signed_in.warning
         return result
 
     core.run(ctx, "login", action, title="Login")

@@ -14,6 +14,7 @@ import heapq
 import json
 import os
 import tempfile
+import time
 import zipfile
 import zlib
 from collections import Counter
@@ -77,6 +78,28 @@ _TRASH_DIRECTORY = ".trash"
 _JSON_MEDIA_TYPE = "application/vnd.gucmail.backup-record+json"
 _MAX_RESTORE_ATTACHMENT_BYTES = 100 * 1024 * 1024
 
+
+
+_PUBLISH_RETRY_DELAYS = (0.05, 0.1, 0.2, 0.4, 0.8)
+_WINDOWS = os.name == "nt"
+
+
+def _publish_directory(source: Path, target: Path) -> None:
+    """Rename a finished staging folder into place.
+
+    On Windows, antivirus or the search indexer can hold a just-written file open for a
+    moment, and the rename then fails with "Access is denied". Retry that briefly; any
+    other error, or a denial that lasts, is reported as before.
+    """
+
+    for delay in (*_PUBLISH_RETRY_DELAYS, None):
+        try:
+            os.replace(source, target)
+            return
+        except PermissionError:
+            if not _WINDOWS or delay is None:
+                raise
+            time.sleep(delay)
 
 class BackupKind(StrEnum):
     FULL = "full"
@@ -958,7 +981,7 @@ class BackupService:
         )
         with contextlib.suppress(FileNotFoundError):
             (staging_path / INCOMPLETE_MANIFEST_FILENAME).unlink()
-        os.replace(staging_path, final_path)
+        _publish_directory(staging_path, final_path)
         final_statistics = completed_manifest.statistics
         if progress:
             progress(

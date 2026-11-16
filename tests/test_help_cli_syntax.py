@@ -70,7 +70,9 @@ def _raw_parser_accepts(command, tokens, parent=None):
         ),
         ("--config=missing.toml version", ["--config=missing.toml", "version"], True),
         ("--config", ["--config"], False),
-        ("--config version", ["--config", "version"], False),
+        # `gucmail` alone opens the app, so this means "open it with config file version".
+        ("--config version", ["--config", "version"], True),
+        ("--no-color", ["--no-color"], True),
         ("--credentials-file", ["--credentials-file"], False),
         ("version --config missing.toml", ["version", "--config", "missing.toml"], False),
         ("notifications --json rules test", ["notifications", "--json", "rules", "test"], False),

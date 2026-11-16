@@ -3,9 +3,17 @@
 What changed in each release, newest first. Each release gets a short entry written for the
 people using gucmail, not for its developers.
 
-## 1.3.0 (unreleased)
+## 1.4.0 (unreleased)
 
 ### Improved
+- A sign-in screen on first start. Type your GUC email and password and press **Test &
+  save**: gucmail checks them with one small request and saves the password only if they
+  work, with a plain reason if not. A three-step tour follows (arrows, Enter, Ctrl+K).
+  Before, a new user saw an empty inbox and "Mailbox unavailable".
+- `gucmail login` now tests the password before saving it, so a wrong password is never
+  stored.
+- `gucmail` on its own opens the app (it used to print help). Scripts and pipes still get
+  the help text.
 - One switch for notifications. `gucmail notifications on` (or **Turn on notifications** in
   the Ctrl+K palette, or the **Notify me about new mail** switch in notification settings)
   registers gucmail with Windows, starts the background task and sends a test, then shows
@@ -17,6 +25,8 @@ people using gucmail, not for its developers.
 - `gucmail notifications status` gives a plain answer: on or off, and whether the task runs.
 
 ### Fixed
+- Creating a backup on Windows no longer fails now and then with "Access is denied"
+  when antivirus or the search indexer briefly holds a new file.
 - F5 in the window that opens from a notification now refreshes as soon as the message is
   shown. It could be ignored for a moment before.
 - Double-clicking Close in Keyboard shortcuts or Saved searches no longer also closes the

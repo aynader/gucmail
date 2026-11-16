@@ -61,13 +61,21 @@ def rounds(minimum: int = 0) -> Iterator[int]:
 
 
 def _settled(button: Any) -> bool:
-    """The button can be used and its screen has no work running or redraw pending."""
+    """The button can be used and its screen would act on it now.
+
+    Area screens ignore a new change while one of their own, or any change in the app,
+    is still being written, so wait for those too.
+    """
+    from gucmail.tui.write_coordinator import app_write_coordinator
+
     screen = button.screen
     return (
         not button.disabled
         and not button.has_class("-active")
         and not getattr(screen, "_operation_active", False)
         and not getattr(screen, "_render_pending", False)
+        and not getattr(screen, "mutation_pending", False)
+        and not app_write_coordinator(button.app).pending
     )
 
 
