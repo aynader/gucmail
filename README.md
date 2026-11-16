@@ -4,7 +4,7 @@ Your GUC mailbox, in a terminal. Read, write, search, schedule and back up your 
 opening Outlook on the web. Calendar, contacts and tasks come along too. Everything works from
 the keyboard, and everything is scriptable.
 
-![The Mail workspace: folders, inbox and an open message](https://raw.githubusercontent.com/aynader/gucmail/main/docs/img/mail.png)
+![The Mail workspace: folders, inbox and an open message](https://raw.githubusercontent.com/aynader/gucmail/main/docs/img/mail.png?v=2)
 
 It talks directly to the GUC Exchange server through Exchange Web Services (EWS), the same
 interface Outlook uses, so there's nothing to install on the server and no third-party cloud in
@@ -37,21 +37,21 @@ Leave out `[desktop]` if you don't want Windows notifications.
 
 ## Get around
 
-![Arrowing through the inbox and opening messages](https://raw.githubusercontent.com/aynader/gucmail/main/docs/img/mail-browse-demo.gif)
+![Arrowing through the inbox and opening messages](https://raw.githubusercontent.com/aynader/gucmail/main/docs/img/mail-browse-demo.gif?v=2)
 
 Arrows move. **Enter** opens. **Tab** jumps between panes. **c** composes, **r** replies,
 **/** searches and **?** shows every shortcut. Mouse and scroll wheel work too.
 
 **Ctrl+K** opens the command palette. Type what you want in plain words:
 
-![Typing "schedule this for tomorrow 9am" into the palette](https://raw.githubusercontent.com/aynader/gucmail/main/docs/img/palette-demo.gif)
+![Typing "schedule this for tomorrow 9am" into the palette](https://raw.githubusercontent.com/aynader/gucmail/main/docs/img/palette-demo.gif?v=2)
 
 It shows exactly what it understood (*Schedule current draft · tomorrow at 9:00*) and asks
 before it does anything. It never guesses at deleting.
 
 ## Write
 
-![The composer with recipients and an attachment](https://raw.githubusercontent.com/aynader/gucmail/main/docs/img/compose.png)
+![The composer with recipients and an attachment](https://raw.githubusercontent.com/aynader/gucmail/main/docs/img/compose.png?v=2)
 
 Reply, reply-all and forward. Cc and Bcc, attachments, signatures and importance. Recipients
 autocomplete from your contacts and recent mail. It warns you about an empty subject, a missing
@@ -62,11 +62,11 @@ Drafts save themselves, and if your laptop dies mid-sentence, the draft is waiti
 
 ## Send later
 
-![The scheduled-mail queue](https://raw.githubusercontent.com/aynader/gucmail/main/docs/img/scheduled.png)
+![The scheduled-mail queue](https://raw.githubusercontent.com/aynader/gucmail/main/docs/img/scheduled.png?v=2)
 
 ```powershell
-gucmail send --to ta@example.edu --subject "Lab 6" --body-file report.txt --at "Monday 8:30"
-gucmail send --to me@example.edu --subject "Reminder" --body "Submit thesis" --in "2 hours"
+gucmail send --to laila.samir@guc.edu.eg --subject "Lab 6" --body-file report.txt --at "Monday 8:30"
+gucmail send --to nada.mostafa@student.guc.edu.eg --subject "Reminder" --body "Submit thesis" --in "2 hours"
 gucmail scheduled list
 ```
 
@@ -77,14 +77,14 @@ go out from your PC, so it needs to be on. A Windows task can take care of that
 
 ## Calendar, contacts, tasks
 
-![The calendar week view](https://raw.githubusercontent.com/aynader/gucmail/main/docs/img/calendar.png)
+![The calendar week view](https://raw.githubusercontent.com/aynader/gucmail/main/docs/img/calendar.png?v=2)
 
 Day, week, month and agenda views. Create events, accept or decline meetings, find a free
 slot, catch clashes, and import or export `.ics` files.
 
 | Contacts | Tasks |
 |---|---|
-| ![Contacts](https://raw.githubusercontent.com/aynader/gucmail/main/docs/img/contacts.png) | ![Tasks](https://raw.githubusercontent.com/aynader/gucmail/main/docs/img/tasks.png) |
+| ![Contacts](https://raw.githubusercontent.com/aynader/gucmail/main/docs/img/contacts.png?v=2) | ![Tasks](https://raw.githubusercontent.com/aynader/gucmail/main/docs/img/tasks.png?v=2) |
 
 Contacts find duplicates and merge them, and import and export vCards. Tasks have due dates,
 progress and repeats.
@@ -126,7 +126,7 @@ settings. [Details](https://github.com/aynader/gucmail/blob/main/docs/monitoring
 
 ## Backups you can read without a connection
 
-![The Backup Center](https://raw.githubusercontent.com/aynader/gucmail/main/docs/img/backups.png)
+![The Backup Center](https://raw.githubusercontent.com/aynader/gucmail/main/docs/img/backups.png?v=2)
 
 ```powershell
 gucmail backup create --encrypt          # full backup, password-protected
@@ -140,12 +140,12 @@ with exact counts, and you confirm before anything is written.
 
 ## Make it yours
 
-![The theme picker](https://raw.githubusercontent.com/aynader/gucmail/main/docs/img/themes.png)
+![The theme picker](https://raw.githubusercontent.com/aynader/gucmail/main/docs/img/themes.png?v=2)
 
 More than 600 themes with live preview, and your own colours or logo. Choose your columns,
 layouts and keyboard shortcuts in Settings, which you can search.
 
-![Settings](https://raw.githubusercontent.com/aynader/gucmail/main/docs/img/settings.png)
+![Settings](https://raw.githubusercontent.com/aynader/gucmail/main/docs/img/settings.png?v=2)
 
 ## Scripts and automation
 
