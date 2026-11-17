@@ -119,6 +119,30 @@ async def test_flag_key_flags_every_selected_message_and_undo_restores_each(
         restored = {ref: state for kind, ref, state in gateway.mutations[before:]}
         assert restored == {item.reference: item.flagged for item in gateway.rows}
 
+@pytest.mark.asyncio
+async def test_undo_waits_for_a_change_that_is_still_finishing(tmp_path, monkeypatch):
+    from gucmail.tui.write_coordinator import app_write_coordinator
+
+    gateway = MovingGateway()
+    app = _app(tmp_path, monkeypatch, gateway)
+    async with app.run_test() as pilot:
+        app._render_messages(gateway.rows)
+        app.ui.selected_reference = "first"
+        app.query_one("#message-table").focus()
+        await pilot.press("exclamation_mark")
+        await wait_for(pilot, lambda: gateway.mutations == [("flag", "first", True)])
+        await wait_for(pilot, lambda: not app_write_coordinator(app).pending)
+        held = app_write_coordinator(app).reserve()
+        assert held is not None
+        await pilot.press("ctrl+z")
+        await pilot.pause(0.3)
+        assert app._status_activity == "Undoing…"
+        assert len(gateway.mutations) == 1
+        held.finish()
+        await wait_for(pilot, lambda: len(gateway.mutations) == 2)
+        assert gateway.mutations[1] == ("flag", "first", False)
+
+
 def test_reply_history_is_split_off_but_forwards_are_kept():
     reply = "Thanks, see you then.\n\nOn Mon, 16 Nov 2026 Dr. Farouk wrote:\n> Lab at 10."
     assert split_quoted(reply) == (

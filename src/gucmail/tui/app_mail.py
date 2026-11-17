@@ -47,6 +47,7 @@ from gucmail.tui.labels import folder_label
 from gucmail.tui.literal_table import LiteralDataTable as DataTable
 from gucmail.tui.shell_widgets import AreaScreen, _AutomaticReadRequest
 from gucmail.tui.write_coordinator import (
+    app_write_coordinator,
     coordinated_write,
 )
 
@@ -1845,10 +1846,15 @@ class MailMixin(AppCore):
                 self.ui.selected_reference, attachment_action="save_all"
             )
 
-    def action_undo(self) -> None:
+    def action_undo(self, attempt: int = 0) -> None:
         undo = getattr(self, "_last_undo", None)
         if undo is None:
             self._set_status("Nothing to undo")
+            return
+        if app_write_coordinator(self).pending and attempt < 50:
+            # The change being undone can still be finishing. Wait for it rather than refuse.
+            self._set_status("Undoing…")
+            self.set_timer(0.2, lambda: self.action_undo(attempt + 1))
             return
         self._last_undo = None
         kind, references, origin, flagged = undo
