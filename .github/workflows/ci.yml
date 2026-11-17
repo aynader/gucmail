@@ -19,7 +19,7 @@ jobs:
         with:
           python-version: "3.11"
           cache: pip
-      # attachments: mypy needs pypdf, python-docx and python-pptx to check the extractors.
+      # mypy needs the attachment extras to check the extractors.
       - run: python -m pip install -e ".[dev,attachments]"
       - run: python -m ruff check src tests qa
       - run: python -m mypy src
@@ -39,7 +39,7 @@ jobs:
           python-version: ${{ matrix.python }}
           cache: pip
       - run: python -m pip install -e ".[dev,attachments]"
-      # Whole suite, in parallel, inside the offline guard (no network, no credentials).
+      # Full suite inside the offline guard. No network, no credentials.
       - run: python qa/test.py
 
   package:

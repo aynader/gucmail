@@ -1,9 +1,7 @@
 name: Release
 
-# Push a tag like v1.2.0 to release. The tag must match gucmail.__version__ and
-# CHANGELOG.md must have a section for it. If that version is not on PyPI yet, it is
-# published with PyPI trusted publishing. If it was already uploaded with twine, that
-# step is skipped and only the GitHub release is created.
+# Push a tag like v1.5.0 to release. It must match gucmail.__version__ and have a
+# CHANGELOG.md section. Publishes to PyPI unless that version is already there.
 
 on:
   push:
@@ -33,7 +31,6 @@ jobs:
       - run: python -m pip install build twine
       - run: python -m build
       - run: python -m twine check --strict dist/*
-      # A release may already be on PyPI if it was uploaded by hand with twine.
       - name: Check whether PyPI already has this version
         id: pypi
         run: |
