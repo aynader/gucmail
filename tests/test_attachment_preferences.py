@@ -467,11 +467,12 @@ async def test_applied_default_updates_existing_workspace_and_preserves_download
         service = app._settings_service()
         service.set("mail.attachment_collision", "error")
         app._apply_committed_settings(("mail.attachment_collision",))
-        await pilot.pause()
-        assert screen.query_one("#attachment-collision", Select).value == "error"
+        await wait_for(
+            pilot, lambda: screen.query_one("#attachment-collision", Select).value == "error"
+        )
         screen.query_one("#attachment-collision", Select).value = "rename"
-        await pilot.pause()
-        assert screen._collision_overridden
+        # The change event arrives on a later tick on a slow machine.
+        await wait_for(pilot, lambda: screen._collision_overridden)
         service.set("mail.attachment_collision", "overwrite")
         app._apply_committed_settings(("mail.attachment_collision",))
         await pilot.pause()
