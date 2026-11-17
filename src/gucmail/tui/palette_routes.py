@@ -278,25 +278,6 @@ def _help(command_id: str, topic: str, *, query: str | None = None) -> PaletteRo
     )
 
 
-def _gate(
-    command_id: str,
-    target: RouteTarget,
-    capability: str,
-    reason: str,
-    *,
-    config_key: str | None = None,
-) -> PaletteRoute:
-    return _route(
-        command_id,
-        RouteKind.CAPABILITY_GATE,
-        target,
-        intent="require_runtime_capability",
-        capability=capability,
-        config_key=config_key,
-        gate_reason=reason,
-    )
-
-
 def _catalog_ids(category: str) -> frozenset[str]:
     return frozenset(
         command.command_id

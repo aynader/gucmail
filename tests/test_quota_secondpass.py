@@ -569,7 +569,7 @@ def test_settings_factory_preserves_known_guc_fallback_provenance() -> None:
     assert report.mailbox is not None
     assert report.mailbox.prohibit_send_bytes == KNOWN_GUC_PROHIBIT_SEND_BYTES
     assert report.mailbox.prohibit_send_source is QuotaSource.KNOWN_GUC_FALLBACK
-    assert compact_quota_status(report) == "Send limit ?/92 MiB"
+    assert compact_quota_status(report) == "Mailbox limit 92 MiB"
 
 
 def test_compact_quota_shows_actual_usage_and_marks_estimates() -> None:
@@ -584,8 +584,8 @@ def test_compact_quota_shows_actual_usage_and_marks_estimates() -> None:
             )
         )
     ).report()
-    assert compact_quota_status(exact) == "Send limit 73 MiB/92 MiB"
-    assert compact_quota_status(estimate) == "Send limit ~74 MiB/92 MiB"
+    assert compact_quota_status(exact) == "Mailbox 73 MiB of 92 MiB (79%)"
+    assert compact_quota_status(estimate) == "Mailbox ~74 MiB of 92 MiB (80%)"
 
 
 def test_settings_factory_uses_numeric_threshold_only_for_user_override() -> None:

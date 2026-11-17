@@ -333,5 +333,6 @@ async def test_occurrence_scope_cancel_and_series_delete_preview_are_safe():
         assert isinstance(app.screen, ConfirmationScreen)
         assert "Every date" in app.screen.detail_text
         await pilot.press("escape")
+        await wait_until(pilot, lambda: isinstance(app.screen, CalendarScreen))
         assert isinstance(app.screen, CalendarScreen)
         assert not gateway.deletes

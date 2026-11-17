@@ -185,7 +185,7 @@ async def test_failed_branding_write_preserves_preview_and_redacts_error() -> No
         assert backend.session.is_previewing
         assert not app_write_coordinator(app).pending
         message = str(screen.query_one("#branding-state", Static).content)
-        assert "failed (OSError)" in message and "owned-secret-sentinel" not in message
+        assert "can't be opened" in message and "owned-secret-sentinel" not in message
 
 
 @pytest.mark.asyncio

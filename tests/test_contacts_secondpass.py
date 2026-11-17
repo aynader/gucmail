@@ -192,7 +192,7 @@ def test_ews_directory_denial_is_reported_instead_of_becoming_no_results() -> No
     )
     gateway = EWSGateway(AppConfig(), account_factory=lambda: account)
 
-    with pytest.raises(UnsupportedFeatureError, match="does not support or permit"):
+    with pytest.raises(UnsupportedFeatureError, match="does not permit"):
         gateway.search_directory("Ada")
 
 

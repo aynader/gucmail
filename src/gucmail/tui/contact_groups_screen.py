@@ -10,7 +10,6 @@ from textual import on
 from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import HorizontalScroll, Vertical, VerticalScroll
-from textual.message import Message
 from textual.screen import ModalScreen
 from textual.widgets import Button, Input, Label, Static, TextArea
 
@@ -26,18 +25,12 @@ from gucmail.services.contact_groups import (
     validate_group,
 )
 from gucmail.tui.area_common import OperationalScreen, PublicOperationError, ViewState
+from gucmail.tui.events import (  # noqa: F401 - moved, re-exported
+    ContactGroupComposeRequested,
+    ContactGroupsRequested,
+)
 from gucmail.tui.literal_select import LiteralSelect as Select
 from gucmail.tui.literal_table import LiteralDataTable as DataTable
-
-
-class ContactGroupsRequested(Message):
-    """Open the local-first contact-group workspace."""
-
-
-class ContactGroupComposeRequested(Message):
-    def __init__(self, recipients: tuple[Address, ...]) -> None:
-        super().__init__()
-        self.recipients = recipients
 
 
 class ContactGroupEditor(ModalScreen[ContactGroupPlan | None]):
@@ -142,9 +135,7 @@ class ContactGroupsScreen(OperationalScreen):
         return self.services[self.source]
 
     def compose(self) -> ComposeResult:
-        yield Label(
-            "Contact groups · compose opens a reviewed Bcc draft", classes="workspace-heading"
-        )
+        yield Label("Contact groups", classes="workspace-heading")
         yield Static("", id="area-state", markup=False)
         sources = [("Local · this account", "local")]
         if GroupSource.MAILBOX in self.services:
@@ -202,7 +193,7 @@ class ContactGroupsScreen(OperationalScreen):
         service = self.service
         offset = self.page_offset
         self._begin_operation(
-            "Read contact groups",
+            "Loading contact groups",
             lambda *_: service.list(limit=self.page_size, offset=offset),
             self._loaded,
             retry_safe=True,
@@ -235,7 +226,7 @@ class ContactGroupsScreen(OperationalScreen):
     def _load_detail(self, reference: str) -> None:
         service = self.service
         self._begin_operation(
-            "Read group recipients",
+            "Loading group members",
             lambda *_: service.get(reference),
             self._detail,
             retry_safe=True,
@@ -304,7 +295,7 @@ class ContactGroupsScreen(OperationalScreen):
 
     def _apply(self, service: ContactGroupService, plan: ContactGroupPlan) -> None:
         self._begin_operation(
-            "Save contact group",
+            "Saving contact group",
             lambda *_: service.apply(plan, confirmed=True),
             lambda _: self.action_refresh(),
         )
@@ -315,7 +306,7 @@ class ContactGroupsScreen(OperationalScreen):
         service = self.service
         reference = self.current.reference
         self._begin_operation(
-            "Review group recipients",
+            "Reviewing group members",
             lambda *_: service.recipients(reference),
             self._review_compose,
             retry_safe=True,

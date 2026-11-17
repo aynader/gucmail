@@ -10,7 +10,7 @@ from textual.widgets import Button, Input, Static, TabbedContent, Tabs
 from typer.testing import CliRunner
 
 import gucmail.cli as cli_module
-import gucmail.tui.app_areas as app_module
+import gucmail.secret_store as app_module
 from gucmail.models import Address
 from gucmail.notification_events import EventDisclosurePolicy, NewMailEvent, PrivacyMode
 from gucmail.notification_policies import (

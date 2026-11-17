@@ -12,7 +12,6 @@ from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal, VerticalScroll
 from textual.events import Resize
-from textual.message import Message
 from textual.widgets import Button, Checkbox, Input, Label, Static
 
 from gucmail.services.local_search import (
@@ -29,6 +28,13 @@ from gucmail.tui.area_common import (
     ViewState,
     clean_cell,
     current_row_highlight,
+)
+from gucmail.tui.events import (
+    LocalSearchHelpRequested,
+    LocalSearchIndexRequested,
+    LocalSearchOpenRequested,
+    LocalSearchScopeChanged,
+    LocalSearchSemanticSetupRequested,
 )
 from gucmail.tui.literal_select import LiteralSelect as Select
 from gucmail.tui.literal_table import LiteralDataTable as DataTable
@@ -83,9 +89,9 @@ class ServiceLocalSearchBackend:
             LocalSearchMode.BACKUPS: "Searching immutable backup archives",
             LocalSearchMode.ALL: "Searching all local sources",
             LocalSearchMode.SEMANTIC: "Searching private local topics",
-            LocalSearchMode.SIMILAR: "Comparing bounded indexed content",
+            LocalSearchMode.SIMILAR: "Comparing indexed content",
             LocalSearchMode.DUPLICATES: "Analyzing exact and possible duplicates",
-            LocalSearchMode.NEAR_DUPLICATES: "Analyzing bounded near-duplicates",
+            LocalSearchMode.NEAR_DUPLICATES: "Analyzing near-duplicates",
         }[request.mode]
         progress(OperationProgress(phase))
         return self.service.search(
@@ -104,32 +110,6 @@ class ServiceLocalSearchBackend:
             attachment_extension=request.attachment_extension,
             backup_id=request.backup_id,
         )
-
-
-class LocalSearchOpenRequested(Message):
-    def __init__(self, result: LocalSearchResult) -> None:
-        super().__init__()
-        self.result = result
-
-
-class LocalSearchScopeChanged(Message):
-    """Only an allowlisted source choice may be retained by the mail shell."""
-
-    def __init__(self, mode: LocalSearchMode) -> None:
-        super().__init__()
-        self.mode = mode
-
-
-class LocalSearchHelpRequested(Message):
-    pass
-
-
-class LocalSearchIndexRequested(Message):
-    pass
-
-
-class LocalSearchSemanticSetupRequested(Message):
-    pass
 
 
 class LocalSearchScreen(OperationalScreen):
@@ -234,7 +214,7 @@ class LocalSearchScreen(OperationalScreen):
             with Horizontal(id="local-search-controls"):
                 yield Input(
                     value=self.initial_query,
-                    placeholder="Search indexed mail, attachments, PIM backups, and archives…",
+                    placeholder="Search saved mail, attachments and backups…",
                     id="local-search-query",
                 )
                 yield Select(
@@ -247,18 +227,20 @@ class LocalSearchScreen(OperationalScreen):
                 yield Checkbox("Exact phrase", value=self.initial_exact, id="local-search-exact")
                 yield Button("Search", id="local-search-run", variant="primary")
             yield Static(
-                "Local-only: no Exchange connection and no remote embedding service.",
+                "Searches copies on this computer. Nothing is sent anywhere.",
                 id="area-state",
                 markup=False,
             )
             yield Static(
-                "Choose a source and enter a query.", id="local-search-source", markup=False
+                "Type what you are looking for and press Enter.",
+                id="local-search-source",
+                markup=False,
             )
             with Horizontal(id="local-search-content"):
                 yield DataTable(id="local-search-table", cursor_type="row", zebra_stripes=True)
                 with VerticalScroll(id="local-search-detail-pane"):
                     yield Static(
-                        "Highlight a result for source, score, and match details.",
+                        "Select a result to see where it matched.",
                         id="local-search-detail",
                         markup=False,
                     )
@@ -402,7 +384,7 @@ class LocalSearchScreen(OperationalScreen):
             f"Results: {len(report.results)}"
         )
         if report.truncated:
-            summary += " · bounded result limit reached"
+            summary += " · result limit reached"
         if notice:
             summary += f"\n{clean_cell(notice, max_length=1_500)}"
         self.query_one("#local-search-source", Static).update(summary)

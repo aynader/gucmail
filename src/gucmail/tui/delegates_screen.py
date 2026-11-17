@@ -37,7 +37,7 @@ class DelegatesScreen(OperationalScreen):
         self.page: DelegatePage | None = None
 
     def compose(self) -> ComposeResult:
-        yield Label("Mailbox delegates · read only", id="delegates-title")
+        yield Label("Delegates", id="delegates-title")
         yield Static("", id="area-state", markup=False)
         yield DataTable(id="delegates-table", cursor_type="row", zebra_stripes=True)
         with VerticalScroll(id="delegates-details-scroll"):
@@ -63,7 +63,7 @@ class DelegatesScreen(OperationalScreen):
 
     def action_refresh(self) -> None:
         self._begin_operation(
-            "Read mailbox delegates",
+            "Loading delegates",
             lambda *_: self.service.list(limit=1000),
             self._loaded,
             retry_safe=True,

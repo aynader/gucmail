@@ -1,109 +1,64 @@
 # Privacy and security
 
-## Quick explanation
+gucmail talks only to the GUC mail server, over HTTPS. Your mail stays between that server and your
+computer unless you send it, or set up a webhook or Discord alert yourself. gucmail is independent
+and not made by GUC or Microsoft.
 
-GUC Mail CLI connects directly to the configured HTTPS Exchange Web Services endpoint. It is an
-independent, unofficial client. Mailbox content stays local unless you explicitly send mail,
-configure an outbound webhook, or enable another integration.
+## Your password
 
-## Credentials
+Your password is kept in your system's password store (Windows Credential Manager on Windows),
+never in a settings file. `gucmail logout` removes it.
 
-Credential sources are considered in this order: an intentionally supplied value, an environment
-value, the operating-system keyring, a secure hidden prompt, then the legacy `creds.env`
-compatibility path. Avoid command-line passwords because process listings and shell history can
-expose them.
+Never type your password on the command line, where it can end up in your command history.
 
-The normal TOML configuration contains account identity and preferences but never a password.
-`gucmail logout` removes the selected keyring credential; it does not delete mail, local state, or
-backups. A legacy credential file is parsed as data and never executed. Remove it only after secure
-login works.
+If you still have a `creds.env` file from older versions, gucmail reads it as plain text and never
+runs it. Sign in once with `gucmail login`, then delete the file.
 
-TLS certificate verification is enabled. The configured endpoint must be HTTPS and may not contain
-URL credentials, parameters, a query string, or a fragment. There is no normal insecure-TLS switch.
-Redacted status/settings output hides signatures, editor arguments, local paths, custom folder
-names, and custom endpoint paths; use the dedicated configuration commands when you intentionally
-need local details.
+## Mail is treated as untrusted
 
-## Hostile email and terminal output
+- Remote images, tracking pixels and scripts never load. Formatted mail is shown as plain text.
+- Links show as text. Nothing opens until you choose to open it.
+- Odd characters that could mess up your terminal are removed from subjects, names and filenames.
+- Attachments are never opened or run. Saving checks the filename, refuses to write outside the
+  download folder, and warns about risky types like `.exe`. The size limit is 50 MiB by default.
 
-Subjects, display names, bodies, headers, and filenames are untrusted. The renderer strips ANSI and
-terminal control sequences. HTML is converted to inert text; scripts, frames, forms, remote images,
-tracking pixels, and other remote resources are not loaded automatically.
+## What's kept on your computer
 
-URLs are displayed as text. Opening one is a separate action and should be reviewed first.
+`gucmail config path` shows where. The table lists what's there.
 
-## Attachments and external tools
+| What | Is it a backup? | Delete with |
+|---|---|---|
+| Cache. Recent message lists so the app opens fast | No | `gucmail cache clear` |
+| Search index. Optional, off until you build it | No | `gucmail index clear` |
+| Drafts, scheduled mail and settings | No | Delete in the app |
+| Backups. Full copies you made | Yes | `gucmail backup prune` |
 
-Attachments are not downloaded while listing metadata. Saving uses filename normalization, path
-containment, collision handling, declared and observed size limits, and warnings for risky file
-types. The default maximum is 52,428,800 bytes (50 MiB). Files are never executed or opened
-automatically.
+Message text isn't cached by default. Attachment indexing, search by meaning and alerts are off
+until you turn them on.
 
-Optional attachment text extraction is local, bounded, and disabled unless configured. It does not
-run macros, scripts, links, or OCR. Supported safe formats can require the `attachments` optional
-dependency. Password-protected or suspicious files are skipped.
+Encrypt backups that leave your computer, and keep the passphrase somewhere safe.
 
-Command hooks are launched as argument lists with no command shell. Command
-hooks are disabled by default and receive an allowlisted, sanitized JSON payload through standard
-input.
+## Logs
 
-## Local data
+Logs never contain passwords, message text or attachments. Email addresses are hidden by default.
+Read `gucmail diagnostics` output before sharing it.
 
-Platform-specific paths are shown by `gucmail config path`. Local state may include item-reference
-mappings, scheduler jobs, saved searches, checkpoints, notification history, and draft recovery.
-Message-body caching is off by default. Attachment indexing, semantic search, monitoring, and
-command hooks are also off by default.
+## Alerts that leave your computer
 
-Cache, index, archive, and backup are different:
+Webhook and Discord alerts send only the fields you allow, over HTTPS. Keep webhook links private,
+since anyone with one can post to it. gucmail can sign each alert so your receiver can check it
+came from you.
 
-- **Cache:** disposable acceleration data.
-- **Index:** searchable derived text that can be rebuilt or erased.
-- **Archive/offline view:** a local reading mode over a completed backup.
-- **Backup:** a self-describing private copy intended for recovery.
+## Before anything changes
 
-Backups can contain complete private messages and attachments. Encrypt copies stored on removable,
-shared, or cloud-synchronized media. Keep the passphrase separately; the application does not store
-it in plaintext.
+gucmail asks before sending, deleting or changing mail. Delete moves mail to Deleted Items, where
+you can get it back. Deleting for good needs an extra confirmation.
 
-## Logs and diagnostics
+If a send might have gone through when the connection dropped, gucmail marks it **uncertain** and
+never sends it again by itself.
 
-Normal logs exclude passwords, authorization headers, cookies, message bodies, attachment data, and
-raw SOAP. Email-address redaction is enabled by default. Debug output can still contain operational
-metadata, so review a diagnostic bundle before sharing it.
+## More detail
 
-## Webhooks and notifications
-
-Webhook support means the local monitor sends an outbound request after detecting an event; it does
-not mean Exchange can call a local computer. Payload fields are allowlisted and redacted by default.
-Secret headers should use the keyring. HMAC signing lets the receiver verify the body. Redirects are
-not followed, and private-network targets require an explicit opt-in. Notification delivery claims
-are atomic across watcher processes, and append-only outcome detail is redacted before persistence.
-
-## Destructive and uncertain operations
-
-Mutating commands require confirmation unless a documented automation flag is supplied. Permanent
-deletion and privileged SOAP operations use higher-friction expert controls. A network failure after
-a send may mean Exchange accepted the message. The state becomes `send_state_uncertain`; do not
-retry manually until Sent Items reconciliation or manual review resolves it.
-
-## Live-test safety
-
-Normal tests use synthetic data and fakes. Live checks are explicitly enabled, authenticate once,
-use small bounded read-only requests, do not mark mail read, do not fetch arbitrary bodies or
-attachments, and report their request count. Sending, scheduling, moving, deleting, flagging, and
-other live mutations are excluded unless separately and explicitly authorized.
-
-Optional per-image OCR uses a separately previewed, explicitly enabled local operation.
-It uses only an already installed Windows language and one selected bounded PNG/JPEG,
-with an owned child and temporary copy cleanup. No language/model download, mailbox
-attachment fetch, cloud recognizer or automatic indexing occurs. OCR may be inaccurate;
-review the labelled recognized text. Temporary cleanup does not claim forensic erasure.
-
-The separate attachment index producer requires a saved current-machine policy and a
-confirmed bounded build/rebuild before downloading selected content. Formats, per-file
-input/parser/output limits and per-message/run file/byte budgets apply. Image files need
-additional saved OCR consent and an installed language. No engine or parser is installed.
-Extracted text, sanitized filenames and outcomes are private derived SQLite data; ordinary
-and OCR results are labelled, with OCR uncertainty/truncation exposed in local search.
-Disabling stops future extraction; confirmed index clear removes existing derived content
-without guaranteeing erasure from snapshots. No watcher or startup indexing is added.
+- [Where gucmail keeps data](local-data-locations-and-retention.md)
+- [Search and indexing](../search/index.md)
+- [Backups](../backup/index.md)

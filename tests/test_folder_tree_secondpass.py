@@ -345,7 +345,7 @@ async def test_textual_tree_is_lazy_nested_localized_counted_and_refresh_stable(
 
         tree = app.query_one("#folder-tree", Tree)
         projects = tree.get_node_by_id(app._folder_nodes["projects"])
-        assert "2/5" in str(projects.label)
+        assert str(projects.label).endswith("  2")
         projects.expand()
         await _wait_for(pilot, lambda: "unicode" in app._folder_nodes)
         assert ("projects", 25, 0) in gateway.list_calls

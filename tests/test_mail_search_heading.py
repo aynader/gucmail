@@ -113,7 +113,7 @@ async def test_search_heading_survives_resize_filter_and_resets_on_folder_refres
             await pilot.press("escape", "f5")
             await wait(pilot, lambda: app.ui.busy is None and len(app._messages) == 1)
             await pilot.pause()
-            assert "inbox · 1 messages" in str(heading.render())
+            assert "Inbox · 1 message" in str(heading.render())
             assert "search" not in str(heading.render())
             assert app._message_detail is None
     finally:

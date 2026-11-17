@@ -317,7 +317,7 @@ def test_diagnostics_cancellation_during_preparation_keeps_the_old_index(tmp_pat
         plan = backend.plan_index_rebuild("inbox", 2, cancel=cancel, progress=lambda _: None)
 
         def progress(value):
-            if value.phase == "Preparing bounded index replacement" and value.completed == 2:
+            if value.phase == "Preparing index replacement" and value.completed == 2:
                 cancel.set()
 
         with pytest.raises(IndexRebuildCancelled):

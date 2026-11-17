@@ -1,20 +1,23 @@
-# Welcome to GUC Mail CLI
+# Welcome to gucmail
 
-GUC Mail CLI is an independent terminal client for a configured Exchange mailbox. It is not an official university or Microsoft product. It keeps normal mailbox traffic between this computer and the configured HTTPS Exchange endpoint.
+This is a mail app for your GUC mailbox that runs in the terminal. It is independent and not
+made by GUC or Microsoft. Your mail goes only between this computer and the GUC mail server.
 
-## Choose a starting point
+## Where to start
 
-- New Windows user: begin with [First launch](help:start.first-launch), then take the [interface tour](help:start.interface).
-- Everyday mail: read [Inbox and folder hierarchy](help:mail.folders) and [Read messages safely](help:mail.reading).
-- Something failed: start with [Doctor and diagnostics](help:diagnostics.doctor).
-- Automation: read [Command-line reference](help:reference.commands) before using non-interactive confirmation flags.
+- New here? Read [First launch](help:start.first-launch), then the [interface tour](help:start.interface).
+- Reading mail: [Inbox and folders](help:mail.folders) and [Read mail](help:mail.reading).
+- Something went wrong: [Doctor and diagnostics](help:diagnostics.doctor).
+- Scripts: the [command reference](help:reference.commands).
 
-Help is stored with the application and remains searchable offline. Capability labels are separate from documentation: a page can explain a feature even when the current Exchange server has not been checked or does not permit it.
+## Practice first
 
-Choose **Tutorials** in the Help toolbar for optional interactive practice. Seven lessons cover navigation, first-message preparation, the palette, natural-language search, scheduling, notifications and backups. They use synthetic examples, can be skipped or restarted and do not contact your mailbox.
+**Tutorials** in the Help toolbar has seven short lessons. They use sample mail and never touch
+your mailbox. Skip or restart them any time.
 
-[Learn how to use Help](help:help.using-help) for the hierarchy, search, history, favorites, contextual suggestions, typed links, and offline CLI surfaces.
+Help works offline. [Using Help](help:help.using-help) explains search, history and favorites.
 
-## Safety first
+## Stay safe
 
-Listing and reading are bounded by default. Sending or changing mailbox data requires a clear review point. Never paste a password, webhook secret, private message, or unreviewed diagnostic bundle into a support conversation.
+The app asks before it sends or changes anything. Never share your password, a webhook link or a
+private message when asking for support.

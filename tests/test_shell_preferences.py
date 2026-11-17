@@ -145,11 +145,11 @@ async def test_settings_stage_cancel_apply_shell_fields_and_resize_without_netwo
         await pilot.pause()
         app._render_status({"exchange_version": "Synthetic"}, quota_label="Hidden storage")
         header = app.query_one("#account-bar", AccountStatus)
-        assert str(header.content) == "inbox · Connected"
+        assert str(header.content) == "Inbox · Connected"
         assert "Hidden storage" not in str(header.tooltip) and "Watcher" not in str(header.tooltip)
         app._set_status("Literal [red] activity\x1b[2J")
         status = app.query_one("#status-bar", Static)
-        assert str(status.content) == "Literal [red] activity · Connected · inbox"
+        assert str(status.content) == "Literal [red] activity · Connected · Inbox"
         assert not status._render_markup
         for width in (40, 70, 140):
             await pilot.resize_terminal(width, 20)

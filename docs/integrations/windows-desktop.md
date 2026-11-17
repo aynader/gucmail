@@ -1,9 +1,19 @@
 # Windows desktop notifications
 
+## The easy way
+
+```text
+gucmail notifications on
+```
+
+This registers gucmail with Windows, starts the background task and sends a test notification.
+Each step shows ✓ or ✗. `gucmail notifications off` turns them off. The rest of this page is for
+setting up each piece by hand.
+
 Desktop notifications are optional local output from the watcher. They do not enable
 Exchange push subscriptions or start monitoring by themselves.
 
-## Setup
+## Setup by hand
 
 Install into the same Python environment as GUC Mail:
 

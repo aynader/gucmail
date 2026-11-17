@@ -155,7 +155,7 @@ def test_help_navigation_back_forward_favorites_and_persistent_recents() -> None
     assert navigator.breadcrumbs() == (
         "Help",
         "Files and Attachments",
-        "View, download, and inspect attachments safely",
+        "Attachments",
     )
     assert navigator.back().page_id == "mail.reading"  # type: ignore[union-attr]
     assert navigator.forward().page_id == "attachments.safety"  # type: ignore[union-attr]

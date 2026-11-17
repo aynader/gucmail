@@ -1,4 +1,4 @@
-# Common questions about GUC Mail CLI
+# Common questions
 
 These answers describe the installed terminal client. Server-dependent features still show a capability label for the current account, and local background work depends on the computer that runs it.
 

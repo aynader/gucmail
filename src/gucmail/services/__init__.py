@@ -1,100 +1,62 @@
-"""Provider-neutral high-level mailbox services shared by CLI and TUI surfaces."""
+"""Provider-neutral high-level mailbox services shared by CLI and TUI surfaces.
 
-from gucmail.services._base import (
-    MutationExecution,
-    MutationPlan,
-    MutationRisk,
-    PageRequest,
-    ServicePage,
-)
-from gucmail.services.attachments import (
-    AttachmentSavePlan,
-    AttachmentService,
-    CollisionPolicy,
-    DownloadProgress,
-    SavedAttachment,
-)
-from gucmail.services.compose import (
-    AttachmentSnapshot,
-    ComposeIssue,
-    ComposeKind,
-    ComposePlan,
-    ComposePreview,
-    ComposeService,
-    ComposeValidation,
-    ComposeValidationError,
-    IssueLevel,
-    SendExecution,
-)
-from gucmail.services.folders import (
-    FolderService,
-    format_folder_path,
-    parse_folder_path,
-    validate_folder_name,
-)
-from gucmail.services.messages import MessageService
-from gucmail.services.monitoring import MailboxMonitor, MonitoringService
-from gucmail.services.notifications import NotificationDispatcher
-from gucmail.services.quota import (
-    KNOWN_GUC_PROHIBIT_SEND_BYTES,
-    LocalDiskUsage,
-    QuotaEvent,
-    QuotaNoticeParser,
-    QuotaObservation,
-    QuotaOverrides,
-    QuotaReport,
-    QuotaService,
-    QuotaStatus,
-    parse_quota_notification,
-    render_quota_report,
-)
-from gucmail.services.webhooks import (
-    WebhookConfig,
-    WebhookProvider,
-    WebhookRegistry,
-)
+Names load on first use, so importing one service does not import them all.
+"""
 
-__all__ = [
-    "KNOWN_GUC_PROHIBIT_SEND_BYTES",
-    "AttachmentSavePlan",
-    "AttachmentService",
-    "AttachmentSnapshot",
-    "CollisionPolicy",
-    "ComposeIssue",
-    "ComposeKind",
-    "ComposePlan",
-    "ComposePreview",
-    "ComposeService",
-    "ComposeValidation",
-    "ComposeValidationError",
-    "DownloadProgress",
-    "FolderService",
-    "IssueLevel",
-    "LocalDiskUsage",
-    "MailboxMonitor",
-    "MessageService",
-    "MonitoringService",
-    "MutationExecution",
-    "MutationPlan",
-    "MutationRisk",
-    "NotificationDispatcher",
-    "PageRequest",
-    "QuotaEvent",
-    "QuotaNoticeParser",
-    "QuotaObservation",
-    "QuotaOverrides",
-    "QuotaReport",
-    "QuotaService",
-    "QuotaStatus",
-    "SavedAttachment",
-    "SendExecution",
-    "ServicePage",
-    "WebhookConfig",
-    "WebhookProvider",
-    "WebhookRegistry",
-    "format_folder_path",
-    "parse_folder_path",
-    "parse_quota_notification",
-    "render_quota_report",
-    "validate_folder_name",
-]
+from __future__ import annotations
+
+from importlib import import_module
+from typing import Any
+
+_SOURCES = {
+    "AttachmentSavePlan": "gucmail.services.attachments",
+    "AttachmentService": "gucmail.services.attachments",
+    "AttachmentSnapshot": "gucmail.services.compose",
+    "CollisionPolicy": "gucmail.services.attachments",
+    "ComposeIssue": "gucmail.services.compose",
+    "ComposeKind": "gucmail.services.compose",
+    "ComposePlan": "gucmail.services.compose",
+    "ComposePreview": "gucmail.services.compose",
+    "ComposeService": "gucmail.services.compose",
+    "ComposeValidation": "gucmail.services.compose",
+    "ComposeValidationError": "gucmail.services.compose",
+    "DownloadProgress": "gucmail.services.attachments",
+    "FolderService": "gucmail.services.folders",
+    "IssueLevel": "gucmail.services.compose",
+    "KNOWN_GUC_PROHIBIT_SEND_BYTES": "gucmail.services.quota",
+    "LocalDiskUsage": "gucmail.services.quota",
+    "MailboxMonitor": "gucmail.services.monitoring",
+    "MessageService": "gucmail.services.messages",
+    "MonitoringService": "gucmail.services.monitoring",
+    "MutationExecution": "gucmail.services._base",
+    "MutationPlan": "gucmail.services._base",
+    "MutationRisk": "gucmail.services._base",
+    "NotificationDispatcher": "gucmail.services.notifications",
+    "PageRequest": "gucmail.services._base",
+    "QuotaEvent": "gucmail.services.quota",
+    "QuotaNoticeParser": "gucmail.services.quota",
+    "QuotaObservation": "gucmail.services.quota",
+    "QuotaOverrides": "gucmail.services.quota",
+    "QuotaReport": "gucmail.services.quota",
+    "QuotaService": "gucmail.services.quota",
+    "QuotaStatus": "gucmail.services.quota",
+    "SavedAttachment": "gucmail.services.attachments",
+    "SendExecution": "gucmail.services.compose",
+    "ServicePage": "gucmail.services._base",
+    "WebhookConfig": "gucmail.services.webhooks",
+    "WebhookProvider": "gucmail.services.webhooks",
+    "WebhookRegistry": "gucmail.services.webhooks",
+    "format_folder_path": "gucmail.services.folders",
+    "parse_folder_path": "gucmail.services.folders",
+    "parse_quota_notification": "gucmail.services.quota",
+    "render_quota_report": "gucmail.services.quota",
+    "validate_folder_name": "gucmail.services.folders",
+}
+
+__all__ = sorted(_SOURCES)
+
+
+def __getattr__(name: str) -> Any:
+    if name in _SOURCES:
+        return getattr(import_module(_SOURCES[name]), name)
+    raise AttributeError(f"module 'gucmail.services' has no attribute {name!r}")

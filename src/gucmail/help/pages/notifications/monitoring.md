@@ -1,4 +1,4 @@
-# Monitor new mail reliably
+# New-mail alerts
 
 Monitoring is disabled until deliberately started. A quiet first run records a baseline rather than announcing every existing message. Later cycles compare a persisted checkpoint and stable event identifiers.
 

@@ -1,0 +1,28 @@
+
+                █▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀█
+                █                                                                  █
+                █   Sign in to your GUC mailbox                                    █
+                █                                                                  █
+                █   gucmail is an independent app, not made by GUC or Microsoft.   █
+                █   Your password is kept in your system's password store, never   █
+                █   in a file.                                                     █
+                █                                                                  █
+                █   Email                                                          █
+                █    firstname.lastname@student.guc.edu.eg                         █
+                █                                                                  █
+                █   ────────────────────────────────────────────────────────────   █
+                █                                                                  █
+                █   Password                                                       █
+                █    Your GUC password                                             █
+                █                                                                  █
+                █   ────────────────────────────────────────────────────────────   █
+                █                                                                  █
+                █   ▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔   █
+                █     ▶ More options                                               █
+                █                                                                  █
+                █                                                                  █
+                █                                                                  █
+                █                                                                  █
+                █                                      Not now     Test & save     █
+                █                                                                  █
+                █▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄█

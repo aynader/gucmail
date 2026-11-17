@@ -9,7 +9,7 @@ from collections.abc import Callable, Mapping, Sequence
 from datetime import datetime, timedelta
 from pathlib import Path
 from threading import Event
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 from zoneinfo import ZoneInfo
 
 from textual import work
@@ -19,15 +19,6 @@ from textual.widgets import (
     Static,
 )
 
-from gucmail.commands import (
-    CommandConfirmationRequired,
-    CommandContext,
-    CommandExecutor,
-    CommandInvocation,
-    CommandUnavailableError,
-    Exclusion,
-    Ranking,
-)
 from gucmail.config import normalize_theme_identifier
 from gucmail.errors import (
     ConfigurationError,
@@ -40,71 +31,28 @@ from gucmail.models import (
     SearchQuery,
     SearchRanking,
 )
-from gucmail.nlp import (
-    PersonEntity,
-)
-from gucmail.palette import (
-    PaletteSuggestion,
-    SuggestionSource,
-    universal_palette_registry,
-)
 from gucmail.security import redact_text, sanitize_terminal
-from gucmail.services.attachments import AttachmentService, CollisionPolicy
-from gucmail.services.gateway import DeferredGateway as _DeferredGateway
-from gucmail.services.index import SearchIndex
-from gucmail.services.local_search import LocalSearchMode
-from gucmail.services.messages import MessageService
-from gucmail.services.search import evaluate_residual, parse_query
-from gucmail.services.shortcuts import normalize_shortcut
 from gucmail.settings import SettingsContext, SettingsService
 from gucmail.tui.app_core import AppCore
 from gucmail.tui.app_helpers import _safe_failure
-from gucmail.tui.area_backends import (
-    BackupAreaBackend,
-)
-from gucmail.tui.backup_screen import BackupScreen
-from gucmail.tui.compose_screen import ComposeScreen
-from gucmail.tui.dialogs import ConfirmationScreen, FolderNameScreen, MailQueryScreen
-from gucmail.tui.drafts_attachments_screen import (
-    DraftAttachmentScreen,
-)
-from gucmail.tui.help_screen import HelpScreen
-from gucmail.tui.palette_routes import (
-    CATALOG_ROUTES,
-    RouteKind,
-    RouteTarget,
-    catalog_handler_ids,
-    catalog_route,
-)
-from gucmail.tui.palette_screen import (
-    PaletteScreen,
-    PaletteSequenceDecision,
-    PaletteSequenceItem,
-    PaletteSequencePreview,
-    PaletteSequencePreviewScreen,
-    PaletteSequenceSubmission,
-    PaletteSubmission,
-)
-from gucmail.tui.pim_screens import (
-    CalendarScreen,
-    ContactsScreen,
-    CorrespondentsScreen,
-    TasksScreen,
-)
-from gucmail.tui.saved_search_screen import (
-    StateSavedSearchBackend,
-)
-from gucmail.tui.scheduled_screen import ScheduledScreen
-from gucmail.tui.settings_screen import (
-    SettingsScreen,
-)
 from gucmail.tui.shell_widgets import AreaScreen
-from gucmail.tui.themes import (
-    ThemeValidationError,
-)
 from gucmail.tui.write_coordinator import (
     coordinated_write,
 )
+
+if TYPE_CHECKING:
+    from gucmail.commands import (
+        CommandContext,
+        CommandInvocation,
+    )
+    from gucmail.palette import PaletteSuggestion, SuggestionSource
+    from gucmail.tui.palette_screen import (
+        PaletteSequenceDecision,
+        PaletteSequenceItem,
+        PaletteSequencePreview,
+        PaletteSequenceSubmission,
+        PaletteSubmission,
+    )
 
 
 class PaletteMixin(AppCore):
@@ -121,6 +69,9 @@ class PaletteMixin(AppCore):
         return labels.get(self._palette_launcher_style)
 
     def _bind_palette_shortcuts(self) -> None:
+        from gucmail.services.shortcuts import normalize_shortcut
+        from gucmail.tui.compose_screen import ComposeScreen
+
         bindings = getattr(self, "_bindings", None)
         key_map = getattr(bindings, "key_to_bindings", None)
         if isinstance(key_map, dict):
@@ -161,6 +112,17 @@ class PaletteMixin(AppCore):
     def _palette_context(
         self, handler_ids: Sequence[str] | None = None, *, source_screen: Screen[Any] | None = None
     ) -> CommandContext:
+        from gucmail.commands import CommandContext
+        from gucmail.tui.backup_screen import BackupScreen
+        from gucmail.tui.compose_screen import ComposeScreen
+        from gucmail.tui.drafts_attachments_screen import DraftAttachmentScreen
+        from gucmail.tui.pim_screens import (
+            CalendarScreen,
+            ContactsScreen,
+            CorrespondentsScreen,
+            TasksScreen,
+        )
+
         screen = source_screen or self.screen
         area = self._active_palette_area(screen)
         values = {
@@ -210,6 +172,18 @@ class PaletteMixin(AppCore):
         )
 
     def _active_palette_area(self, screen: Screen[Any] | None = None) -> str:
+        from gucmail.tui.backup_screen import BackupScreen
+        from gucmail.tui.compose_screen import ComposeScreen
+        from gucmail.tui.drafts_attachments_screen import DraftAttachmentScreen
+        from gucmail.tui.help_screen import HelpScreen
+        from gucmail.tui.pim_screens import (
+            CalendarScreen,
+            ContactsScreen,
+            CorrespondentsScreen,
+            TasksScreen,
+        )
+        from gucmail.tui.settings_screen import SettingsScreen
+
         screen = screen or self.screen
         area_by_type = (
             (ComposeScreen, "compose"),
@@ -368,6 +342,10 @@ class PaletteMixin(AppCore):
         )
 
     def _palette_search(self, invocation: CommandInvocation, _context: CommandContext) -> None:
+        from gucmail.commands import Exclusion, Ranking
+        from gucmail.palette import universal_palette_registry
+        from gucmail.services.local_search import LocalSearchMode
+
         values = invocation.as_dict()
         preserve_query = bool(values.pop("_preserve_query", False))
         result_label = self._palette_scalar(values.pop("_label", None))
@@ -587,7 +565,7 @@ class PaletteMixin(AppCore):
         self._render_message_rows(self._messages)
         self.query_one("#preview", Static).update("Select a search result to preview it safely.")
         self._set_status(
-            f"{sanitize_terminal(label, max_length=120)}: {len(messages)} bounded result(s) · "
+            f"{sanitize_terminal(label, max_length=120)}: {len(messages)} result(s) · "
             f"{sanitize_terminal(execution_summary, max_length=400)}"
         )
 
@@ -610,6 +588,9 @@ class PaletteMixin(AppCore):
         _invocation: CommandInvocation,
         _context: CommandContext,
     ) -> None:
+        from gucmail.tui.palette_routes import RouteTarget
+        from gucmail.tui.scheduled_screen import ScheduledScreen
+
         screen = self._route_screen(RouteTarget.SCHEDULED)
         if isinstance(screen, ScheduledScreen):
             screen.action_cancel_schedule()
@@ -678,7 +659,7 @@ class PaletteMixin(AppCore):
             return "\n".join(
                 (
                     f"Log directory: {directory}",
-                    "Bounded sanitized files:",
+                    "Files:",
                     *listing,
                     "",
                     f"Newest log tail (up to 128 KiB): {newest.name}",
@@ -686,7 +667,7 @@ class PaletteMixin(AppCore):
                 )
             )
 
-        self.push_screen(AreaScreen("Logs · bounded sanitized tail", load))
+        self.push_screen(AreaScreen("Logs · tail", load))
 
     def _palette_enter_offline(
         self, _invocation: CommandInvocation, _context: CommandContext
@@ -720,6 +701,9 @@ class PaletteMixin(AppCore):
     def _palette_offline_status(
         self, _invocation: CommandInvocation, _context: CommandContext
     ) -> None:
+        from gucmail.services.index import SearchIndex
+        from gucmail.tui.area_backends import BackupAreaBackend
+
         def load() -> str:
             repository = self._backup_repository_path()
             records = BackupAreaBackend.from_context(
@@ -782,6 +766,8 @@ class PaletteMixin(AppCore):
         self._open_shortcuts()
 
     def _palette_apply_theme(self, invocation: CommandInvocation, _context: CommandContext) -> None:
+        from gucmail.tui.themes import ThemeValidationError
+
         requested = self._palette_scalar(invocation.get("theme"))
         if not requested:
             self._open_area("themes")
@@ -811,7 +797,7 @@ class PaletteMixin(AppCore):
             self.call_from_thread(self._refresh_appearance_settings)
         except Exception as exc:
             self.call_from_thread(
-                self._set_status, _safe_failure(exc, action="Theme application failed")
+                self._set_status, _safe_failure(exc, action="Couldn't apply the theme")
             )
         finally:
             self._theme_change_pending.clear()
@@ -838,12 +824,14 @@ class PaletteMixin(AppCore):
             self.call_from_thread(self._refresh_appearance_settings)
         except Exception as error:
             self.call_from_thread(
-                self._set_status, _safe_failure(error, action="Branding application failed")
+                self._set_status, _safe_failure(error, action="Couldn't apply the title style")
             )
         finally:
             self._branding_change_pending.clear()
 
     def _run_advanced_palette_search(self, query_text: str, *, label: str) -> None:
+        from gucmail.tui.saved_search_screen import StateSavedSearchBackend
+
         try:
             preview = StateSavedSearchBackend(
                 self.context.state,
@@ -851,7 +839,7 @@ class PaletteMixin(AppCore):
                 history_enabled=bool(self._setting_value("search.history_enabled", True)),
             ).preview(query_text)
         except Exception as exc:
-            self._set_status(_safe_failure(exc, action="Invalid search expression"))
+            self._set_status(_safe_failure(exc, action="That search isn't valid"))
             return
         self._current_search_text = preview.query_text
         self._search_expression(
@@ -863,6 +851,8 @@ class PaletteMixin(AppCore):
         )
 
     def _prompt_advanced_search(self, *, initial_query: str = "") -> None:
+        from gucmail.tui.dialogs import MailQueryScreen
+
         def accepted(query_text: str | None) -> None:
             if query_text:
                 self._run_advanced_palette_search(query_text, label="Advanced search")
@@ -883,6 +873,8 @@ class PaletteMixin(AppCore):
         invocation: CommandInvocation,
         _context: CommandContext,
     ) -> None:
+        from gucmail.services.local_search import LocalSearchMode
+
         values = invocation.as_dict()
         query = self._search_operand(
             invocation,
@@ -947,6 +939,9 @@ class PaletteMixin(AppCore):
         invocation: CommandInvocation,
         _context: CommandContext,
     ) -> None:
+        from gucmail.tui.palette_routes import RouteTarget
+        from gucmail.tui.pim_screens import CalendarScreen
+
         self._open_area("calendar")
         query = (
             self._palette_scalar(invocation.get("query"))
@@ -974,6 +969,9 @@ class PaletteMixin(AppCore):
         invocation: CommandInvocation,
         _context: CommandContext,
     ) -> None:
+        from gucmail.tui.palette_routes import RouteTarget
+        from gucmail.tui.pim_screens import ContactsScreen
+
         self._open_area("contacts")
         query = self._contacts_invocation_query(invocation)
 
@@ -989,6 +987,9 @@ class PaletteMixin(AppCore):
         _invocation: CommandInvocation,
         _context: CommandContext,
     ) -> None:
+        from gucmail.tui.palette_routes import RouteTarget
+        from gucmail.tui.pim_screens import TasksScreen
+
         if not isinstance(self._route_screen(RouteTarget.TASKS), TasksScreen):
             self._open_area("tasks")
 
@@ -1004,6 +1005,9 @@ class PaletteMixin(AppCore):
         _invocation: CommandInvocation,
         _context: CommandContext,
     ) -> None:
+        from gucmail.tui.palette_routes import RouteTarget
+        from gucmail.tui.pim_screens import TasksScreen
+
         if not isinstance(self._route_screen(RouteTarget.TASKS), TasksScreen):
             self._open_area("tasks")
 
@@ -1019,6 +1023,9 @@ class PaletteMixin(AppCore):
         _invocation: CommandInvocation,
         _context: CommandContext,
     ) -> None:
+        from gucmail.tui.palette_routes import RouteTarget
+        from gucmail.tui.pim_screens import CalendarScreen
+
         self._open_area("calendar")
 
         def create() -> None:
@@ -1034,6 +1041,9 @@ class PaletteMixin(AppCore):
         _context: CommandContext,
     ) -> None:
         """Open a real create-event editor prefilled for tomorrow at 09:00 local time."""
+
+        from gucmail.tui.palette_routes import RouteTarget
+        from gucmail.tui.pim_screens import CalendarScreen
 
         self._open_area("calendar")
         subject = self._palette_scalar(invocation.get("subject")) or ""
@@ -1060,6 +1070,8 @@ class PaletteMixin(AppCore):
         self._open_settings_surface(query=self._palette_scalar(invocation.get("query")) or "")
 
     def _prompt_refine_current_results(self) -> None:
+        from gucmail.tui.dialogs import FolderNameScreen
+
         if not self._messages:
             self._set_status("There are no current results to refine.")
             return
@@ -1071,7 +1083,7 @@ class PaletteMixin(AppCore):
         self.push_screen(
             FolderNameScreen(
                 "Search within current results",
-                "Refine only the bounded rows already loaded; this does not contact Exchange.",
+                "Refine only the rows already loaded; this does not contact Exchange.",
                 submit_label="Refine",
                 placeholder="Text or structured expression",
             ),
@@ -1079,11 +1091,13 @@ class PaletteMixin(AppCore):
         )
 
     def _refine_current_results(self, query_text: str) -> None:
+        from gucmail.services.search import evaluate_residual, parse_query
+
         try:
             expression = parse_query(query_text, timezone=self.context.config.timezone)
             matches = tuple(item for item in self._messages if evaluate_residual(item, expression))
         except Exception as exc:
-            self._set_status(_safe_failure(exc, action="Invalid refinement"))
+            self._set_status(_safe_failure(exc, action="That filter isn't valid"))
             return
         previous_count = len(self._messages)
         self._messages = matches
@@ -1094,13 +1108,15 @@ class PaletteMixin(AppCore):
             else query_text
         )
         self._set_status(
-            f"Refined {previous_count} bounded result(s) to {len(matches)} "
+            f"Refined {previous_count} result(s) to {len(matches)} "
             "without a network request"
         )
 
     def _palette_catalog_handler(
         self, invocation: CommandInvocation, _context: CommandContext
     ) -> None:
+        from gucmail.tui.palette_routes import RouteKind, catalog_route
+
         route = catalog_route(invocation.command_id)
         if route.is_gate:
             self._set_status(route.gate_reason or "This command needs an unavailable capability.")
@@ -1132,6 +1148,9 @@ class PaletteMixin(AppCore):
     def _palette_handlers(
         self,
     ) -> dict[str, Callable[[CommandInvocation, CommandContext], object]]:
+        from gucmail.commands import CommandInvocation
+        from gucmail.tui.palette_routes import catalog_handler_ids, catalog_route
+
         def action(
             callback: Callable[[], object],
         ) -> Callable[[CommandInvocation, CommandContext], object]:
@@ -1286,6 +1305,11 @@ class PaletteMixin(AppCore):
     ) -> tuple[PaletteSuggestion, ...]:
         """Return bounded local history rows without mailbox or network access."""
 
+        from gucmail.commands import CommandInvocation
+        from gucmail.nlp import PersonEntity
+        from gucmail.palette import PaletteSuggestion, SuggestionSource, universal_palette_registry
+        from gucmail.tui.saved_search_screen import StateSavedSearchBackend
+
         registry = universal_palette_registry()
         rows: list[PaletteSuggestion] = []
 
@@ -1351,7 +1375,7 @@ class PaletteMixin(AppCore):
                 "folders.open",
                 group="Recent folders",
                 display_name=f"Open · {recent_folder}",
-                reason="Recently opened folder; resolved locally from bounded history",
+                reason="Recently opened folder; resolved locally from history",
                 source=SuggestionSource.RECENT_FOLDER,
                 parameters={"folder": recent_folder},
             )
@@ -1395,6 +1419,15 @@ class PaletteMixin(AppCore):
         return tuple(dict.fromkeys((*stored, *usage)))[:20]
 
     def _execute_palette_submission(self, submission: PaletteSubmission) -> None:
+        from gucmail.commands import (
+            CommandConfirmationRequired,
+            CommandExecutor,
+            CommandUnavailableError,
+        )
+        from gucmail.palette import universal_palette_registry
+        from gucmail.tui.compose_screen import ComposeScreen
+        from gucmail.tui.palette_routes import CATALOG_ROUTES, RouteTarget
+
         composer = self.screen if isinstance(self.screen, ComposeScreen) else None
         route = CATALOG_ROUTES.get(submission.invocation.command_id)
         if (
@@ -1435,11 +1468,15 @@ class PaletteMixin(AppCore):
             # "details omitted" message so the user knows what to do next.
             self._set_status("Command unavailable: " + sanitize_terminal(str(exc), max_length=300))
         except Exception as exc:
-            self._set_status(_safe_failure(exc, action="Command unavailable"))
+            self._set_status(_safe_failure(exc, action="That command didn't work"))
 
     @work(thread=True, exclusive=True, group="palette-sequence")
     def _preview_palette_sequence(self, submission: PaletteSequenceSubmission) -> None:
         """Run only the read-only first step and retain a bounded exact result handoff."""
+
+        from gucmail.services.attachments import AttachmentService
+        from gucmail.services.messages import MessageService
+        from gucmail.tui.palette_screen import PaletteSequenceItem, PaletteSequencePreview
 
         sequence = submission.sequence
         invocations = tuple(
@@ -1458,7 +1495,7 @@ class PaletteMixin(AppCore):
         if (first.command_id, second.command_id) not in allowed_pairs:
             self.call_from_thread(
                 self._set_status,
-                "That result handoff is not in the bounded command-sequence allowlist.",
+                "That result handoff is not in the command-sequence allowlist.",
             )
             return
         try:
@@ -1537,10 +1574,12 @@ class PaletteMixin(AppCore):
         except Exception as exc:
             self.call_from_thread(
                 self._set_status,
-                _safe_failure(exc, action="Command-sequence preview unavailable"),
+                _safe_failure(exc, action="Couldn't preview the commands"),
             )
 
     def _show_palette_sequence_preview(self, preview: PaletteSequencePreview) -> None:
+        from gucmail.tui.palette_screen import PaletteSequencePreviewScreen
+
         destination = (
             self._backup_repository_path()
             if preview.target_command_id == "backup.back_up_search_results"
@@ -1559,6 +1598,10 @@ class PaletteMixin(AppCore):
         )
 
     def _continue_palette_sequence(self, decision: PaletteSequenceDecision) -> None:
+        from gucmail.services.gateway import DeferredGateway as _DeferredGateway
+        from gucmail.services.messages import MessageService
+        from gucmail.tui.dialogs import ConfirmationScreen
+
         preview = decision.preview
         command_id = preview.target_command_id
         references = tuple(item.reference for item in preview.items)
@@ -1569,7 +1612,7 @@ class PaletteMixin(AppCore):
                 read=read,
             )
             detail = (
-                f"{plan.summary}\n\nMatched count: {len(preview.items)} bounded message(s)\n"
+                f"{plan.summary}\n\nMatched count: {len(preview.items)} message(s)\n"
                 f"Estimated size: {human_bytes(preview.known_bytes)} known"
                 + (
                     f" + {preview.unknown_size_count} unknown-size"
@@ -1584,11 +1627,11 @@ class PaletteMixin(AppCore):
                 if value:
                     self._execute_message_mutation(
                         plan,
-                        success=f"Marked bounded search results {'read' if read else 'unread'}",
+                        success=f"Marked search results {'read' if read else 'unread'}",
                     )
 
             self.push_screen(
-                ConfirmationScreen("Confirm bounded read-state change", detail), confirmed
+                ConfirmationScreen("Confirm read-state change", detail), confirmed
             )
             return
         if command_id == "backup.back_up_search_results":
@@ -1618,7 +1661,7 @@ class PaletteMixin(AppCore):
                     self._execute_palette_sequence_download(preview, destination)
 
             self.push_screen(
-                ConfirmationScreen("Confirm bounded attachment download", detail), confirmed
+                ConfirmationScreen("Confirm attachment download", detail), confirmed
             )
             return
         self._set_status("That command-sequence follow-up is not implemented.")
@@ -1629,6 +1672,9 @@ class PaletteMixin(AppCore):
         preview: PaletteSequencePreview,
         destination: Path,
     ) -> None:
+        from gucmail.services.attachments import AttachmentService, CollisionPolicy
+        from gucmail.tui.palette_screen import PaletteSequencePreviewScreen
+
         saved_count = 0
         saved_bytes = 0
         try:
@@ -1655,10 +1701,10 @@ class PaletteMixin(AppCore):
                 saved_bytes += result.bytes_written
             self.call_from_thread(
                 self._set_status,
-                f"Downloaded {saved_count} bounded attachment(s) ({human_bytes(saved_bytes)})",
+                f"Downloaded {saved_count} attachment(s) ({human_bytes(saved_bytes)})",
             )
         except Exception as exc:
-            detail = _safe_failure(exc, action="Attachment sequence unavailable")
+            detail = _safe_failure(exc, action="Couldn't save the attachments")
             if saved_count:
                 detail = (
                     f"Downloaded {saved_count} attachment(s) before the failure; completed files "
@@ -1667,6 +1713,8 @@ class PaletteMixin(AppCore):
             self.call_from_thread(self._set_status, detail)
 
     def action_palette(self) -> None:
+        from gucmail.tui.palette_screen import PaletteScreen, PaletteSequenceSubmission
+
         handlers = self._palette_handlers()
         source_screen = self.screen
 
@@ -1736,6 +1784,8 @@ class PaletteMixin(AppCore):
         )
 
     def action_search(self) -> None:
+        from gucmail.services.local_search import LocalSearchMode
+
         scope = str(self._setting_value("search.default_scope", "mailbox"))
         if scope in {"local_index", "backups", "all"}:
             self._open_local_search(

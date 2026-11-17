@@ -13,12 +13,10 @@ from __future__ import annotations
 import colorsys
 import hashlib
 import json
-import os
 import random
 import re
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import asdict, dataclass, fields, replace
-from datetime import datetime
 from enum import StrEnum
 from functools import lru_cache
 from typing import TYPE_CHECKING, Final
@@ -1639,17 +1637,29 @@ def _load_builtin_catalogue() -> tuple[ThemeDefinition, ...]:
         or len(payload["themes"]) != 661
     ):
         raise ThemeValidationError("Built-in catalogue schema or count differs")
-    result = tuple(require_valid_theme(ThemeDefinition(
-        id=raw["id"], name=raw["name"], categories=tuple(raw["categories"]),
-        mode=ThemeMode(raw["mode"]), contrast=ContrastClass(raw["contrast"]),
-        palette=ThemePalette(**{  # type: ignore[arg-type]
-            key: tuple(value) if isinstance(value, list) else value
-            for key, value in raw["palette"].items()
-        }),
-        style=ThemeStyle(**raw["style"]), provenance=ThemeProvenance(**raw["provenance"]),
-        search_tags=tuple(raw["search_tags"]), color_blind_friendly=raw["color_blind_friendly"],
-        schema_version=raw["schema_version"],
-    )) for raw in payload["themes"])
+    result = tuple(
+        require_valid_theme(
+            ThemeDefinition(
+                id=raw["id"],
+                name=raw["name"],
+                categories=tuple(raw["categories"]),
+                mode=ThemeMode(raw["mode"]),
+                contrast=ContrastClass(raw["contrast"]),
+                palette=ThemePalette(
+                    **{  # type: ignore[arg-type]
+                        key: tuple(value) if isinstance(value, list) else value
+                        for key, value in raw["palette"].items()
+                    }
+                ),
+                style=ThemeStyle(**raw["style"]),
+                provenance=ThemeProvenance(**raw["provenance"]),
+                search_tags=tuple(raw["search_tags"]),
+                color_blind_friendly=raw["color_blind_friendly"],
+                schema_version=raw["schema_version"],
+            )
+        )
+        for raw in payload["themes"]
+    )
     if len({theme.id for theme in result}) != len(result):
         raise ThemeValidationError("Built-in catalogue contains duplicate identities")
     return result
@@ -2026,23 +2036,6 @@ def to_textual_theme(
     )
 
 
-def detect_color_capability(environment: Mapping[str, str] | None = None) -> ColorCapability:
-    """Conservatively detect terminal colour support without writing escape codes."""
-
-    environ = environment if environment is not None else os.environ
-    if environ.get("NO_COLOR") is not None or environ.get("TERM", "").casefold() == "dumb":
-        return ColorCapability.MONOCHROME
-    color_term = environ.get("COLORTERM", "").casefold()
-    if color_term in {"truecolor", "24bit"}:
-        return ColorCapability.TRUECOLOR
-    term = environ.get("TERM", "").casefold()
-    if "256color" in term:
-        return ColorCapability.COLORS_256
-    if term or os.name == "nt":
-        return ColorCapability.COLORS_16
-    return ColorCapability.MONOCHROME
-
-
 def _payload_for_theme(theme: ThemeDefinition) -> dict[str, object]:
     return {
         "schema_version": theme.schema_version,
@@ -2074,7 +2067,7 @@ def export_theme(theme: ThemeDefinition) -> str:
 
 def _string_tuple(value: object, *, field: str, maximum: int = 64) -> tuple[str, ...]:
     if not isinstance(value, list) or len(value) > maximum:
-        raise ThemeValidationError(f"{field} must be a bounded list")
+        raise ThemeValidationError(f"{field} must be a list")
     result = tuple(_safe_text(item, field=field, maximum=80) for item in value)
     return result
 
@@ -2451,32 +2444,3 @@ class ThemeSession:
     def _save(self) -> None:
         if self._persist is not None:
             self._persist(self.preferences)
-
-
-def resolve_theme_request(
-    registry: ThemeRegistry,
-    request: ThemeRequest,
-    *,
-    when: datetime | None = None,
-    system_dark: Callable[[], bool | None] | None = None,
-    source: random.Random | None = None,
-) -> ThemeDefinition:
-    """Resolve explicit, automatic light/dark/time, and random theme policies."""
-
-    if not 0 <= request.day_starts_at <= 23 or not 0 <= request.night_starts_at <= 23:
-        raise ThemeValidationError("Automatic theme hours must be between 0 and 23")
-    if request.policy is ThemePolicy.RANDOM:
-        return registry.random(source)
-    if request.policy is ThemePolicy.EXPLICIT:
-        return registry.get(request.selected_theme_id)
-    if request.policy is ThemePolicy.DARK:
-        return registry.get(request.dark_theme_id)
-    if request.policy is ThemePolicy.LIGHT:
-        return registry.get(request.light_theme_id)
-    if request.policy is ThemePolicy.SYSTEM:
-        detected = system_dark() if system_dark else None
-        if detected is not None:
-            return registry.get(request.dark_theme_id if detected else request.light_theme_id)
-    current = when or datetime.now().astimezone()
-    is_day = request.day_starts_at <= current.hour < request.night_starts_at
-    return registry.get(request.light_theme_id if is_day else request.dark_theme_id)

@@ -1,0 +1,30 @@
+ GUC  Mail CLI                               Account offline · Storage unknown · Alerts off · Inbox
+   Mail     Calendar     Contacts     Tasks     Settings
+  ──────
+────────────────────────────────────────────────────────────────────────────────────────────────────
+                         │
+ ▼ Views                 │  Inbox · 3 messages
+     Inbox               │  Filter this view…
+     Unread              │ ────────────────────────────────────────────────────────────────────────
+     Flagged             │        From               Subject                         Received
+ ▶ Tools                 │   ● +  Mona Adel          Week 6 lab moved to Thursday    4 Mar 2025
+ ▼ Folders               │    ⚑   Karim Saleh        Re: Thesis draft feedback       2 Mar 2025
+     Not connected       │        Library            Library hours during exams      1 Mar 2025
+                         │
+                         │
+                         │
+                         │
+                         │
+                         │
+                         │
+                         │
+                         │
+                         │
+                         │
+                         │
+                         │
+                         │
+                         │
+ Ready · ? Help · Ctrl+K Command palette
+────────────────────────────────────────────────────────────────────────────────────────────────────
+  q Quit  ^k Commands  c Compose  f5 Refresh  ? Help  / Search

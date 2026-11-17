@@ -22,7 +22,6 @@ from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal, HorizontalScroll, Vertical, VerticalScroll
 from textual.events import DescendantFocus, Resize
-from textual.message import Message
 from textual.screen import ModalScreen
 from textual.widgets import (
     Button,
@@ -90,6 +89,10 @@ from gucmail.tui.area_common import (
     clean_cell,
     current_row_highlight,
 )
+from gucmail.tui.events import (
+    AutomaticRepliesRequested,
+    InboxRulesRequested,
+)
 from gucmail.tui.literal_select import LiteralSelect as Select
 from gucmail.tui.literal_table import LiteralDataTable as DataTable
 from gucmail.tui.notification_rule_builder import RuleBuilder
@@ -99,7 +102,7 @@ _STRATEGIES = (
     ("Streaming, when supported", "streaming"),
     ("Pull notifications", "pull"),
     ("Incremental sync", "incremental_sync"),
-    ("Bounded polling", "bounded_poll"),
+    ("Polling", "bounded_poll"),
 )
 _WEEKDAY_NAMES = ("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
 _IDENTIFIER = re.compile(r"^[a-z0-9][a-z0-9._-]{0,199}$")
@@ -1636,14 +1639,6 @@ class NotificationConfirmationScreen(ModalScreen[bool]):
         self.dismiss(False)
 
 
-class InboxRulesRequested(Message):
-    """Navigate to native Exchange inbox rules without changing them."""
-
-
-class AutomaticRepliesRequested(Message):
-    """Navigate to mailbox policy management without enabling it."""
-
-
 @dataclass(frozen=True, slots=True)
 class NotificationSettingsSnapshot:
     profiles: PersistenceSnapshot[MonitoringProfile]
@@ -1742,7 +1737,7 @@ class NotificationSettingsScreen(OperationalScreen):
 
     def compose(self) -> ComposeResult:
         with Vertical(id="notification-settings-root"):
-            yield Label("Notifications & Monitoring", id="notification-settings-title")
+            yield Label("Notifications", id="notification-settings-title")
             if self.switch is not None:
                 with Horizontal(id="notification-switch-row"):
                     yield Label("Notify me about new mail", id="notification-switch-label")
@@ -1750,14 +1745,12 @@ class NotificationSettingsScreen(OperationalScreen):
                     yield Static("", id="notification-switch-status", markup=False)
                 yield Static("", id="notification-switch-steps", markup=False)
                 yield Label(
-                    "Advanced: profiles, rules, quiet hours, destinations and webhooks",
+                    "More: rules, quiet hours, where alerts go, webhooks",
                     id="notification-advanced-label",
                 )
             with Horizontal(id="notification-profile-toolbar"):
-                yield Select(
-                    (), prompt="Choose monitoring profile", id="notification-profile-select"
-                )
-                yield Button("New / setup", id="notification-profile-new", variant="primary")
+                yield Select((), prompt="Choose a profile", id="notification-profile-select")
+                yield Button("New profile", id="notification-profile-new", variant="primary")
                 yield Button("Edit", id="notification-profile-edit", disabled=True)
                 yield Button("Make active", id="notification-profile-activate", disabled=True)
                 yield Button(
@@ -1784,7 +1777,7 @@ class NotificationSettingsScreen(OperationalScreen):
                             disabled=not self.automatic_replies_available,
                         )
                         yield Button(
-                            "Exchange inbox rules",
+                            "Inbox rules",
                             id="notification-inbox-rules",
                             disabled=not self.automatic_replies_available,
                         )
@@ -2288,7 +2281,6 @@ class NotificationSettingsScreen(OperationalScreen):
     def _defer_until_loaded(self, action: Callable[[], None]) -> bool:
         if self._operation_active and self._active_action in {
             "Loading notification settings",
-            "Inspecting notification configuration",
         }:
             self._pending_configuration_action = action
             return True
@@ -2402,11 +2394,11 @@ class NotificationSettingsScreen(OperationalScreen):
             self.query_one(f"#{button_id}", Button).disabled = not has_profile
         if profile is None:
             self.query_one("#notification-overview", Static).update(
-                "No monitoring profile exists. Choose 'New / setup' to create a "
-                "disabled, private profile."
+                "No profiles yet. The switch above is all most people need. "
+                "Press New profile for rules and quiet hours."
             )
             self._clear_tables()
-            self._set_view_state(ViewState.EMPTY, "No monitoring profiles are configured.")
+            self._set_view_state(ViewState.EMPTY, "No profiles yet")
             return
         status = "Active" if active_id == profile.profile_id.casefold() else "Inactive"
         monitoring_state = "Monitoring enabled" if profile.enabled else "Monitoring disabled"
@@ -3626,7 +3618,7 @@ class NotificationSettingsScreen(OperationalScreen):
         rule = self._rule()
         rule_id = rule.rule_id if rule is not None else None
         self._begin_operation(
-            "Sampling recent mail for a dry run",
+            "Testing on recent mail",
             lambda cancel, progress: source(profile, cancel, progress),
             lambda result: self._recent_sample_loaded(profile.profile_id, result, rule_id=rule_id),
             retry_safe=True,
@@ -3660,7 +3652,7 @@ class NotificationSettingsScreen(OperationalScreen):
             self._rule_detail_override = f"{source}\nNo mail returned. No provider called."
             self.query_one("#notification-rule-detail", Static).update(self._rule_detail_override)
             self._set_view_state(
-                ViewState.EMPTY, "No recent mail returned for this bounded sample."
+                ViewState.EMPTY, "No recent mail returned for this sample."
             )
             return
 
@@ -4122,7 +4114,7 @@ class NotificationSettingsScreen(OperationalScreen):
         if self._operation_active:
             return
         self._begin_operation(
-            "Inspecting notification configuration",
+            "Loading notification settings",
             self._diagnostics_report,
             self._diagnostics_loaded,
             retry_safe=True,

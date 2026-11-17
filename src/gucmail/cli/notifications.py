@@ -75,7 +75,7 @@ notification_rules_app = typer.Typer(
 
 
 notification_profiles_app = typer.Typer(
-    help="(Advanced) Separate notification setups.",
+    help="Separate notification setups.",
     cls=NaturalOrderGroup,
 )
 
@@ -89,7 +89,7 @@ notification_providers_app = typer.Typer(
 desktop_notifications_app = typer.Typer(help="Set up Windows desktop notifications.")
 
 
-webhooks_app = typer.Typer(help="(Advanced) Send new-mail events to a web address.")
+webhooks_app = typer.Typer(help="Send new-mail events to a web address.")
 
 
 notifications_app.add_typer(notification_rules_app, name="rules")

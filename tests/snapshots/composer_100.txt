@@ -1,0 +1,30 @@
+ GUC  Mail CLI                               Account offline · Storage unknown · Alerts off · Inbox
+   M
+  ──  GUC Mail     Compose message                                                Options
+────  ────────────────────────────────────────────────────────────────────────────────────────  ────
+
+ ▼ V  To
+              ────────────────────────────────────────────────────────────────────────────────
+                Show Cc/Bcc                                                                     ───
+      Subject
+ ▶ T          ────────────────────────────────────────────────────────────────────────────────
+ ▼ F
+         Attach file
+
+      Message
+
+
+
+
+
+
+
+
+
+
+
+
+      ────────────────────────────────────────────────────────────────────────────────────────
+ Rea                        Cancel     Editor     Save draft     Send later     Review send
+────                                                                                            ────
+  q Quit  ^k Commands  c Compose  f5 Refresh  ? Help  / Search

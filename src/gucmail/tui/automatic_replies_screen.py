@@ -169,7 +169,10 @@ class AutomaticRepliesScreen(OperationalScreen):
 
     def action_refresh(self) -> None:
         self._begin_operation(
-            "Read automatic replies", lambda *_: self.service.get(), self._loaded, retry_safe=True
+            "Loading automatic replies",
+            lambda *_: self.service.get(),
+            self._loaded,
+            retry_safe=True,
         )
 
     def _loaded(self, result: object) -> None:
@@ -211,7 +214,7 @@ class AutomaticRepliesScreen(OperationalScreen):
 
     def _apply(self, plan: AutomaticReplyPlan) -> None:
         self._begin_operation(
-            "Apply automatic replies",
+            "Saving automatic replies",
             lambda *_: self.service.apply(plan, confirmed=True),
             self._loaded,
         )

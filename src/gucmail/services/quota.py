@@ -560,11 +560,17 @@ def compact_quota_status(report: QuotaReport) -> str:
     used = "?" if mailbox.used_bytes is None else _quota_amount(mailbox.used_bytes)
     if mailbox.used_bytes is not None and mailbox.current_usage.source is QuotaSource.ESTIMATED:
         used = f"~{used}"
+    if limit is not None and mailbox.used_bytes is None:
+        return f"Mailbox limit {_quota_amount(limit)}"
     if limit is not None:
-        label = "Send limit" if mailbox.prohibit_send_bytes is not None else "Storage"
-        return f"{label} {used}/{_quota_amount(limit)}"
+        percent = (
+            f" ({round(100 * mailbox.used_bytes / limit)}%)"
+            if mailbox.used_bytes is not None and limit > 0
+            else ""
+        )
+        return f"Mailbox {used} of {_quota_amount(limit)}{percent}"
     if mailbox.used_bytes is not None:
-        return f"Storage {used}/?"
+        return f"Mailbox {used} used"
     return "Storage unavailable"
 
 

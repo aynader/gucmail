@@ -1,4 +1,4 @@
-# Inbox and folder hierarchy
+# Inbox and folders
 
 Exchange mailboxes contain distinguished folders such as Inbox and Sent Items, custom folders, and nested children. Display names can be localized, so the client resolves standard roles rather than assuming English names.
 

@@ -1191,7 +1191,7 @@ async def test_notification_palette_opens_and_mutates_runtime_configuration(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    import gucmail.tui.app_areas as app_areas
+    import gucmail.services.notification_switch as app_areas
     from gucmail.services.notification_switch import NotificationSwitch
     from test_notification_switch import FakeDesktop, FakeOldScheduler, FakeStartup
 
@@ -1591,7 +1591,7 @@ def test_storage_backend_projects_bounded_attachment_metadata_without_message_de
     assert gateway.attachment_calls == [("message-with-attachment", 100, 0)]
     assert largest.rows[0].size_bytes == 5_120
     assert largest.rows[0].item_count == 2
-    assert "bodies and attachment payloads were not downloaded" in largest.note.casefold()
+    assert "no message or attachment content was downloaded" in largest.note.casefold()
 
 
 def test_storage_backend_finds_exact_duplicate_local_draft_attachments(
@@ -1652,7 +1652,7 @@ def test_storage_backend_analyzes_local_draft_attachments_offline(tmp_path: Path
     assert largest.rows[0].size_bytes == 5_120
     assert largest.rows[0].item_count == 2
     assert {row.label for row in by_type.rows} == {".pdf", ".txt"}
-    assert "offline analysis uses locally known" in by_type.note.casefold()
+    assert "messages with attachments" in by_type.note.casefold()
 
 
 @pytest.mark.asyncio
@@ -1667,7 +1667,12 @@ async def test_tui_startup_navigation_help_and_palette(tmp_path: Path) -> None:
             pilot, lambda: app.query_one("#message-table").row_count == 1, interval=0.05
         )
         assert app.query_one("#message-table").row_count == 1  # type: ignore[attr-defined]
-        assert "Send limit ?/92 MiB" in str(app.query_one("#account-bar", Static).content)
+        # Storage loads after the list, so mail shows first.
+        await wait_until(
+            pilot,
+            lambda: "Mailbox limit 92 MiB" in str(app.query_one("#account-bar", Static).content),
+            interval=0.05,
+        )
         await pilot.press("?")
         assert isinstance(app.screen, HelpScreen)
         await pilot.press("escape")
@@ -3366,7 +3371,7 @@ async def test_calendar_palette_executes_crud_response_editor_and_interchange_ro
         app._catalog_screen_action(delete, CommandInvocation(delete.command_id))
         await pilot.pause()
         assert isinstance(app.screen, OperationalConfirmationScreen)
-        assert "Only this bounded selection" in str(
+        assert "Only this selection" in str(
             app.screen.query_one("#operational-confirm-detail", Static).content
         )
         app.screen.dismiss(False)
@@ -4188,7 +4193,7 @@ async def test_storage_open_and_quota_palette_routes_mount_the_real_offline_work
         assert isinstance(app.screen, StorageScreen)
         detail = str(app.screen.query_one("#storage-detail", Static).render())
         assert "Server-reported total capacity: Unknown" in detail
-        assert "Prohibit send" in detail
+        assert "Sending stops at" in detail
 
         await pilot.press("escape")
         await pilot.pause()
@@ -4206,7 +4211,7 @@ async def test_storage_open_and_quota_palette_routes_mount_the_real_offline_work
         detail = str(app.screen.query_one("#storage-detail", Static).render())
         assert "Server-reported total capacity: Unknown" in detail
         assert "Capacity source: Unknown" in detail
-        assert "Prohibit send" in detail
+        assert "Sending stops at" in detail
 
 
 @pytest.mark.asyncio
@@ -4661,13 +4666,13 @@ async def test_scheduled_palette_views_duplicate_send_run_and_pause(
                 (isinstance(app.screen, ScheduledScreen) and app.screen.is_mounted)
                 and str(
                     app.screen.query_one("#scheduled-summary", Static).content
-                ).startswith("Running")
+                ).startswith("Sending on")
             ),
             interval=0.05,
             pause_first=True,
         )
         assert isinstance(app.screen, ScheduledScreen)
-        assert "Running" in str(app.screen.query_one("#scheduled-summary", Static).content)
+        assert "Sending on" in str(app.screen.query_one("#scheduled-summary", Static).content)
 
 
 @pytest.mark.asyncio
@@ -4942,7 +4947,7 @@ async def test_palette_executes_only_allowlisted_chains_after_real_preview(
             interval=0.025,
             pause_first=True,
         )
-        assert "Bounded sequence" in str(
+        assert "Sequence" in str(
             mark_app.screen.query_one("#palette-explanation", Static).content
         )
         assert not mark_gateway.marked
@@ -4950,7 +4955,7 @@ async def test_palette_executes_only_allowlisted_chains_after_real_preview(
         await wait_until(pilot, lambda: _sequence_preview_rows(mark_app) == 1, pause_first=True)
         assert isinstance(mark_app.screen, PaletteSequencePreviewScreen)
         assert mark_app.screen.query_one("#sequence-results", DataTable).row_count == 1
-        assert "Matched: 1 bounded" in str(
+        assert "Matched: 1 item" in str(
             mark_app.screen.query_one("#sequence-summary", Static).content
         )
         assert not mark_gateway.marked
@@ -4991,7 +4996,7 @@ async def test_palette_executes_only_allowlisted_chains_after_real_preview(
         )
         assert isinstance(backup_app.screen, PaletteSequencePreviewScreen)
         summary = str(backup_app.screen.query_one("#sequence-summary", Static).content)
-        assert "Matched: 1 bounded" in summary
+        assert "Matched: 1 item" in summary
         assert "5.7 MiB known" in summary
         backup_app.screen.query_one("#sequence-destination", Input).value = str(backup_destination)
         await pilot.pause()
@@ -5128,7 +5133,7 @@ async def test_composer_palette_controls_execute_real_draft_fields_and_handoffs(
             saved = self.drafts.save(draft, expected_revision=draft.revision)
             return SimpleNamespace(draft=saved)
 
-    monkeypatch.setattr("gucmail.tui.app_compose.ExternalDraftEditor", FakeEditor)
+    monkeypatch.setattr("gucmail.services.editor.ExternalDraftEditor", FakeEditor)
     app = GUCmailApp(context, gateway=FakeGateway())
     async with app.run_test(size=(120, 35)) as pilot:
         await wait_until(

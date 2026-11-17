@@ -33,10 +33,10 @@ from gucmail.services.semantic_search import SemanticSearchService
 index_app = typer.Typer(help="The local search index that makes search fast.")
 
 
-ocr_app = typer.Typer(help="(Advanced) Read text from images in attachments.")
+ocr_app = typer.Typer(help="Read text from images in attachments.")
 
 
-semantic_app = typer.Typer(help="(Advanced) Search by meaning, on this computer only.")
+semantic_app = typer.Typer(help="Search by meaning, on this computer only.")
 
 
 clusters_app = typer.Typer(help="Group similar mail together.")

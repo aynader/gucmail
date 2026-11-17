@@ -9,6 +9,7 @@ from copy import deepcopy
 from dataclasses import dataclass
 from enum import StrEnum
 from threading import Event
+from time import monotonic
 from typing import Any, ClassVar, Protocol, TypeAlias, cast
 
 from rapidfuzz import fuzz
@@ -18,7 +19,7 @@ from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal, Vertical, VerticalScroll
 from textual.events import Resize
-from textual.message import Message
+from textual.timer import Timer
 from textual.validation import Number
 from textual.widget import Widget
 from textual.widgets import Button, Input, Label, Static, TextArea
@@ -34,11 +35,17 @@ from gucmail.tui.area_common import (
     current_row_highlight,
 )
 from gucmail.tui.branding import BrandingCatalog
+from gucmail.tui.events import (
+    AppearanceBrowseRequested,
+    ColumnPreviewRequested,
+    SettingsHelpRequested,
+    SettingsSetupRequested,
+    ShortcutSettingRequested,
+)
 from gucmail.tui.literal_select import LiteralSelect as Select
 from gucmail.tui.literal_table import LiteralDataTable as DataTable
 from gucmail.tui.message_columns_screen import MessageColumnsScreen
 from gucmail.tui.settings_form import SettingRow, SettingsForm
-from gucmail.tui.shortcuts_screen import ShortcutSettingRequested
 from gucmail.tui.themes import ThemeRegistry
 
 SettingValue: TypeAlias = str | int | float | bool | tuple[str, ...] | None
@@ -714,14 +721,6 @@ class SettingsHistoryScreen(OperationalScreen):
         self.action_restore_revision()
 
 
-class ColumnPreviewRequested(Message):
-    """Ask the mail shell to expose the actual rendered column preview."""
-
-    def __init__(self, settings: SettingsScreen) -> None:
-        super().__init__()
-        self.settings = settings
-
-
 class SettingsScreen(OperationalScreen):
     """Tabbed preference forms with contextual editing and staged atomic changes."""
 
@@ -905,6 +904,8 @@ class SettingsScreen(OperationalScreen):
         Binding("ctrl+left", "previous_tab", "Previous section", show=False),
         Binding("ctrl+right", "next_tab", "Next section", show=False),
     ]
+    SEARCH_LIMIT = 40
+    SEARCH_DELAY = 0.15
 
     def __init__(
         self,
@@ -942,6 +943,8 @@ class SettingsScreen(OperationalScreen):
         self._staged: dict[str, SettingValue] = {}
         self._close_review_pending = False
         self._preview: SettingsPreviewView | None = None
+        self._search_timer: Timer | None = None
+        self._last_search_change = 0.0
 
     def compose(self) -> ComposeResult:
         with Vertical(id="settings-root"):
@@ -1264,6 +1267,8 @@ class SettingsScreen(OperationalScreen):
                 item[1].label.casefold(),
             )
         )
+        if query:
+            matches = matches[: self.SEARCH_LIMIT]
         return tuple(item[1] for item in matches)
 
     def _render_categories(self) -> None:
@@ -2011,14 +2016,34 @@ class SettingsScreen(OperationalScreen):
 
     @on(Input.Changed, "#settings-search")
     def _search_changed(self) -> None:
-        if self._catalog is not None:
+        # Rebuild at once for a single change. While typing fast, wait for a pause.
+        now = monotonic()
+        typing = now - self._last_search_change < self.SEARCH_DELAY * 2
+        self._last_search_change = now
+        if self._search_timer is not None:
+            self._search_timer.stop()
+            self._search_timer = None
+        if typing:
+            self._search_timer = self.set_timer(self.SEARCH_DELAY, self._apply_search)
+        else:
+            self._apply_search()
+
+    def _apply_search(self) -> None:
+        self._search_timer = None
+        if self._catalog is not None and self.is_mounted:
             self._selected_setting_id = None
             self._render_settings()
             self.query_one("#settings-form-viewport", VerticalScroll).scroll_home(animate=False)
 
     @on(Input.Submitted, "#settings-search")
     def _search_submitted(self) -> None:
-        if self._selected_setting_id is not None:
+        if self._search_timer is not None:
+            self._search_timer.stop()
+            self._apply_search()
+        if self._render_pending:
+            # Rows are still mounting. The rebuild focuses the selected row when done.
+            self._initial_form_focus = True
+        elif self._selected_setting_id is not None:
             self.query_one("#settings-form", SettingsForm).focus_setting(self._selected_setting_id)
 
     @on(Input.Submitted, "#settings-editor")
@@ -2117,25 +2142,6 @@ class SettingsScreen(OperationalScreen):
             self.post_message(AppearanceBrowseRequested("branding"))
 
 
-class AppearanceBrowseRequested(Message):
-    """Request the app-owned operational appearance browser from Settings."""
-
-    def __init__(self, browser: str) -> None:
-        if browser not in {"themes", "branding"}:
-            raise ValueError("Unknown appearance browser")
-        super().__init__()
-        self.browser = browser
-
-
-class SettingsHelpRequested(Message):
-    """App-level route request for a setting's embedded Help topic."""
-
-    def __init__(self, setting_id: str, help_topic: str) -> None:
-        super().__init__()
-        self.setting_id = clean_cell(setting_id, max_length=120)
-        self.help_topic = clean_cell(help_topic, max_length=240)
-
-
 __all__ = [
     "AppearanceBrowseRequested",
     "SettingLevel",
@@ -2157,11 +2163,3 @@ __all__ = [
     "display_setting_value",
     "setting_search_score",
 ]
-
-
-class SettingsSetupRequested(Message):
-    def __init__(self, area: str) -> None:
-        super().__init__()
-        if area not in {"startup", "notifications"}:
-            raise ValueError("Unknown managed settings area")
-        self.area = area

@@ -30,7 +30,7 @@ from gucmail.services.inbox_rules import (
     validate_simple_rule,
 )
 
-ews_app = typer.Typer(help="(Advanced) What the GUC mail server supports.")
+ews_app = typer.Typer(help="What the GUC mail server supports.")
 
 
 automatic_replies_app = typer.Typer(help="Set up an out-of-office reply.")

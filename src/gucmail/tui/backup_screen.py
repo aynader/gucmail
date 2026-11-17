@@ -28,6 +28,7 @@ from gucmail.tui.area_common import (
     current_row_highlight,
     human_bytes,
 )
+from gucmail.tui.labels import when
 from gucmail.tui.literal_select import LiteralSelect as Select
 from gucmail.tui.literal_table import LiteralDataTable as DataTable
 
@@ -463,7 +464,7 @@ class BackupBrowseScreen(OperationalScreen):
             )
         if self.items:
             self._set_view_state(
-                ViewState.READY, f"{len(self.items)} bounded items loaded offline."
+                ViewState.READY, f"{len(self.items)} items loaded offline."
             )
             table.move_cursor(row=0)
             self._current_reference = self.items[0].reference
@@ -655,7 +656,7 @@ class BackupFolderBrowseScreen(OperationalScreen):
             yield Static("Loading offline folder index…", id="area-state", markup=False)
             yield DataTable(id="backup-folder-table", cursor_type="row", zebra_stripes=True)
             yield Static(
-                "Select a folder to inspect its bounded archive contents.",
+                "Select a folder to inspect its archive contents.",
                 id="backup-folder-detail",
                 markup=False,
             )
@@ -689,7 +690,7 @@ class BackupFolderBrowseScreen(OperationalScreen):
             self._select_folder(key)
             self._set_view_state(
                 ViewState.READY,
-                f"{len(self._folders)} offline folder(s) from {len(self.items)} bounded item(s).",
+                f"{len(self._folders)} offline folder(s) from {len(self.items)} item(s).",
             )
         else:
             self._set_view_state(ViewState.EMPTY, "This backup contains no foldered items.")
@@ -804,10 +805,16 @@ class RestoreStatusScreen(OperationalScreen):
             return
         offset = self._status_offset
         self._begin_operation(
-            "Reading local restore status",
+            "Loading restore status",
             lambda cancel, progress: loader(
-                self.operation_id, limit=100, offset=offset, cancel=cancel, progress=progress,
-            ), self._loaded, retry_safe=True,
+                self.operation_id,
+                limit=100,
+                offset=offset,
+                cancel=cancel,
+                progress=progress,
+            ),
+            self._loaded,
+            retry_safe=True,
         )
 
     def _loaded(self, result: object) -> None:
@@ -819,9 +826,12 @@ class RestoreStatusScreen(OperationalScreen):
         table.clear()
         for key, row in self._status_rows.items():
             label = {
-                "not_started": "Not started", "dispatching": "Unconfirmed",
-                "uncertain": "Unconfirmed", "completed": "Acknowledged",
-                "rejected": "Rejected", "cancelled": "Cancelled",
+                "not_started": "Not started",
+                "dispatching": "Unconfirmed",
+                "uncertain": "Unconfirmed",
+                "completed": "Acknowledged",
+                "rejected": "Rejected",
+                "cancelled": "Cancelled",
             }.get(row["status"], row["status"])
             table.add_row(label, row["source_reference"], row["destination"], key=key)
         counts = result["counts"]
@@ -966,13 +976,15 @@ class RestorePlanScreen(OperationalScreen):
         table.add_column("Type", width=8)
         table.add_column("Destination", width=40)
         self._render_entries()
-        state = ViewState.ERROR if self.plan.blocked_count else (
-            ViewState.READY if self.plan.entries else ViewState.EMPTY
+        state = (
+            ViewState.ERROR
+            if self.plan.blocked_count
+            else (ViewState.READY if self.plan.entries else ViewState.EMPTY)
         )
         message = (
             "Review unconfirmed restores before another attempt."
-            if self.plan.blocked_count else
-            "Review the items and destination before restoring."
+            if self.plan.blocked_count
+            else "Review the items and destination before restoring."
             if self.plan.entries
             else "The restore plan has no entries."
         )
@@ -980,7 +992,7 @@ class RestorePlanScreen(OperationalScreen):
         self._refresh_restore_actions()
 
     def _render_entries(self) -> None:
-        page = self.plan.entries[self._entry_offset:self._entry_offset + 100]
+        page = self.plan.entries[self._entry_offset : self._entry_offset + 100]
         self._entries = {entry.reference: entry for entry in page}
         self._selected_reference = page[0].reference if page else None
         table = self.query_one("#restore-plan-table", DataTable)
@@ -988,10 +1000,12 @@ class RestorePlanScreen(OperationalScreen):
         table.styles.height = min(10, max(3, len(page) + 2))
         for entry in page:
             table.add_row(
-                {"create": "Create", "skip_duplicate": "Already restored",
-                 "review_required": "Needs review", "unsupported": "Unsupported"}.get(
-                    entry.action, clean_cell(entry.action, max_length=30)
-                ),
+                {
+                    "create": "Create",
+                    "skip_duplicate": "Already restored",
+                    "review_required": "Needs review",
+                    "unsupported": "Unsupported",
+                }.get(entry.action, clean_cell(entry.action, max_length=30)),
                 clean_cell(entry.title or entry.reference, max_length=80),
                 clean_cell(entry.kind, max_length=30),
                 clean_cell(entry.destination, max_length=80),
@@ -1014,8 +1028,8 @@ class RestorePlanScreen(OperationalScreen):
         )
         status = self.query_one("#restore-status", Button)
         status.display = bool(recovery_id)
-        status.disabled = (
-            not recovery_id or not callable(getattr(self.backend, "restore_status", None))
+        status.disabled = not recovery_id or not callable(
+            getattr(self.backend, "restore_status", None)
         )
         another = self.query_one("#restore-another-copy", Button)
         another.display = self._has_completed_duplicates
@@ -1035,10 +1049,13 @@ class RestorePlanScreen(OperationalScreen):
         details = [
             f"Item: {clean_cell(entry.title or '(untitled)', max_length=500)}",
             f"Source reference: {clean_cell(entry.reference, max_length=180)}",
-            "Action: " + {"create": "Create", "skip_duplicate": "Already restored",
-                          "review_required": "Needs review", "unsupported": "Unsupported"}.get(
-                              entry.action, clean_cell(entry.action)
-                          ),
+            "Action: "
+            + {
+                "create": "Create",
+                "skip_duplicate": "Already restored",
+                "review_required": "Needs review",
+                "unsupported": "Unsupported",
+            }.get(entry.action, clean_cell(entry.action)),
             f"Destination: {clean_cell(entry.destination, max_length=180)}",
         ]
         if entry.duplicate_reason:
@@ -1075,16 +1092,19 @@ class RestorePlanScreen(OperationalScreen):
             "This deliberately creates another copy of items with recorded completion. "
             "Unconfirmed restores remain blocked. A new exact restore plan and final "
             "confirmation will be required before anything is created.",
-            self._replan_another_copy, confirm_label="Review another copy",
+            self._replan_another_copy,
+            confirm_label="Review another copy",
         )
 
     def _replan_another_copy(self) -> None:
         if self.plan.encrypted:
+
             def supplied(passphrase: str | None) -> None:
                 if passphrase:
                     self._replan_copy_with_passphrase(passphrase)
                 else:
                     self._set_view_state(ViewState.CANCELLED, "Additional-copy review cancelled.")
+
             self.app.push_screen(BackupPassphraseScreen("review an additional copy"), supplied)
             return
         self._replan_copy_with_passphrase(None)
@@ -1093,12 +1113,17 @@ class RestorePlanScreen(OperationalScreen):
         references = tuple(entry.item_key or entry.reference for entry in self.plan.entries)
         backend = cast(Any, self.backend)
         self._begin_operation(
-            "Reviewing an intentional additional copy",
+            "Reviewing the extra copy",
             lambda cancel, progress: backend.create_restore_plan(
-                self.plan.backup_id, references, allow_completed_duplicates=True,
+                self.plan.backup_id,
+                references,
+                allow_completed_duplicates=True,
                 passphrase=passphrase,
-                cancel=cancel, progress=progress,
-            ), self._replace_plan, retry_safe=True,
+                cancel=cancel,
+                progress=progress,
+            ),
+            self._replace_plan,
+            retry_safe=True,
         )
 
     def _replace_plan(self, result: object) -> None:
@@ -1127,10 +1152,10 @@ class RestorePlanScreen(OperationalScreen):
             f"Unsupported skipped: {self.plan.unsupported_count}\n\n"
             + (
                 "This explicitly creates another copy of previously completed restores.\n\n"
-                if self.plan.allow_completed_duplicates else ""
+                if self.plan.allow_completed_duplicates
+                else ""
             )
-            +
-            "This creates new mailbox items in dedicated restore folders. It never sends "
+            + "This creates new mailbox items in dedicated restore folders. It never sends "
             "restored messages, but a provider timeout can leave the last item uncertain.",
             self._confirmed_restore,
             confirm_label="Restore items",
@@ -1578,15 +1603,7 @@ class BackupScreen(OperationalScreen):
             self.query_one("#backup-advanced", VerticalScroll).add_class("visible")
             self.query_one("#backup-toggle-advanced", Button).label = "Basic"
         table = self.query_one("#backup-table", DataTable)
-        table.add_columns(
-            "Created",
-            "Type",
-            "State",
-            "Items",
-            "Stored",
-            "Encrypted",
-            "Verification",
-        )
+        table.add_columns("Made", "Kind", "Status", "Items", "Size", "Encrypted", "Checked")
         if self.offline:
             self.query_one("#backup-estimate", Button).disabled = True
             self.query_one("#backup-create", Button).disabled = True
@@ -1802,13 +1819,13 @@ class BackupScreen(OperationalScreen):
         table.clear()
         for record in records:
             table.add_row(
-                clean_cell(record.created_at or "Incomplete", max_length=30),
-                clean_cell(record.kind, max_length=24),
-                clean_cell(record.state, max_length=24),
+                clean_cell(self._when(record.created_at) or "Unfinished", max_length=30),
+                clean_cell(record.kind.capitalize(), max_length=24),
+                clean_cell(record.state.capitalize(), max_length=24),
                 str(record.item_count),
                 human_bytes(record.stored_bytes),
                 "Yes" if record.encrypted else "No",
-                clean_cell(record.verification_state, max_length=30),
+                clean_cell(record.verification_state.capitalize(), max_length=30),
                 key=record.backup_id,
             )
         if records:
@@ -1818,14 +1835,14 @@ class BackupScreen(OperationalScreen):
                 else records[0].backup_id
             )
             self._select_backup(selected)
-            self._set_view_state(ViewState.READY, f"{len(records)} backups available.")
+            noun = "backup" if len(records) == 1 else "backups"
+            self._set_view_state(ViewState.READY, f"{len(records)} {noun}")
         else:
             self._selected_id = None
             self._update_create_mode()
             self._update_selection_buttons()
             self.query_one("#backup-detail", Static).update(
-                "No backups exist at this destination. Choose a destination, estimate, "
-                "then create one."
+                "No backups here yet. Press Create backup to make one."
             )
             state = ViewState.OFFLINE if self.offline else ViewState.EMPTY
             message = (
@@ -1842,6 +1859,11 @@ class BackupScreen(OperationalScreen):
             return
         self._select_backup(str(event.row_key.value))
 
+    def _when(self, value: str | None) -> str:
+        context = getattr(self.app, "context", None)
+        zone = str(getattr(getattr(context, "config", None), "timezone", None) or "UTC")
+        return when(value, zone)
+
     def _select_backup(self, backup_id: str) -> None:
         record = self._records_by_id.get(backup_id)
         if record is None:
@@ -1851,13 +1873,14 @@ class BackupScreen(OperationalScreen):
         self._update_selection_buttons()
         lines = [
             f"Backup: {clean_cell(record.backup_id, max_length=180)}",
-            f"Destination: {clean_cell(record.destination, max_length=300)}",
-            f"Created: {clean_cell(record.created_at or 'Unknown')}",
-            f"Completed: {clean_cell(record.completed_at or 'Not complete')}",
-            f"Items: {record.item_count} · Stored: {human_bytes(record.stored_bytes)}",
-            f"Encryption: {'Enabled' if record.encrypted else 'Not enabled'}",
-            f"Verification: {clean_cell(record.verification_state)}",
+            f"Made: {clean_cell(self._when(record.created_at) or 'Unknown')}",
+            f"Items: {record.item_count} · Size: {human_bytes(record.stored_bytes)}",
+            f"Encrypted: {'Yes' if record.encrypted else 'No'}",
+            f"Checked: {clean_cell(record.verification_state.capitalize())}",
+            f"Folder: {clean_cell(record.destination, max_length=300)}",
         ]
+        if not record.completed_at:
+            lines.insert(2, "Not finished. Resume continues it.")
         if record.warning:
             lines.append(f"Warning: {clean_cell(record.warning, max_length=500)}")
         self.query_one("#backup-detail", Static).update("\n".join(lines))
@@ -1926,7 +1949,7 @@ class BackupScreen(OperationalScreen):
             return
         encryption = "enabled" if request.encrypted else "not enabled"
         selected_scope = (
-            "\nSelected references (exact bounded scope):\n" + "\n".join(request.messages)
+            "\nSelected references (exact scope):\n" + "\n".join(request.messages)
             if request.messages
             else ""
         )

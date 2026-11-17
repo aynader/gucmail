@@ -484,7 +484,7 @@ async def test_small_composer_scrolls_controls_and_keeps_palette_available(tmp_p
         assert body.has_focus
         viewport = screen.query_one("#compose-fields", VerticalScroll).content_region
         assert viewport.contains_region(body.region)
-        await pilot.press("tab", "tab", "tab", "tab")
+        await pilot.press("tab", "tab", "tab", "tab", "tab")
         await pilot.pause()
         send = screen.query_one("#compose-send", Button)
         assert send.has_focus
@@ -1137,18 +1137,18 @@ async def test_header_resize_keeps_compact_send_limit(tmp_path: Path) -> None:
     async with app.run_test(size=(140, 45)) as pilot:
         app._render_status(
             {"exchange_version": "Synthetic Exchange version", "inbox_count": 3},
-            quota_label="Send limit ?/92 MiB",
+            quota_label="Mailbox limit 92 MiB",
         )
         await pilot.pause()
         bar = app.query_one("#account-bar", Static)
-        assert "?/92 MiB" in str(bar.content)
+        assert "limit 92 MiB" in str(bar.content)
         assert "Synthetic Exchange version" in str(bar.tooltip)
         for width in (80, 65, 140):
             await pilot.resize_terminal(width, 24)
             await pilot.pause()
             assert cell_len(str(bar.content)) <= bar.content_size.width
             assert "Connected" in str(bar.content)
-            assert "?/92 MiB" in str(bar.content)
+            assert "limit 92 MiB" in str(bar.content)
 
 
 @pytest.mark.asyncio

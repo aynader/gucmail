@@ -96,12 +96,31 @@ _MOVED_SCREENS = {
 }
 
 
+# Calendar, Contacts and Tasks screens left pim_screens in 1.5.0.
+_MOVED_PIM_SCREENS = {
+    "CalendarAvailabilityScreen": "calendar_screens",
+    "CalendarEditorScreen": "calendar_screens",
+    "CalendarScreen": "calendar_screens",
+    "MeetingResponseScreen": "calendar_screens",
+    "ContactEditorScreen": "contacts_screens",
+    "ContactsScreen": "contacts_screens",
+    "CorrespondentsScreen": "contacts_screens",
+    "TaskEditorScreen": "tasks_screens",
+    "TasksScreen": "tasks_screens",
+    "CalendarScopeScreen": "pim_common",
+    "FilePathScreen": "pim_common",
+}
+
+
 def _current_binding_id(identifier: str) -> str:
-    prefix = "gucmail.tui.app."
-    if identifier.startswith(prefix):
-        screen = identifier[len(prefix) :].split(":", 1)[0]
-        if screen in _MOVED_SCREENS:
-            return f"gucmail.tui.{_MOVED_SCREENS[screen]}.{identifier[len(prefix) :]}"
+    for prefix, moved in (
+        ("gucmail.tui.app.", _MOVED_SCREENS),
+        ("gucmail.tui.pim_screens.", _MOVED_PIM_SCREENS),
+    ):
+        if identifier.startswith(prefix):
+            screen = identifier[len(prefix) :].split(":", 1)[0]
+            if screen in moved:
+                return f"gucmail.tui.{moved[screen]}.{identifier[len(prefix) :]}"
     return identifier
 
 

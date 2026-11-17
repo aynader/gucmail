@@ -1,4 +1,4 @@
-# Read messages safely
+# Read mail
 
 Message summaries and full message detail are intentionally separate. A folder page asks Exchange for a small field set; the reader fetches the selected body and metadata only when requested.
 
@@ -38,9 +38,9 @@ stay bounded. Grouping does not change read state or select hidden mail; CLI lis
 `move_to_folder` and enter **Delete destination folder** to move mail to an existing folder of
 your choice. No folder is auto-created. A missing destination produces an error before connecting.
 
-The **D** shortcut reviews exactly one highlighted message and its captured destination. Cancel
-leaves it unchanged. Changing selection or preferences during review does not change the target.
-Permanent deletion remains a separate explicit action and cannot become a saved default.
+**d** moves the highlighted or selected messages to that destination at once, and the status line
+says so. **Ctrl+Z** moves them back. Inside Deleted Items, **d** asks first. Permanent deletion
+remains a separate explicit action and cannot become a saved default.
 
 `gucmail messages delete MESSAGE_REF --dry-run` shows a local plan without credentials or a
 connection. `--to FOLDER` overrides the saved folder, and `--behavior deleted_items` overrides a
@@ -50,6 +50,9 @@ destination override. After an uncertain provider outcome, refresh before attemp
 ## Reader behavior
 
 The reader converts HTML into inert text. It does not execute scripts, submit forms, load frames, fetch tracking pixels, or automatically retrieve remote images. Terminal control characters from subjects, names, headers, filenames, and bodies are removed before rendering.
+
+Replies hide the signature and the quoted earlier conversation. Press **o** to show them.
+Forwarded messages are shown whole.
 
 Opening a message leaves its read state unchanged by default. Use the explicit read/unread action when that change is desired. Attachment listing retrieves metadata first and does not download every file.
 

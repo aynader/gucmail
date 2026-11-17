@@ -63,7 +63,7 @@ dev = [
 ]
 
 [project.scripts]
-gucmail = "gucmail.cli:app"
+gucmail = "gucmail.entry:main"
 
 [project.urls]
 Homepage = "https://github.com/aynader/gucmail"

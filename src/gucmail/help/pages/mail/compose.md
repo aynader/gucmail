@@ -1,4 +1,4 @@
-# Compose, reply, and forward safely
+# Write, reply and forward
 
 The composer supports To, Cc, Bcc, subject, plain text or HTML source, importance, receipt requests, and validated local attachments. Reply and reply-all begin from a fresh preview so recipients can be reviewed instead of silently inherited.
 

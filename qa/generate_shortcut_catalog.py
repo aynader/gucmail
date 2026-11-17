@@ -2,14 +2,15 @@
 
 from __future__ import annotations
 
+import importlib
 import json
+import pkgutil
 from pathlib import Path
 from typing import Any
 
 from textual.screen import Screen
 
-# Screens the app imports only when first opened; import them so they are listed too.
-import gucmail.tui.task_delete_screen  # noqa: F401
+import gucmail.tui
 from gucmail.tui.app import GUCmailApp
 from gucmail.tui.shortcuts_screen import binding_scope
 from gucmail.tui.unanswered_screen import UnansweredScreen
@@ -75,6 +76,9 @@ MAIL_ACTIONS = {
 
 
 def catalog_payload() -> dict[str, Any]:
+    # Most screens load on first use. Import them all so every binding is listed.
+    for module in pkgutil.iter_modules(gucmail.tui.__path__):
+        importlib.import_module(f"gucmail.tui.{module.name}")
     owners: set[type[Any]] = {GUCmailApp, UnansweredScreen}
     pending = list(Screen.__subclasses__())
     visited: set[type[Any]] = set()

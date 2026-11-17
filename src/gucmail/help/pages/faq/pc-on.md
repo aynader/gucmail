@@ -4,7 +4,7 @@ Yes for features performed by a local background process. No local process can s
 
 ## What keeps working
 
-Exchange continues receiving mail independently. Local drafts, scheduled jobs, checkpoints, history, indexes, and backups remain stored on disk. Closing only the TUI is fine when a separate scheduler or watcher process is running under a supported supervisor.
+Exchange continues receiving mail independently. Local drafts, scheduled jobs, checkpoints, history, indexes, and backups remain stored on disk. Closing the app is fine when the background task is on (`gucmail notifications on`). It checks for new mail and sends scheduled messages.
 
 ## What pauses
 

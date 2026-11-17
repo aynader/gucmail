@@ -165,8 +165,13 @@ def main_callback(
 
 @app.command()
 def version(ctx: typer.Context) -> None:
-    """Print the installed application and output-schema versions."""
+    """Print the installed version."""
 
+    state = core.cli_state(ctx)
+    if state.output_format is OutputFormat.HUMAN:
+        if not state.quiet:
+            typer.echo(f"gucmail {__version__}")
+        return
     core.run(
         ctx,
         "version",
@@ -191,7 +196,7 @@ def login(
         help="Validate with one bounded mailbox-status read after storing the credential.",
     ),
 ) -> None:
-    """Store a password in the OS keyring and optionally validate sign-in."""
+    """Sign in and save your password securely."""
 
     def action() -> dict[str, Any]:
         state = core.cli_state(ctx)
@@ -236,7 +241,7 @@ def logout(
         False, help="Also remove the non-secret email and username from configuration."
     ),
 ) -> None:
-    """Remove the current mailbox credential from the OS keyring."""
+    """Sign out and forget the saved password."""
 
     def action() -> dict[str, Any]:
         context = core.cli_state(ctx).context
@@ -259,7 +264,7 @@ def status(
         False, "--online", help="Make one bounded authenticated mailbox-status read."
     ),
 ) -> None:
-    """Show local status; use --online for an intentional EWS check."""
+    """Show your account and app status. Add --online to check the server."""
 
     def action() -> dict[str, Any]:
         context = core.cli_state(ctx).context
@@ -276,7 +281,37 @@ def status(
             result["exchange"] = "not_probed"
         return result
 
-    core.run(ctx, "status", action, title="Status", source="live_server" if online else "local")
+    def plain(result: dict[str, Any]) -> dict[str, Any]:
+        # Short human view. --json keeps every field.
+        from gucmail.formatting import human_bytes
+
+        context = core.cli_state(ctx).context
+        state = result.get("state") or {}
+        exchange = result.get("exchange")
+        if exchange == "not_probed":
+            server = "Not checked. Add --online to check"
+        elif isinstance(exchange, dict):
+            server = f"Connected ({exchange.get('exchange_version') or 'Exchange'})"
+        else:
+            server = str(exchange)
+        return {
+            "Account": context.config.email or "Not set up. Run gucmail to sign in",
+            "Server": server,
+            "Local data": (
+                f"Healthy, {human_bytes(state.get('size_bytes'))}"
+                if state.get("integrity", "ok") == "ok"
+                else "Needs repair. Run gucmail doctor"
+            ),
+        }
+
+    core.run(
+        ctx,
+        "status",
+        action,
+        title="Status",
+        source="live_server" if online else "local",
+        human_data=plain,
+    )
 
 
 @app.command()
@@ -300,13 +335,13 @@ def doctor(
     )
 
 
-@app.command()
+@app.command(hidden=True)
 def diagnostics(
     ctx: typer.Context,
     output: Path = typer.Option(Path("gucmail-diagnostics.json"), help="Sanitized bundle path."),
     network: bool = typer.Option(False, help="Include DNS and TLS checks."),
 ) -> None:
-    """Write a redacted diagnostic bundle with no credentials or mailbox content."""
+    """Write a report for bug reports, without passwords or mail."""
 
     def action() -> dict[str, Any]:
         context = core.cli_state(ctx).context
@@ -322,7 +357,7 @@ def tui_command(
     ctx: typer.Context,
     offline: bool = typer.Option(False, help="Launch without resolving credentials or Exchange."),
 ) -> None:
-    """Launch the responsive Textual interface."""
+    """Open the full-screen app."""
 
     try:
         from gucmail.tui import run_tui
@@ -378,7 +413,7 @@ def send(
     ),
     allow_empty_body: bool = typer.Option(False),
 ) -> None:
-    """Preview and send, or durably schedule, a new message."""
+    """Write and send a message, now or later."""
 
     def action() -> Any:
         preferences = ComposerPreferences.from_settings(core.settings_service(ctx))
@@ -583,7 +618,7 @@ def reply(
         None, help="Sender or all visible recipients; saved default when omitted."
     ),
 ) -> None:
-    """Preview a reply, then send only after exact confirmation."""
+    """Reply to a message."""
 
     _reply_command(
         ctx,
@@ -625,7 +660,7 @@ def reply_all(
         help="Override quoted original text for this response.",
     ),
 ) -> None:
-    """Calculate and preview normalized reply-all recipients before sending."""
+    """Reply to everyone on a message."""
 
     _reply_command(
         ctx,
@@ -667,7 +702,7 @@ def forward(
         help="Override quoted original text for this response.",
     ),
 ) -> None:
-    """Review a forward; inherited server attachments are retained and disclosed."""
+    """Forward a message."""
 
     _reply_command(
         ctx,
@@ -728,7 +763,7 @@ def watch(
         False, help="Reset only the selected local detection checkpoints; retain delivery history."
     ),
 ) -> None:
-    """Monitor new messages using durable checkpoints and a quiet first baseline."""
+    """Watch for new mail and alert you."""
 
     context = core.cli_state(ctx).context
     if strategy not in {None, "incremental_sync", "incremental_poll", "bounded_poll"}:

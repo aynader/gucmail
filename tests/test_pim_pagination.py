@@ -197,8 +197,7 @@ async def test_ui_empty_page_still_offers_next_and_changed_query_resets_offset(k
         assert next_button.region.bottom <= screen.size.height
         assert next_button.region.y >= 0
         state = screen.query_one("#area-state", Static)
-        assert "Current page" in str(state.render())
-        assert "More available" in str(state.render())
+        assert "more on the next page" in str(state.render())
         assert "later candidates" in str(state.tooltip)
         next_button.press()
         await wait_until(

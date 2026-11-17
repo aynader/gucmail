@@ -21,7 +21,7 @@ from gucmail.services.calendar_display import (
     load_calendar_view,
 )
 from gucmail.settings import InMemoryRevisionStore, SettingsContext, SettingsService
-from gucmail.tui import pim_screens
+from gucmail.tui import calendar_screens
 from gucmail.tui.app import GUCmailApp
 from gucmail.tui.pim_screens import (
     CalendarAvailabilityScreen,
@@ -335,9 +335,8 @@ async def test_normal_settings_calendar_display_apply_refresh_reopen_and_capture
         await wait_for(pilot, lambda: not screen._operation_active and len(screen._events) == 1)
         assert screen.view_kind is CalendarViewKind.MONTH and screen.first_weekday == 0
         assert screen.query_one("#calendar-view", Select).value == "month"
-        assert "2026-10-02 01:30+02:00" in map(
-            str, screen.query_one("#calendar-table", DataTable).get_row(event.reference)
-        )
+        row = map(str, screen.query_one("#calendar-table", DataTable).get_row(event.reference))
+        assert any("2 Oct" in cell and "01:30" in cell for cell in row)
         assert "Europe/Berlin" in str(screen.query_one("#calendar-detail", Static).content)
         screen.action_edit()
         await wait_for(
@@ -371,9 +370,8 @@ async def test_normal_settings_calendar_display_apply_refresh_reopen_and_capture
         assert screen.timezone == "America/Los_Angeles" and len(gateway.queries) == queries
         assert form._value() == captured
         assert screen.view_kind is CalendarViewKind.MONTH and screen.first_weekday == 6
-        assert "2026-10-01 16:30-07:00" in map(
-            str, screen.query_one("#calendar-table", DataTable).get_row(event.reference)
-        )
+        row = map(str, screen.query_one("#calendar-table", DataTable).get_row(event.reference))
+        assert any("1 Oct" in cell and "16:30" in cell for cell in row)
         form.dismiss(captured)
         await wait_for(
             pilot, lambda: len(gateway.availability_calls) == 1 and not screen._operation_active
@@ -396,7 +394,7 @@ async def test_normal_settings_calendar_display_apply_refresh_reopen_and_capture
             and app.screen.view_kind is CalendarViewKind.DAY
         )
         await wait_for(pilot, lambda: not app.screen._operation_active)
-        monkeypatch.setattr(pim_screens, "datetime", FixedDatetime)
+        monkeypatch.setattr(calendar_screens, "datetime", FixedDatetime)
         app.screen.action_today()
         await wait_for(pilot, lambda: not app.screen._operation_active)
         assert app.screen.anchor_date == date(2026, 10, 1)

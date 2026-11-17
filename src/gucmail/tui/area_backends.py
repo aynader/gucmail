@@ -24,7 +24,7 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from threading import Event, RLock
 from types import SimpleNamespace
-from typing import TYPE_CHECKING, Any, Protocol, TypeAlias, cast
+from typing import TYPE_CHECKING, Any, TypeAlias, cast
 from uuid import uuid4
 
 from gucmail.backup_format import BackupManifest
@@ -194,7 +194,7 @@ def _safe_error(action: str, error: BaseException) -> PublicOperationError:
         return PublicOperationError(f"{action} failed: {message[:500] or type(error).__name__}.")
     return PublicOperationError(
         f"{action} failed ({sanitize_terminal(type(error).__name__, max_length=80)}). "
-        "Use sanitized diagnostics for details."
+        "Use diagnostics for details."
     )
 
 
@@ -524,7 +524,7 @@ class BackupAreaBackend:
             service = self._service(self._root_for_request(request))
             effective = self._create_request(service, request, passphrase)
             source = self._source()
-            progress(OperationProgress("Reading bounded mailbox metadata"))
+            progress(OperationProgress("Reading mailbox metadata"))
             estimate = service.estimate(
                 source,
                 effective,
@@ -801,7 +801,10 @@ class BackupAreaBackend:
 
     @staticmethod
     def _restore_plan(
-        plan: RestorePlan, *, encrypted: bool, cancel: Event | None = None,
+        plan: RestorePlan,
+        *,
+        encrypted: bool,
+        cancel: Event | None = None,
     ) -> RestorePlanView:
         entries = []
         for entry in plan.entries:
@@ -920,21 +923,29 @@ class BackupAreaBackend:
             raise _safe_error("Restoring backup", exc) from exc
 
     def restore_status(
-        self, operation_id: str, *, limit: int = 100, offset: int = 0,
-        cancel: Event, progress: ProgressReporter,
+        self,
+        operation_id: str,
+        *,
+        limit: int = 100,
+        offset: int = 0,
+        cancel: Event,
+        progress: ProgressReporter,
     ) -> dict[str, Any]:
         from gucmail.services.restore_journal import RestoreJournal
 
-        _cancelled(cancel, "Reading local restore status")
+        _cancelled(cancel, "Loading restore status")
         if self.state is None:
             raise PublicOperationError("No local restore history is configured.", retryable=False)
         progress(OperationProgress("Reading local restore recovery"))
         result = RestoreJournal(cast(Any, self.state)).operation(
-            operation_id, limit=limit, offset=offset,
+            operation_id,
+            limit=limit,
+            offset=offset,
         )
         if result is None:
             raise PublicOperationError(
-                "The local restore operation was not found.", retryable=False,
+                "The local restore operation was not found.",
+                retryable=False,
             )
         return result
 
@@ -1256,9 +1267,9 @@ class StorageAreaBackend:
             else None,
             local_paths={
                 "Cache": context.paths.cache_dir,
-                "Index": context.paths.index_database,
+                "Search index": context.paths.index_database,
                 "Backups": context.paths.backup_dir,
-                "State": context.paths.state_database,
+                "App data": context.paths.state_database,
             },
             export_directory=context.paths.data_dir / "exports",
             online=online,
@@ -1318,7 +1329,7 @@ class StorageAreaBackend:
                     QuotaThresholdView("prohibit-send", "Prohibit send", None, "unknown"),
                     QuotaThresholdView(
                         "prohibit-send-receive",
-                        "Prohibit send and receive",
+                        "Receiving stops at",
                         None,
                         "unknown",
                     ),
@@ -1355,15 +1366,13 @@ class StorageAreaBackend:
             snapshot = self._snapshot_from_report(report, local_rows)
             if snapshot.usage_bytes is None and self.message_loader is not None:
                 try:
-                    progress(
-                        OperationProgress("Estimating usage from bounded visible message metadata")
-                    )
+                    progress(OperationProgress("Estimating usage from visible message metadata"))
                     estimated_bytes, sample_count = self._bounded_usage_estimate(cancel)
                     snapshot = replace(
                         snapshot,
                         usage_bytes=estimated_bytes,
-                        usage_source="Bounded visible-item lower-bound estimate",
-                        usage_confidence="Low (bounded estimate)",
+                        usage_source="Estimate from visible messages",
+                        usage_confidence="Low (estimate)",
                         usage_sample_count=sample_count,
                         usage_sample_limit=self.maximum_scan_items,
                         unavailable_reason=(
@@ -1393,7 +1402,7 @@ class StorageAreaBackend:
         else:
             capacity_source = capacity_source.replace("_", " ").capitalize()
         if mailbox is None:
-            unknown = QuotaThresholdView("issue-warning", "Issue warning", None, "unknown")
+            unknown = QuotaThresholdView("issue-warning", "Warning at", None, "unknown")
             return StorageSnapshotView(
                 None,
                 "unavailable",
@@ -1401,7 +1410,7 @@ class StorageAreaBackend:
                 QuotaThresholdView("prohibit-send", "Prohibit send", None, "unknown"),
                 QuotaThresholdView(
                     "prohibit-send-receive",
-                    "Prohibit send and receive",
+                    "Receiving stops at",
                     None,
                     "unknown",
                 ),
@@ -1445,11 +1454,11 @@ class StorageAreaBackend:
         return StorageSnapshotView(
             mailbox.used_bytes,
             mailbox.current_usage.source.value,
-            self._threshold("issue-warning", "Issue warning", mailbox.issue_warning),
-            self._threshold("prohibit-send", "Prohibit send", mailbox.prohibit_send),
+            self._threshold("issue-warning", "Warning at", mailbox.issue_warning),
+            self._threshold("prohibit-send", "Sending stops at", mailbox.prohibit_send),
             self._threshold(
                 "prohibit-send-receive",
-                "Prohibit send and receive",
+                "Receiving stops at",
                 mailbox.prohibit_send_receive,
             ),
             report.send_status is MailboxOperationStatus.BLOCKED,
@@ -1466,7 +1475,7 @@ class StorageAreaBackend:
 
     def _bounded_usage_estimate(self, cancel: Event) -> tuple[int, int]:
         if self.message_loader is None:
-            raise ValueError("A message loader is required for a bounded usage estimate.")
+            raise ValueError("A message loader is required for a usage estimate.")
         raw = self.message_loader("quota-usage", self.maximum_scan_items)
         total = 0
         count = 0
@@ -1482,7 +1491,7 @@ class StorageAreaBackend:
     ) -> tuple[tuple[InsightMessage, ...], StorageReport]:
         requested = min(self.maximum_scan_items, max(limit, 100))
         if self.online and self.message_loader is not None:
-            progress(OperationProgress("Loading bounded message metadata"))
+            progress(OperationProgress("Loading message metadata"))
             raw = self.message_loader(analysis_id, requested)
         elif analysis_id in {"largest-attachments", "attachment-types"} and (
             self.attachment_loader is not None
@@ -1623,13 +1632,13 @@ class StorageAreaBackend:
                 rows_list = [
                     StorageUsageRow(
                         "overview:mailbox-sample",
-                        "Bounded mailbox sample",
+                        "Mailbox sample",
                         "overview",
                         report.total_bytes,
                         report.scanned_count,
                         "bounded_metadata",
                         (
-                            "Total visible message bytes in this bounded scan. "
+                            "Total visible message bytes in this scan. "
                             "This is not an authoritative Exchange mailbox total."
                         ),
                     ),
@@ -1640,7 +1649,7 @@ class StorageAreaBackend:
                         report.attachment_bytes,
                         sum(bucket.item_count for bucket in report.by_attachment_type),
                         "bounded_attachment_metadata",
-                        "Known attachment bytes in the same bounded message sample.",
+                        "Known attachment bytes in the same message sample.",
                     ),
                 ]
                 for row_id, label, category, bucket in (
@@ -1721,7 +1730,7 @@ class StorageAreaBackend:
                             "possible duplicate group",
                             group.total_bytes,
                             len(group.references),
-                            "bounded metadata similarity",
+                            "metadata similarity",
                             (
                                 f"References: {', '.join(group.references[:8])} · "
                                 f"{group.explanation} Manual review is required; this row "
@@ -1799,16 +1808,11 @@ class StorageAreaBackend:
                 )
             if analysis_id in {"largest-attachments", "attachment-types"}:
                 note = (
-                    f"Bounded to {len(records)} attachment-owner records. Online analysis "
-                    "projects metadata for at most 50 attachment-bearing messages; offline "
-                    "analysis uses locally known draft/index metadata. Message bodies and "
-                    "attachment payloads were not downloaded."
+                    f"Based on {len(records)} messages with attachments. "
+                    "No message or attachment content was downloaded."
                 )
             else:
-                note = (
-                    f"Bounded to {len(records)} message summaries from the configured metadata "
-                    "loader; bodies and attachment payloads were not downloaded."
-                )
+                note = f"Based on {len(records)} messages. No message content was downloaded."
             result = StorageAnalysisView(
                 analysis_id,
                 title,
@@ -2034,14 +2038,14 @@ class StorageAreaBackend:
     ) -> str:
         try:
             _cancelled(cancel, "Exporting storage statistics")
-            progress(OperationProgress("Writing sanitized JSON export"))
+            progress(OperationProgress("Writing JSON export"))
             payload = {
                 "schema_version": 1,
                 "exported_at": datetime.now(UTC).isoformat(),
                 "snapshot": asdict(snapshot),
                 "analysis": asdict(analysis) if analysis is not None else None,
                 "limitations": [
-                    "Storage analytics are bounded metadata estimates.",
+                    "Storage analytics are metadata estimates.",
                     "Attachment payloads and message bodies are not downloaded for this report.",
                 ],
             }
@@ -2519,16 +2523,6 @@ class SettingsAreaBackend:
             raise _safe_error("Restoring settings revision", exc) from exc
 
 
-class ActivityStateReader(Protocol):
-    """Minimum durable state surface used by :class:`ActivityAreaBackend`."""
-
-    account_key: str
-
-    def initialize(self) -> None: ...
-
-    def connection(self): ...  # type: ignore[no-untyped-def]
-
-
 class ActivityAreaBackend:
     """Read sanitized durable activity and control an injected headless watcher."""
 
@@ -2552,7 +2546,7 @@ class ActivityAreaBackend:
         retry_delivery_callback: DeliveryRetry | None = None,
         notification_test_callback: NotificationTest | None = None,
         cleanup_restorer: CleanupRestorer | None = None,
-        configured_method: str = "bounded polling",
+        configured_method: str = "polling",
         configured_folders: Sequence[str] = (),
         active_profile: str | None = None,
         offline: bool = False,
@@ -2591,7 +2585,7 @@ class ActivityAreaBackend:
     ) -> ActivityAreaBackend:
         configured_folders: tuple[str, ...] = (context.config.default_folder,)
         active_profile: str | None = None
-        configured_method = "bounded polling"
+        configured_method = "polling"
         try:
             watcher = configured_watcher(context)
         except GUCmailError:
@@ -2884,16 +2878,8 @@ class ActivityAreaBackend:
             return []
         occurred_at = "1970-01-01T00:00:00+00:00"
         if not path.is_file():
-            return [
-                ActivityEventView(
-                    "watcher-log:unavailable",
-                    occurred_at,
-                    "watcher",
-                    "info",
-                    "Watcher log · no log file yet",
-                    f"The configured redacted log will appear at {self._safe(path, length=500)}.",
-                )
-            ]
+            # Nothing has been logged yet. An empty history reads better than a fake event.
+            return []
         try:
             occurred_at = datetime.fromtimestamp(path.stat().st_mtime, tz=UTC).isoformat()
             with path.open("rb") as handle:
@@ -2946,7 +2932,7 @@ class ActivityAreaBackend:
                 modified,
                 "watcher",
                 "info",
-                "Watcher log · no watcher entries in bounded tail",
+                "Watcher log · no watcher entries in tail",
                 f"Inspected the last 256 KiB of {self._safe(path, length=500)}.",
             )
         ]
@@ -3192,7 +3178,7 @@ class ActivityAreaBackend:
                     "mail",
                     "info",
                     action or "Application operation",
-                    "Sanitized local audit event; raw structured fields are omitted.",
+                    "Local audit event. Raw fields are hidden.",
                 )
             )
         checkpoints = self._query(
@@ -3307,7 +3293,7 @@ class ActivityAreaBackend:
                 ]
             events.sort(key=lambda item: (item.occurred_at, item.event_id), reverse=True)
             cutoff = self._activity_cleared_before()
-            retention = "bounded durable local history"
+            retention = "durable local history"
             if cutoff is not None:
                 retention += f" after {cutoff}"
             return ActivitySnapshotView(
@@ -3571,7 +3557,7 @@ class ActivityAreaBackend:
                     "Clearing Activity history requires explicit confirmation.",
                     retryable=False,
                 )
-            _cancelled(cancel, "Clearing local Activity history")
+            _cancelled(cancel, "Clearing activity history")
             current = self.plan_clear_activity(cancel=cancel, progress=progress)
             if current.confirmation_token != plan.confirmation_token:
                 raise PublicOperationError(
@@ -3587,7 +3573,7 @@ class ActivityAreaBackend:
                 preserved_operational_records=self._PRESERVED_ACTIVITY_STATE,
             )
         except BaseException as exc:
-            raise _safe_error("Clearing local Activity history", exc) from exc
+            raise _safe_error("Clearing activity history", exc) from exc
 
     def plan_cleanup_undo(
         self,

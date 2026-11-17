@@ -1,0 +1,30 @@
+  GUC Mail     Settings                                                                     More
+   General    Mail    Appearance    Accounts    Advanced
+             ──────
+  ────────────────────────────────────────────────────────────────────────────────────────────────
+   Search settings…                                                                         Ctrl+F
+  ────────────────────────────────────────────────────────────────────────────────────────────────
+
+                           Mail
+                           Make the inbox work your way.
+
+                Default folder                                    Inbox
+                Page size                                         25
+             >  Fill visible area                                 [x] On
+                Load enough headers to fill the window.
+
+             ──────────────────────────────────────────────────────────────────────────
+
+                Reading pane                                      Right
+                Mark read on open                                 [ ] Off
+                Open messages                                     Preview
+
+                       All mail settings  >
+
+
+
+
+
+
+  ────────────────────────────────────────────────────────────────────────────────────────────────
+   [Esc] Back  [Tab] Next  [Enter] Change                             [Ctrl+S] Save      Discard

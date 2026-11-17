@@ -29,6 +29,67 @@ def format_timestamp(value: datetime | None, *, pattern: str, timezone: str) -> 
     return sanitize_terminal(text, max_length=500)
 
 
+def friendly_time(
+    value: datetime | None,
+    *,
+    timezone: str,
+    now: datetime | None = None,
+    date_only: bool = False,
+) -> str:
+    """Short local time for screens, such as "Today 10:00", "Wed 12:00" or "3 Dec 2027"."""
+
+    if value is None:
+        return ""
+    zone = ZoneInfo(timezone)
+    local = value.astimezone(zone) if value.tzinfo is not None else value
+    today = (now or datetime.now(zone)).astimezone(zone).date()
+    days = (local.date() - today).days
+    clock = "" if date_only else " " + local.strftime("%H:%M")
+    if days == 0:
+        day = "Today"
+    elif days == 1:
+        day = "Tomorrow"
+    elif days == -1:
+        day = "Yesterday"
+    elif 1 < days < 7:
+        day = local.strftime("%a")
+    elif local.year == today.year:
+        day = f"{local.day} {local.strftime('%b')}"
+    else:
+        day = f"{local.day} {local.strftime('%b')} {local.year}"
+    return day + clock
+
+
+def list_time(value: datetime | None, *, timezone: str, now: datetime | None = None) -> str:
+    """Short time for a message list. "10:42", "Yesterday", "Tue 10:42", "4 Mar", "4 Mar 2025"."""
+
+    if value is None:
+        return ""
+    zone = ZoneInfo(timezone)
+    local = value.astimezone(zone) if value.tzinfo is not None else value
+    today = (now or datetime.now(zone)).astimezone(zone).date()
+    days = (today - local.date()).days
+    if days == 0:
+        return local.strftime("%H:%M")
+    if days == 1:
+        return "Yesterday"
+    if 1 < days < 7:
+        return local.strftime("%a %H:%M")
+    if local.year == today.year:
+        return f"{local.day} {local.strftime('%b')}"
+    return f"{local.day} {local.strftime('%b')} {local.year}"
+
+
+def friendly_date(value: date | None, *, timezone: str = "UTC") -> str:
+    """Like friendly_time, for a plain date."""
+
+    if value is None:
+        return ""
+    return friendly_time(
+        datetime(value.year, value.month, value.day, 12), timezone=timezone, date_only=True
+    )
+
+
 def json_text(value: Any, *, pretty: bool = True) -> str:
     return json.dumps(
         to_primitive(value),

@@ -1,4 +1,4 @@
-# Exchange, EWS, SOAP, and capability status
+# Exchange features and server support
 
 EWS capability has independent axes: a typed implementation path, detected server-version eligibility, authenticated account access, verification evidence, and safety class. “Implemented” never proves that this server permits the operation.
 

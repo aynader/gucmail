@@ -55,7 +55,7 @@ async def test_tools_remain_reachable_above_long_folder_tree_and_filter_works(
             "Flagged",
         ]
         assert str(tools.label) == "Tools"
-        assert str(folders.label) == "Exchange folders"
+        assert str(folders.label) == "Folders"
         assert len(folders.children) == 20
         assert not tools.is_expanded
         assert app.query_one("#message-filter", Input).region.height == 2

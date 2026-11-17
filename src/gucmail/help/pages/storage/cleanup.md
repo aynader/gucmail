@@ -1,4 +1,4 @@
-# Analyze mailbox cleanup without surprise deletion
+# Free up space
 
 Cleanup begins with a bounded analysis, never a mass mutation. Candidate groups can include large messages, large attachments, exact duplicates, old unread mail, newsletters, or selected folders.
 

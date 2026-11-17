@@ -10,7 +10,6 @@ from textual import on
 from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal
-from textual.message import Message
 from textual.screen import Screen
 from textual.widget import Widget
 from textual.widgets import Button, Footer, Input, Static
@@ -20,6 +19,10 @@ from gucmail.help.reference import shortcut_conflicts
 from gucmail.security import sanitize_terminal
 from gucmail.services.keyboard_bindings import KEYBOARD_SETTING, keyboard_catalog
 from gucmail.services.shortcuts import SHORTCUT_DEFAULTS
+from gucmail.tui.events import (  # noqa: F401 - moved, re-exported
+    ShortcutSettingRequested,
+    ShortcutsRequested,
+)
 from gucmail.tui.literal_select import LiteralSelect as Select
 from gucmail.tui.literal_table import LiteralDataTable as DataTable
 
@@ -72,10 +75,18 @@ def runtime_shortcut_records(
     """Read metadata only: never instantiate screens, services or a mailbox session."""
     # Include lazily imported routes before their first use. Read class metadata
     # without instantiating a screen, resolving credentials or opening a mailbox.
+    import importlib
+    import pkgutil
+
+    import gucmail.tui
     from gucmail.tui.desktop_setup_screen import DesktopSetupScreen
     from gucmail.tui.notification_reader import NotificationReaderApp
     from gucmail.tui.task_delete_screen import TaskDeleteOptionsScreen
     from gucmail.tui.unanswered_screen import UnansweredScreen
+
+    # Screens load on first use. Import them all so every shortcut is listed.
+    for module in pkgutil.iter_modules(gucmail.tui.__path__):
+        importlib.import_module(f"gucmail.tui.{module.name}")
 
     owners: set[type[Any]] = {
         DesktopSetupScreen,
@@ -262,17 +273,6 @@ def runtime_shortcut_records(
     return tuple(
         sorted(records, key=lambda row: (row.scope, row.context, row.key, row.shortcut_id))
     )
-
-
-class ShortcutsRequested(Message):
-    """Open the local binding browser from Help."""
-
-
-class ShortcutSettingRequested(Message):
-    def __init__(self, setting_id: str, binding_id: str | None = None) -> None:
-        super().__init__()
-        self.setting_id = setting_id
-        self.binding_id = binding_id
 
 
 class ShortcutsScreen(Screen[None]):

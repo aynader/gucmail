@@ -1,7 +1,8 @@
 # Known server limitations
 
-- Exact mailbox used/quota bytes are not a dependable standard-EWS feature. The client displays
-  `Quota unavailable` instead of presenting folder sums as quota.
+- EWS does not give mailbox users their quota limits. Usage is the sum of folder sizes
+  (`PidTagMessageSizeExtended`) under the mail folder root. The 92 MiB send limit is the known GUC
+  value, configurable in Settings.
 - The independent core-mail probe detected Exchange build `15.1.2375.7`. Advanced account permissions remain unprobed.
 - ResolveNames, free/busy, archive folders, recoverable items, rules, permissions, and directory
   visibility can be disabled or restricted independently.
@@ -21,8 +22,8 @@
 Core mail works against the GUC server: folder and message browsing, server drafts, sending,
 reply/forward, attachments, and move/delete/restore. Known GUC-specific limits:
 
-- The quota-property request does not return quota thresholds, so exact limits may show as
-  unavailable (see [Mailbox storage](../features/storage-and-quota.md)).
+- The quota-property request does not return quota thresholds. gucmail uses the known 92 MiB
+  send limit (see [Mailbox storage](../features/storage-and-quota.md)).
 - A free/busy (availability) request for your own mailbox can return an error.
 
 Rules, push subscriptions, and administrative operations depend on your account's permissions.

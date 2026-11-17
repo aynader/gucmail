@@ -194,13 +194,13 @@ def headless_status(
 
 
 @headless_app.command("health")
-@app.command("health")
+@app.command("health", hidden=True)
 def headless_health(
     ctx: typer.Context,
     profile: str = typer.Option("default"),
     heartbeat_timeout: int = typer.Option(180, min=30, max=86_400),
 ) -> None:
-    """Return mailbox-content-free watcher health suitable for automation."""
+    """Report whether new-mail alerts are healthy, for scripts."""
 
     core.run(
         ctx,

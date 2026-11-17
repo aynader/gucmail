@@ -28,6 +28,7 @@ from textual.widgets import Button, Label, Static
 from textual.worker import Worker, WorkerState
 
 from gucmail.errors import GUCmailError
+from gucmail.problems import plain_problem
 from gucmail.security import sanitize_terminal
 from gucmail.tui.literal_table import LiteralDataTable as DataTable
 from gucmail.tui.write_coordinator import (
@@ -566,11 +567,9 @@ class OperationalScreen(Screen[None]):
                 ViewState.OFFLINE if isinstance(error, OfflineOperationError) else ViewState.ERROR
             )
         elif isinstance(error, GUCmailError):
-            message = f"{action}: {error.message}"
+            message = f"{action} didn't work. {plain_problem(error)}"
             if error.context.mutation_uncertain:
-                message += " The change may have completed. Refresh before another mutation."
-            if error.context.suggestion:
-                message += " " + error.context.suggestion
+                message += " The change may have gone through. Refresh before trying again."
             retryable = (
                 self._operation_retry_safe
                 and error.context.retry_safe is not False
@@ -578,11 +577,7 @@ class OperationalScreen(Screen[None]):
             )
             state = ViewState.ERROR
         else:
-            error_type = sanitize_terminal(type(error).__name__, max_length=80) or "Error"
-            message = (
-                f"{action} failed ({error_type}). Details were omitted; use redacted logs "
-                "or diagnostics."
-            )
+            message = f"{action} didn't work. {plain_problem(error)}"
             retryable = True
             state = ViewState.ERROR
         self._set_view_state(state, message)

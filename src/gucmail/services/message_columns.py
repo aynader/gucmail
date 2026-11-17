@@ -32,7 +32,7 @@ class MessageColumn:
 
 
 DEFAULT_COLUMNS = tuple(
-    MessageColumn(key, visible=index < 5, compact=index < 3)
+    MessageColumn(key, visible=index < 5, compact=index < 4)
     for index, key in enumerate(COLUMN_LABELS)
 )
 
@@ -69,16 +69,20 @@ def parse_columns(value: object) -> tuple[MessageColumn, ...]:
     return tuple(columns)
 
 
+MIN_SUBJECT_WIDTH = 20
+_ESSENTIAL_COLUMNS = frozenset({"state", "sender", "subject"})
+
+
 def fitted_columns(
     columns: tuple[MessageColumn, ...], width: int, cell_padding: int
 ) -> tuple[tuple[MessageColumn, int], ...]:
     width = max(18, width)
     visible = tuple(c for c in columns if c.visible and (width >= 90 or c.compact))
     automatic = {
-        "state": 2,
+        "state": 4,
         "sender": max(6, min(28, width // 4)),
         "subject": 4,
-        "received": 20,
+        "received": 12,
         "size": 8,
         "attachments": 5,
         "flagged": 4,
@@ -87,13 +91,24 @@ def fitted_columns(
         "folder": 18,
         "conversation": 18,
     }
-    sizes = [c.width if c.width is not None else automatic[c.id] for c in visible]
-    for index, column in enumerate(visible):
-        if column.id == "subject" and column.width is None:
-            sizes[index] = max(
-                4,
-                width
-                - 2 * cell_padding * len(visible)
-                - sum(size for i, size in enumerate(sizes) if i != index),
-            )
-    return tuple(zip(visible, sizes, strict=True))
+    while True:
+        sizes = [c.width if c.width is not None else automatic[c.id] for c in visible]
+        subject = None
+        for index, column in enumerate(visible):
+            if column.id == "subject" and column.width is None:
+                subject = index
+                sizes[index] = max(
+                    4,
+                    width
+                    - 2 * cell_padding * len(visible)
+                    - sum(size for i, size in enumerate(sizes) if i != index),
+                )
+        # Keep the subject readable. Extra automatic columns give way first, last one first.
+        extras = [
+            index
+            for index, column in enumerate(visible)
+            if column.id not in _ESSENTIAL_COLUMNS and column.width is None
+        ]
+        if subject is None or sizes[subject] >= MIN_SUBJECT_WIDTH or not extras:
+            return tuple(zip(visible, sizes, strict=True))
+        visible = tuple(c for i, c in enumerate(visible) if i != extras[-1])

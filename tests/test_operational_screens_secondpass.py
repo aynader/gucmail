@@ -373,7 +373,12 @@ async def test_backup_screen_controls_execute_real_synthetic_workflow() -> None:
             "keep 7"
             in str(screen.query_one("#backup-retention-summary", Static).render()).casefold()
         )
-        assert "Estimated items: 428" in str(screen.query_one("#backup-detail", Static).render())
+        await _wait_for(
+            pilot,
+            lambda: (
+                "Estimated items: 428" in str(screen.query_one("#backup-detail", Static).render())
+            ),
+        )
 
         await click_button(pilot, pilot.app.screen.query_one("#backup-create", Button))
         await _wait_for(pilot, lambda: isinstance(app.screen, ConfirmationScreen))

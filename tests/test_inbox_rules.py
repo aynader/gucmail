@@ -271,7 +271,7 @@ async def test_mounted_uncertain_write_explains_outcome_and_offers_no_write_retr
         from textual.widgets import Static
 
         text = str(screen.query_one("#area-state", Static).content)
-        assert "may have completed" in text and "Refresh" in text
+        assert "may have gone through" in text and "Refresh" in text
         assert not screen.query_one("#area-retry", Button).display
         screen.action_retry()
         assert len(server.writes) == 1

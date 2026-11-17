@@ -1,24 +1,20 @@
-# Mailbox quota and local storage
+# Mailbox storage
 
 Mailbox storage uses separate values: current server-side usage, Issue Warning, Prohibit Send, and Prohibit Send & Receive. Each number has its own evidence source. GUC Mail never calls the Prohibit Send threshold total capacity and never invents unknown thresholds.
 
-## What the compact indicator means
+## What the header shows
 
-When current usage and the send-block threshold are both known, the header shows progress toward the sending threshold:
-
-```text
-Send quota  ████████░░  78%  72/92 MB
-```
-
-If usage is above that threshold, the bar stays visually full but the percentage continues above 100 percent:
+When usage and the send limit are both known, the header compares them:
 
 ```text
-Send quota  ██████████  105%  97/92 MB · SEND BLOCKED
+Mailbox 74 MiB of 92 MiB (81%)
 ```
 
-This means the mailbox contains 105 percent of the amount at which Exchange can block sending. It does not claim that the mailbox is 105 percent of a total physical capacity. Receiving can have a different, still unknown threshold.
+The percentage can go above 100%. That means sending is blocked, not that the mailbox is over a total capacity. Receiving can have a different, unknown limit.
 
-When only usage is known, the indicator says `Mailbox 74 MB used · limits unknown` and shows no percentage. When only the send threshold is known, it says `Send limit 92 MB · usage unavailable`. Only when neither value is available does it say `Mailbox storage unavailable`.
+When only usage is known it says `Mailbox 74 MiB used`. When only the limit is known it says `Mailbox limit 92 MiB`. When neither is known it says `Storage unavailable`.
+
+Usage is the sum of your folder sizes as the GUC server reports them. Hidden system folders add a few MiB that this does not count. gucmail checks again every 10 minutes.
 
 ## Threshold evidence
 

@@ -1,4 +1,4 @@
-# Find answers and act safely from Help
+# Using Help
 
 Help is a complete offline manual, not just a shortcut card. It searches article titles, headings, body text, aliases, canonical commands, settings, natural-language examples, error signatures, and glossary terms. No question or mailbox detail is sent to an online search engine or language model.
 

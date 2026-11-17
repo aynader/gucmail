@@ -1,4 +1,4 @@
-# Create and verify a private backup
+# Make a backup
 
 A backup is an independent, self-describing archive. It is not the disposable cache or search index. It can contain complete private messages, calendar items, contacts, tasks, and attachments according to the selected scope.
 

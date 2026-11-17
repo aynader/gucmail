@@ -78,7 +78,9 @@ from gucmail.models import (
     Importance,
     MessageDetail,
     MessageSummary,
+    QuotaConfidence,
     QuotaInfo,
+    QuotaSource,
     SearchQuery,
     Sensitivity,
     TaskInfo,
@@ -291,8 +293,11 @@ _ORDER_FIELDS = {
     "size": "size",
     "importance": "importance",
 }
+# "Archive" is a normal folder in Outlook, found by name. The separate online archive
+# mailbox has its own explicit names.
 _STANDARD_FOLDERS = {
-    "archive": "archive_inbox",
+    "archivemailbox": "archive_inbox",
+    "onlinearchive": "archive_inbox",
     "calendar": "calendar",
     "contacts": "contacts",
     "deleted": "trash",
@@ -505,7 +510,7 @@ def translate_ews_error(
         "ErrorUserNotAllowedByPolicy",
     }:
         return UnsupportedFeatureError(
-            f"Exchange does not support or permit {operation} for this account."
+            f"The GUC server does not permit {operation} for this account."
         )
     is_transport = (
         isinstance(exc, (ConnectionError, TimeoutError, OSError))
@@ -630,6 +635,24 @@ def _load_exchangelib() -> SimpleNamespace:
     )
 
 
+_FOLDER_SIZE_FIELD = "gucmail_size_extended"
+
+
+def _register_folder_size() -> str:
+    """Register PidTagMessageSizeExtended (0x0E08) on folders once per process."""
+
+    from exchangelib.extended_properties import ExtendedProperty
+    from exchangelib.folders import Folder
+
+    class FolderSizeExtended(ExtendedProperty):  # type: ignore[misc]
+        property_tag = 0x0E08
+        property_type = "Long"
+
+    with contextlib.suppress(ValueError):
+        Folder.register(_FOLDER_SIZE_FIELD, FolderSizeExtended)
+    return _FOLDER_SIZE_FIELD
+
+
 class EWSGateway:
     """Single-account, fake-friendly implementation of all core service protocols."""
 
@@ -657,6 +680,7 @@ class EWSGateway:
         self._attachment_uploads = AttachmentUploadStore(state)
         self._account_factory = account_factory
         self._account: Any | None = None
+        self._quota_cache: tuple[float, QuotaInfo | None] | None = None
         self._bindings_value = bindings
         self._factory_overrides = dict(factory_overrides or {})
         self.allow_raw_ews_ids = allow_raw_ews_ids
@@ -3012,10 +3036,63 @@ class EWSGateway:
     def forward(self, reference: str, draft: DraftData) -> dict[str, Any]:
         return self._reply_or_forward("forward", reference, draft)
 
+    QUOTA_CACHE_SECONDS = 600.0
+
     def get_quota(self) -> QuotaInfo | None:
-        # Standard user-mailbox EWS exposes folder sizes and MailTips thresholds, not a
-        # dependable exact used/quota pair. Returning None is deliberate capability honesty.
-        return None
+        """Mailbox usage as the sum of folder sizes under the mail folder root.
+
+        Exchange does not expose the quota limits to a mailbox user over EWS, so only
+        usage is returned. Hidden system folders are not counted. The result is cached
+        for ten minutes so a refresh does not repeat the folder walk.
+        """
+
+        cached = self._quota_cache
+        if cached is not None and time.monotonic() - cached[0] < self.QUOTA_CACHE_SECONDS:
+            return cached[1]
+
+        def load() -> QuotaInfo | None:
+            from exchangelib.fields import FieldPath
+            from exchangelib.folders import DeletedItems, Folder, FolderCollection
+
+            field = Folder.get_field_by_fieldname(_register_folder_size())
+            root = self.account.msg_folder_root
+            found = [
+                folder
+                for folder in FolderCollection(account=self.account, folders=[root]).find_folders(
+                    depth="Deep"
+                )
+                if not isinstance(folder, BaseException)
+            ]
+            total = 0
+            deleted: int | None = None
+            counted = 0
+            everything = FolderCollection(account=self.account, folders=[root, *found])
+            for folder in everything.get_folders(additional_fields={FieldPath(field=field)}):
+                if isinstance(folder, BaseException):
+                    continue
+                size = getattr(folder, _FOLDER_SIZE_FIELD, None)
+                if size is None:
+                    continue
+                counted += 1
+                total += int(size)
+                if isinstance(folder, DeletedItems):
+                    deleted = (deleted or 0) + int(size)
+            if not counted:
+                return None
+            return QuotaInfo(
+                used_bytes=total,
+                deleted_bytes=deleted,
+                source="folder_sizes",
+                usage_source=QuotaSource.SERVER_REPORTED,
+                usage_confidence=QuotaConfidence.HIGH,
+                limitations=(
+                    "Usage is the sum of your folder sizes. Hidden system folders add a little.",
+                ),
+            )
+
+        quota = self._call("mailbox size", load, read_only=True)
+        self._quota_cache = (time.monotonic(), quota)
+        return quota
 
     # ------------------------------------------------------------------
     # Calendar

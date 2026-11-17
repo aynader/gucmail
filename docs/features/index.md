@@ -1,22 +1,9 @@
-# Mail and local features
+# What gucmail does
 
-## Quick explanation
+The app and the `gucmail` commands do the same things, with the same safety checks. What works
+also depends on what the GUC server allows. [Support status](support-status.md) lists it.
 
-The default interface keeps ordinary mail actions visible and moves Exchange-specific details into
-advanced or expert views. Features are implemented through shared services, so the TUI and command
-interface use the same safety checks.
-
-What works for you also depends on the server and your account permissions.
-`gucmail ews capabilities` lists what the client implements; its server and account fields show
-`not_probed` until a capability has been checked against your server.
-
-## Everyday mail
-
-Use Inbox or another folder to list a bounded page of message summaries. A message body and its
-attachments are fetched only when requested. The reader converts HTML to safe text and does not
-load scripts, frames, remote images, or tracking pixels.
-
-Typical commands are:
+## Mail
 
 ```text
 gucmail folders tree
@@ -25,84 +12,61 @@ gucmail messages show MESSAGE_REFERENCE
 gucmail attachments list MESSAGE_REFERENCE
 ```
 
-Message references are local, stable handles. They avoid copying a long Exchange item ID. A move or
-server update can change the underlying Exchange ID; the local reference mapping is updated when
-the operation returns a replacement.
+The list loads a page of headers. Message text and attachments download only when you open them.
+Formatted mail is shown as plain text, without remote images or scripts.
 
-## Compose, drafts, and delivery
+`MESSAGE_REFERENCE` is a short name gucmail gives each message, so you never copy long server IDs.
 
-Composition validates recipients, empty subject/body, attachment paths and sizes, duplicate
-recipients, and common missing-attachment wording. Sending always has a review point. Reply all
-must show its resolved recipient list because aliases and hidden recipients can make automatic
-recipient selection surprising.
+Folders show their Outlook names, even when your mailbox uses another language.
 
-The draft service can write a local recovery copy; it never sends a message. A server draft, local
-recovery draft, synchronized draft, and conflicted draft are distinct states. See the
-[user guide](../user-guide/index.md) and [scheduled-message guide](../scheduling/index.md).
+## Writing
 
-## Folder and message changes
+gucmail checks recipients, attachments and empty subjects before sending, and warns when you
+mention an attachment but didn't add one. Sending always shows a review first. Reply all lists
+every recipient.
 
-Marking read/unread, changing categories or importance, moving, copying, and ordinary deletion are
-**mutating** server operations. Ordinary delete moves an item to Deleted Items where possible.
-Permanent deletion is **destructive**, requires a separate explicit irreversible option and
-confirmation, and is never the default for a bulk operation.
+Drafts save as you type. See the [user guide](../user-guide/index.md) and
+[scheduled mail](../scheduling/index.md).
 
-Folders are selected by user-facing paths and may have localized names. The implementation resolves
-standard folder roles instead of assuming English display names. Large trees and message lists are
-loaded in bounded pages.
+## Changing mail
 
-## Storage, insights, and cleanup
+Mark read, flag, categorize, move, copy and delete all change mail on the server. Delete moves mail
+to Deleted Items, where you can get it back. Deleting for good is never the default and always
+asks twice.
 
-`gucmail quota show` keeps Exchange's Issue Warning, Prohibit Send, and Prohibit Send & Receive
-thresholds independent. It labels exact, estimated, notification-derived, configured, fallback, and
-unknown values. The known 92 MB GUC value is a send-block threshold, not total capacity. See
-[Mailbox storage and Exchange thresholds](storage-and-quota.md). Local cache, index, and backup
-sizes are reported separately.
+## Storage and tidying up
 
-Insights can summarize bounded storage metadata by folder or sender and find exact duplicate
-candidates. Conversation-complete unanswered-mail analysis is explicitly unavailable because the
-adapter cannot yet prove aliases and full thread membership. Cleanup is plan-based:
+```text
+gucmail quota show
+gucmail insights storage
+gucmail insights senders
+gucmail insights duplicates
+gucmail insights unanswered --self-address me@example.test
+gucmail cleanup analyze
+```
 
-1. Analyze a bounded scope.
-2. Review candidates, exact counts, exclusions, and estimated reclaimed space.
-3. Export or inspect the plan.
-4. Confirm a recoverable action.
-5. Review the result and recovery guidance.
+[Mailbox storage](storage-and-quota.md) explains the numbers. Cleanup always shows a plan with
+exact counts and the space you'd free, and moves mail to Deleted Items rather than deleting it for
+good.
 
-Cleanup never permanently deletes by default.
+## On your computer only
 
-## Local-only features
+Saved searches, drafts, scheduled mail, webhooks and clusters are stored on your computer. Deleting
+gucmail's data folder never deletes server mail, but it does lose scheduled mail and drafts. See
+[where gucmail keeps data](../privacy-and-security/local-data-locations-and-retention.md).
 
-Saved searches, durable drafts, schedules, webhook definitions, checkpoints, and deterministic
-search clusters are local. The database schema reserves metadata for future pins, snoozes,
-reminders, notes, and templates, but this release does not expose those as finished workflows.
-Removing local state does not delete server mail, but it can destroy scheduled jobs, recovery
-metadata, and integration history; follow the retention guide instead of deleting it casually.
+## Basic, Advanced and Expert
 
-## Progressive disclosure
+**Settings → Advanced → Settings complexity** changes how much the app shows.
 
-- **Basic:** mail, attachments, search, drafts, scheduling, calendar, contacts, and simple quota.
-- **Advanced:** folders, detailed filters, backup, monitoring, rules, local indexing, cleanup,
-  metadata, and structured exports.
-- **Expert:** capability inspection, typed SOAP operations, extended properties, sync states, and
-  sanitized diagnostics. Arbitrary raw-SOAP execution is intentionally unavailable.
+- **Basic** covers mail, attachments, search, drafts, scheduling, calendar, contacts and storage.
+- **Advanced** adds folders, filters, backups, alerts, rules, indexing and cleanup.
+- **Expert** adds server details and diagnostics.
 
-Changing mode changes presentation only. It does not change mailbox semantics or permissions.
+It only changes what's shown, never what your mail does.
 
-## Troubleshooting
+## Good to know
 
-- A command says **unsupported**: inspect `gucmail ews describe OPERATION`; the server version or
-  account may not allow it.
-- A reference is stale: list the folder again so the local mapping can be refreshed.
-- A bulk operation stops partway: review the per-item result. Exit code `10` means partial success.
-- Storage values are partial: inspect each value's source; never treat a folder-size estimate or the
-  92 MB send threshold as a total mailbox capacity.
-
-See [Troubleshooting by symptom](../troubleshooting/index.md).
-
-## Security and privacy
-
-Email fields and filenames are hostile input. Terminal control characters are removed, attachment
-paths are contained beneath the chosen directory, and active HTML is not rendered. Saving an
-attachment or enabling a command hook requires an explicit user action. See
-[Privacy and security](../privacy-and-security/index.md).
+- "Unsupported" means the GUC server doesn't offer it. Nothing changed.
+- If a message changed elsewhere, press F5 and try again.
+- If a bulk action stops partway, it lists what finished. Exit code 10 means some items failed.

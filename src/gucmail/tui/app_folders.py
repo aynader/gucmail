@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from rich.text import Text
 from textual import work
@@ -11,10 +11,6 @@ from textual.widgets import (
     Tree,
 )
 
-from gucmail.commands import (
-    CommandContext,
-    CommandInvocation,
-)
 from gucmail.errors import (
     ConfigurationError,
 )
@@ -22,19 +18,15 @@ from gucmail.models import (
     FolderInfo,
 )
 from gucmail.security import sanitize_terminal
-from gucmail.services._base import MutationPlan
-from gucmail.services.folders import FolderService
 from gucmail.tui.app_core import AppCore
 from gucmail.tui.app_helpers import _is_mail_folder_class, _safe_failure
-from gucmail.tui.dialogs import (
-    ConfirmationScreen,
-    FolderDetailsScreen,
-    FolderMoveScreen,
-    FolderNameScreen,
-)
 from gucmail.tui.write_coordinator import (
     coordinated_write,
 )
+
+if TYPE_CHECKING:
+    from gucmail.commands import CommandContext, CommandInvocation
+    from gucmail.services._base import MutationPlan
 
 
 class FoldersMixin(AppCore):
@@ -48,13 +40,10 @@ class FoldersMixin(AppCore):
 
     @staticmethod
     def _folder_label(folder: FolderInfo) -> str:
+        # Like Outlook, show only the unread count, and only when there is something unread.
         name = sanitize_terminal(folder.name, max_length=180) or "(unnamed folder)"
-        if folder.unread_count is not None and folder.total_count is not None:
-            return f"{name}  {folder.unread_count}/{folder.total_count}"
-        if folder.unread_count is not None:
-            return f"{name}  ({folder.unread_count} unread)"
-        if folder.total_count is not None:
-            return f"{name}  ({folder.total_count})"
+        if folder.unread_count:
+            return f"{name}  {folder.unread_count}"
         return name
 
     def _request_folder_children(
@@ -95,6 +84,8 @@ class FoldersMixin(AppCore):
         offset: int,
         append: bool,
     ) -> None:
+        from gucmail.services.folders import FolderService
+
         try:
             gateway = self._ensure_gateway()
             service = FolderService(gateway)
@@ -116,7 +107,7 @@ class FoldersMixin(AppCore):
                 self._render_folder_error,
                 token,
                 node_id,
-                _safe_failure(exc, action="Folder hierarchy unavailable"),
+                _safe_failure(exc, action="Couldn't load folders"),
             )
 
     def _render_folder_children(
@@ -390,6 +381,8 @@ class FoldersMixin(AppCore):
         return folder if isinstance(folder, FolderInfo) else None
 
     def _prompt_folder_create(self, invocation: CommandInvocation) -> None:
+        from gucmail.tui.dialogs import FolderNameScreen
+
         parent = self._selected_folder_info()
         parent_reference = parent.reference if parent is not None else None
         parent_label = parent.path if parent is not None else "the mailbox root"
@@ -421,6 +414,8 @@ class FoldersMixin(AppCore):
         self._prompt_folder_create(invocation)
 
     def _prompt_folder_rename(self) -> None:
+        from gucmail.tui.dialogs import FolderNameScreen
+
         folder = self._selected_folder_info()
         if folder is None:
             self._set_status("Select an Exchange folder before choosing Rename folder.")
@@ -462,13 +457,15 @@ class FoldersMixin(AppCore):
     def _prepare_folder_empty_path(self, folder: str) -> None:
         """Resolve an explicit safe folder selector before showing strong confirmation."""
 
+        from gucmail.services.folders import FolderService
+
         try:
             plan = FolderService(self._ensure_gateway()).plan_empty(folder)
             self.call_from_thread(self._confirm_folder_mutation, plan)
         except Exception as exc:
             self.call_from_thread(
                 self._set_status,
-                _safe_failure(exc, action="Folder empty unavailable"),
+                _safe_failure(exc, action="Couldn't empty the folder"),
             )
 
     @work(thread=True, exclusive=True, group="folder-mutation")
@@ -479,6 +476,8 @@ class FoldersMixin(AppCore):
         reference: str | None,
         value: str | None = None,
     ) -> None:
+        from gucmail.services.folders import FolderService
+
         try:
             service = FolderService(self._ensure_gateway())
             if operation == "create":
@@ -498,10 +497,12 @@ class FoldersMixin(AppCore):
         except Exception as exc:
             self.call_from_thread(
                 self._set_status,
-                _safe_failure(exc, action=f"Folder {operation} unavailable"),
+                _safe_failure(exc, action=f"Couldn't {operation} the folder"),
             )
 
     def _confirm_folder_mutation(self, plan: MutationPlan) -> None:
+        from gucmail.tui.dialogs import ConfirmationScreen
+
         operation = plan.operation.removeprefix("folder_").replace("_", " ")
         detail = plan.summary
         if plan.operation == "folder_empty":
@@ -524,6 +525,8 @@ class FoldersMixin(AppCore):
     @work(thread=True, exclusive=False, group="folder-mutation")
     @coordinated_write()
     def _execute_folder_mutation(self, plan: MutationPlan) -> None:
+        from gucmail.services.folders import FolderService
+
         try:
             execution = FolderService(self._ensure_gateway()).execute_mutation(
                 plan,
@@ -536,7 +539,7 @@ class FoldersMixin(AppCore):
             operation = plan.operation.removeprefix("folder_").replace("_", " ")
             self.call_from_thread(
                 self._set_status,
-                _safe_failure(exc, action=f"Folder {operation} failed"),
+                _safe_failure(exc, action=f"Couldn't {operation} the folder"),
             )
 
     def _folder_mutation_finished(
@@ -563,6 +566,8 @@ class FoldersMixin(AppCore):
         self._set_status(f"Folder {operation} completed · refreshing tree")
 
     def _show_selected_folder_details(self) -> None:
+        from gucmail.tui.dialogs import FolderDetailsScreen
+
         folder = self._selected_folder_info()
         if folder is None:
             self._set_status("Select an Exchange folder before showing folder details.")
@@ -581,6 +586,8 @@ class FoldersMixin(AppCore):
         )
 
     def _prompt_folder_move(self, invocation: CommandInvocation) -> None:
+        from gucmail.tui.dialogs import FolderMoveScreen
+
         selected = self._selected_exchange_folder()
         if selected is None:
             self._set_status("Select a movable Exchange folder before choosing Move folder.")
@@ -599,6 +606,8 @@ class FoldersMixin(AppCore):
 
     @work(thread=True, exclusive=True, group="folder-move")
     def _prepare_folder_move(self, source_reference: str, destination: str) -> None:
+        from gucmail.services.folders import FolderService
+
         try:
             plan = FolderService(self._ensure_gateway()).plan_move(
                 f"id:{source_reference}",
@@ -608,10 +617,12 @@ class FoldersMixin(AppCore):
         except Exception as exc:
             self.call_from_thread(
                 self._set_status,
-                _safe_failure(exc, action="Folder move unavailable"),
+                _safe_failure(exc, action="Couldn't move the folder"),
             )
 
     def _confirm_folder_move(self, plan: MutationPlan) -> None:
+        from gucmail.tui.dialogs import ConfirmationScreen
+
         def confirmed(value: bool | None) -> None:
             if value:
                 self._execute_folder_move(plan)
@@ -624,6 +635,8 @@ class FoldersMixin(AppCore):
     @work(thread=True, exclusive=False, group="folder-move")
     @coordinated_write()
     def _execute_folder_move(self, plan: MutationPlan) -> None:
+        from gucmail.services.folders import FolderService
+
         try:
             result = FolderService(self._ensure_gateway()).execute_mutation(
                 plan,
@@ -640,7 +653,7 @@ class FoldersMixin(AppCore):
         except Exception as exc:
             self.call_from_thread(
                 self._set_status,
-                _safe_failure(exc, action="Folder move failed"),
+                _safe_failure(exc, action="Couldn't move the folder"),
             )
 
     def _navigate_visible_mail_folder(self, tree: Tree[Any], *, forward: bool) -> None:

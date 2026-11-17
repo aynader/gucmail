@@ -344,19 +344,7 @@ async def test_normal_settings_cancel_apply_grouping_keeps_selection_and_delete_
         subject = table.get_cell("last", "subject")
         assert isinstance(subject, Text)
         assert subject.plain == "[2/2] [bold]Hostile[/bold] subject"
-        assert "grouped in this page" in str(app.query_one("#message-heading", Static).render())
-        table.focus()
-        await pilot.press("d")
-        await wait_for(pilot, lambda: isinstance(app.screen, ConfirmationScreen))
-        assert VALUES["mail.delete_folder"] in app.screen.detail
-        assert "last" in app.screen.detail and "exactly 1" in app.screen.detail
-        for identifier in ("#confirm", "#cancel"):
-            button = app.screen.query_one(identifier, Button)
-            assert button.region.y >= 0 and button.region.bottom <= size[1]
-        await pilot.press("escape")
-        await pilot.pause()
-        assert not gateway.mutations
-        assert app.ui.selected_reference == "last" and all(not m.is_read for m in app._messages)
+        assert "as conversations" in str(app.query_one("#message-heading", Static).render())
         settings_for(context).set("mail.group_conversations", False)
         app._apply_committed_settings(("mail.group_conversations",))
         assert [r.value for r in table.rows] == ["first", "other", "last", "unknown"]
@@ -367,7 +355,7 @@ async def test_normal_settings_cancel_apply_grouping_keeps_selection_and_delete_
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("behavior", ["deleted_items", "move_to_folder"])
-async def test_confirmed_delete_captures_target_and_destination_despite_later_changes(
+async def test_delete_key_moves_the_highlighted_message_to_the_chosen_folder(
     tmp_path, monkeypatch, behavior
 ):
     context = _context(tmp_path)
@@ -383,22 +371,12 @@ async def test_confirmed_delete_captures_target_and_destination_despite_later_ch
         await pilot.pause()
         assert app.ui.selected_reference == "last"
         app.action_delete()
-        await wait_for(
-            pilot, lambda: isinstance(app.screen, ConfirmationScreen) and app.screen.is_mounted
-        )
-        await pilot.pause()
-        service.set("mail.delete_behavior", "move_to_folder")
-        service.set("mail.delete_folder", "inbox/Changed after review")
-        app.ui.selected_reference = "other"
-        app.screen.query_one("#confirm", Button).focus()
-        await pilot.press("enter")
         await wait_for(pilot, lambda: bool(gateway.mutations))
-        expected = (
-            ("delete", "last", False)
-            if behavior == "deleted_items"
-            else ("move", "last", VALUES["mail.delete_folder"])
+        destination = (
+            "deleteditems" if behavior == "deleted_items" else VALUES["mail.delete_folder"]
         )
-        assert gateway.mutations == [expected]
+        assert gateway.mutations == [("move", "last", destination)]
+        assert not isinstance(app.screen, ConfirmationScreen)
 
 
 @pytest.mark.asyncio
@@ -418,20 +396,13 @@ async def test_missing_delete_destination_and_failed_move_preserve_ui_without_su
         assert app.ui.selected_reference == "last"
         app.action_delete()
         await pilot.pause()
-        assert not isinstance(app.screen, ConfirmationScreen)
         assert "destination" in app._status_activity and not gateway.mutations
         service.set("mail.delete_folder", VALUES["mail.delete_folder"])
         gateway.fail_move = True
         app.action_delete()
-        await wait_for(
-            pilot, lambda: isinstance(app.screen, ConfirmationScreen) and app.screen.is_mounted
-        )
-        await pilot.pause()
-        app.screen.query_one("#confirm", Button).focus()
-        await pilot.press("enter")
-        await wait_for(pilot, lambda: "uncertain" in app._status_activity)
-        assert "Message moved" not in app._status_activity
-        assert app.ui.selected_reference == "last" and app._messages == gateway.rows
+        await wait_for(pilot, lambda: "stopped" in app._status_activity)
+        assert "Ctrl+Z" not in app._status_activity
+        await wait_for(pilot, lambda: app._messages == gateway.rows)
         assert len(gateway.mutations) == 1 and not gateway.calls
 
 

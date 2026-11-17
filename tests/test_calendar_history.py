@@ -309,6 +309,8 @@ async def test_actual_calendar_keyboard_history_and_late_result_keep_original_ev
         )
         scroll = screen.query_one("#calendar-detail-scroll")
         scroll.focus()
+        # Under load the pane can still be laying out. End needs something to scroll.
+        await wait_for(pilot, lambda: scroll.max_scroll_y > 0)
         await pilot.press("end")
         await wait_for(pilot, lambda: scroll.scroll_y == scroll.max_scroll_y)
         assert scroll.max_scroll_y > 0
@@ -328,7 +330,7 @@ async def test_actual_calendar_keyboard_history_and_late_result_keep_original_ev
         await wait_for(pilot, lambda: not screen._operation_active)
         await pilot.pause()
         assert len(gateway.history_calls) == 2
-        assert "Synthetic history read failed" in str(
+        assert "Can't reach the GUC mail server" in str(
             screen.query_one("#area-state", Static).content
         )
         assert screen.query_one("#area-retry").display

@@ -1,4 +1,4 @@
-# View, download, and inspect attachments safely
+# Attachments
 
 Attachment metadata is listed without automatically downloading content. A save operation retrieves only the selected attachment and keeps the destination beneath the chosen directory.
 

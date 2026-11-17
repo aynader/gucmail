@@ -44,29 +44,29 @@ class StartupScreen(OperationalScreen):
 
     def compose(self) -> ComposeResult:
         with VerticalScroll(id="startup-content"):
-            yield Label("Automatic monitoring at sign-in")
+            yield Label("Start alerts when you sign in")
             yield Static(
-                "The watcher runs without opening the mail interface. Your computer must be on. "
-                "Account credentials must be available without a prompt.",
+                "Checks for new mail in the background after you sign in to your computer. "
+                "Your password must be saved for this to work.",
                 markup=False,
             )
-            yield Static("Inspecting operating-system state…", id="area-state", markup=False)
-            yield Label("Monitoring profile")
+            yield Static("Checking…", id="area-state", markup=False)
+            yield Label("Profile")
             yield Input("default", id="startup-profile")
-            yield Label("Startup delay (seconds)")
+            yield Label("Wait after sign-in (seconds)")
             yield Input("30", type="integer", id="startup-delay")
-            yield Label("Restart delay after failure (seconds)")
+            yield Label("Wait before restarting after a problem (seconds)")
             yield Input("60", type="integer", id="startup-restart-delay")
-            yield Label("Restart attempts")
+            yield Label("Restart tries")
             yield Input("3", type="integer", id="startup-attempts")
             yield Static("", id="startup-status", markup=False)
             with Horizontal(classes="startup-actions"):
-                yield Button("Enable…", id="startup-enable", variant="primary")
+                yield Button("Turn on…", id="startup-enable", variant="primary")
                 yield Button("Repair…", id="startup-repair")
-                yield Button("Disable…", id="startup-disable")
+                yield Button("Turn off…", id="startup-disable")
             with Horizontal(classes="startup-actions"):
-                yield Button("Test / Refresh", id="startup-refresh")
-                yield Button("Remove integration…", id="startup-uninstall", variant="warning")
+                yield Button("Check", id="startup-refresh")
+                yield Button("Remove…", id="startup-uninstall", variant="warning")
                 yield Button("Back", classes="area-close")
             yield Static("", id="area-progress", markup=False)
 
@@ -110,7 +110,7 @@ class StartupScreen(OperationalScreen):
             self._set_view_state(ViewState.ERROR, str(exc))
             return
         self._begin_operation(
-            "Inspecting automatic startup",
+            "Checking start at sign-in",
             lambda _cancel, _progress: self.service.preview(
                 profile=str(values["profile"]),
                 startup_delay=int(str(values["startup_delay"])),
@@ -179,7 +179,7 @@ class StartupScreen(OperationalScreen):
                 return result
 
             self._begin_operation(
-                "Applying automatic startup",
+                "Changing start at sign-in",
                 run,
                 lambda _: self.action_refresh(),
                 timeout_seconds=180,

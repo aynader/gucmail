@@ -44,6 +44,7 @@ EXPECTED_SCHEMA: dict[str, frozenset[str]] = {
             "last_seen_at",
         }
     ),
+    "message_list_cache": frozenset({"account_key", "folder", "payload_json", "cached_at"}),
     "folder_cache": frozenset(
         {
             "ews_id",

@@ -192,7 +192,7 @@ async def test_failed_theme_write_keeps_preview_and_redacts_low_level_error(tmp_
         assert backend.session.is_previewing
         assert not app_write_coordinator(app).pending
         message = str(screen.query_one("#theme-state", Static).content)
-        assert "failed (OSError)" in message and "owned-secret-sentinel" not in message
+        assert "can't be opened" in message and "owned-secret-sentinel" not in message
 
 
 @pytest.mark.asyncio

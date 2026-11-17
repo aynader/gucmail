@@ -104,6 +104,7 @@ class ComposeScreen(ComposerSubmissionSession):
         width: auto; min-width: 8; height: 3; margin-left: 1; padding: 0 1;
     }
     #compose-actions #compose-save { width: 14; }
+    #compose-actions #compose-send-later { width: 14; }
     #compose-actions #compose-send { width: 16; }
     #compose-importance { width: 14; }
     #compose-options { height: 3; }
@@ -126,6 +127,7 @@ class ComposeScreen(ComposerSubmissionSession):
     ComposeScreen.compact-compose #compose-importance { width: 14; }
     ComposeScreen.compact-compose #compose-actions Button { min-width: 6; margin-left: 1; }
     ComposeScreen.compact-compose #compose-actions #compose-save { width: 12; }
+    ComposeScreen.compact-compose #compose-actions #compose-send-later { width: 10; }
     ComposeScreen.compact-compose #compose-actions #compose-send { width: 13; }
     """
     BINDINGS: ClassVar[list[Binding | tuple[str, str] | tuple[str, str, str]]] = [
@@ -137,7 +139,7 @@ class ComposeScreen(ComposerSubmissionSession):
         event.widget.scroll_visible(animate=False, force=True, immediate=True)
 
     def on_resize(self, event: events.Resize) -> None:
-        self.set_class(event.size.width < 85, "compact-compose")
+        self._set_compact(event.size.width < 85)
         self.call_after_refresh(self._reveal_focus)
 
     def _reveal_focus(self) -> None:
@@ -269,10 +271,15 @@ class ComposeScreen(ComposerSubmissionSession):
                 yield Button("Cancel", id="compose-cancel")
                 yield Button("Editor", id="compose-external-editor")
                 yield Button("Save draft", id="compose-save")
+                yield Button("Send later", id="compose-send-later")
                 yield Button("Review send", variant="primary", id="compose-send")
 
+    def _set_compact(self, compact: bool) -> None:
+        self.set_class(compact, "compact-compose")
+        self.query_one("#compose-send-later", Button).label = "Later" if compact else "Send later"
+
     def on_mount(self) -> None:
-        self.set_class(self.size.width < 85, "compact-compose")
+        self._set_compact(self.size.width < 85)
         self._show_extra_addresses(bool(self.draft.cc or self.draft.bcc))
         self._show_options(
             self.draft.body_html is not None
@@ -522,6 +529,27 @@ class ComposeScreen(ComposerSubmissionSession):
             return
         if isinstance(self.app, AppCore):
             self.app.attach_selected_message_to_composer(self)
+
+    def action_send_later(self) -> None:
+        """Ask when, then schedule this message. The exact time is shown before saving."""
+
+        from gucmail.tui.drafts_attachments_screen import DraftScheduleScreen
+
+        def chosen(expression: str | None) -> None:
+            if expression:
+                self.action_schedule_draft(expression=expression)
+
+        self.app.push_screen(
+            DraftScheduleScreen(
+                "",
+                title="Send later",
+                help_text=(
+                    "When should it go? For example 'tomorrow 09:00', 'in 2 hours' or "
+                    "'2026-08-06 09:00'. You'll see the exact time before it's saved."
+                ),
+            ),
+            chosen,
+        )
 
     def action_schedule_draft(self, *, expression: str = "tomorrow 09:00") -> None:
         if self._guard_running_change():
@@ -821,6 +849,9 @@ class ComposeScreen(ComposerSubmissionSession):
             return
         if event.button.id == "compose-external-editor":
             self.action_open_external_editor()
+            return
+        if event.button.id == "compose-send-later":
+            self.action_send_later()
             return
         if event.button.id == "compose-save":
             if self._guard_running_change():

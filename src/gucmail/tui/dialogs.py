@@ -310,7 +310,7 @@ class FolderDetailsScreen(ModalScreen[None]):
                 f"Local reference: {self._value(folder.reference)}",
                 f"EWS ID: {self._value(folder.ews_id)}",
                 f"Change key: {self._value(folder.change_key)}",
-                "\nUse Show Folder Storage for bounded size analysis across folders.",
+                "\nUse Show Folder Storage for size analysis across folders.",
             )
         )
         with Vertical(id="folder-details-box"):

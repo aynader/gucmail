@@ -138,14 +138,12 @@ class InboxRulesScreen(OperationalScreen):
         self.selected: str | None = None
 
     def compose(self) -> ComposeResult:
-        yield Label(
-            "Exchange inbox rules · Outlook rule data is preserved", classes="workspace-heading"
-        )
+        yield Label("Inbox rules", classes="workspace-heading")
         yield Static("", id="area-state", markup=False)
         yield DataTable(id="inbox-rules-table", cursor_type="row", zebra_stripes=True)
         with VerticalScroll(id="inbox-rules-details"):
             yield Static(
-                "Select a policy to inspect its conditions and actions.",
+                "Select a rule to see what it does.",
                 id="inbox-rule-details",
                 markup=False,
             )
@@ -169,7 +167,7 @@ class InboxRulesScreen(OperationalScreen):
 
     def action_refresh(self) -> None:
         self._begin_operation(
-            "Read Exchange rules",
+            "Loading inbox rules",
             lambda *_: self.service.list(limit=1000),
             self._loaded,
             retry_safe=True,
@@ -226,7 +224,7 @@ class InboxRulesScreen(OperationalScreen):
     def _create_selected(self, value: SimpleInboxRule | None) -> None:
         if value is not None:
             self._begin_operation(
-                "Preview new inbox rule",
+                "Previewing inbox rule",
                 lambda *_: self.service.plan_create(value),
                 self._review,
                 retry_safe=True,
@@ -268,7 +266,7 @@ class InboxRulesScreen(OperationalScreen):
 
     def _apply(self, plan: InboxRulePlan) -> None:
         self._begin_operation(
-            "Update Exchange inbox rule",
+            "Updating inbox rule",
             lambda *_: self.service.apply(plan, confirmed=True),
             lambda _: self.action_refresh(),
         )

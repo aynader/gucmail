@@ -124,7 +124,7 @@ class UnansweredScreen(OperationalScreen):
         self.query_one("#response-table", DataTable).clear()
         self.query_one("#response-open", Button).disabled = True
         self._begin_operation(
-            "Reading conversation metadata",
+            "Loading the conversation",
             lambda cancel, _progress: self.service.analyze(
                 self_addresses=addresses,
                 folders=folders,

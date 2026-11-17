@@ -1,0 +1,30 @@
+ GUC  Mail CLI                                                  Help Center · offline documentation
+   ←    →    Home    Tutorials    Keys   Search Help…               All topics             ▼    ☆
+                                                                  ────────────────────────────
+                                        ──────────────────────────
+ Start Here · Interface tour       │ Help  >  Start Here  >  Welcome to gucmail
+ Folders, the message list, the    │
+ reader and the status line.       │
+                                   │
+ Tutorials · Tutorial: read and    │                      Welcome to gucmail
+ prepare a first message           │
+ Practice reading and writing      │    This is a mail app for your GUC mailbox that runs in
+ with a sample message. Nothing    │    the terminal. It is independent and not made by GUC or
+ is sent.                          │    Microsoft. Your mail goes only between this computer
+ Mail · Inbox and folders          │    and the GUC mail server.
+ Your Inbox, standard folders    ▆▆│                                                            ▄▄
+ and your own folders.             │
+                                   │    Where to start
+ Mail · Read mail                  │
+ Open mail. Remote images stay     │    • New here? Read First launch, then the interface
+ blocked unless you allow them.    │      tour.
+                                   │    • Reading mail: Inbox and folders and Read mail.
+ Mail · Delete, Deleted Items,     │    • Something went wrong: Doctor and diagnostics.
+ and restore                       │    • Scripts: the command reference.
+ Deleted mail goes to Deleted      │
+ Items first, so you can get it    │
+ back.                             │    Practice first
+ Compose · Write, reply and        │
+ Start Here · Beginner · Works offline.
+────────────────────────────────────────────────────────────────────────────────────────────────────
+  ^k Commands  esc Close  f5 Refresh  / Search

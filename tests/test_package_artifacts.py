@@ -181,7 +181,7 @@ def test_project_metadata_is_release_consistent() -> None:
     assert "Development Status :: 5 - Production/Stable" not in classifiers
     assert project["license"] == "MIT"
     assert project["scripts"] if "scripts" in project else PROJECT["project"]["scripts"]
-    assert PROJECT["project"]["scripts"]["gucmail"] == "gucmail.cli:app"
+    assert PROJECT["project"]["scripts"]["gucmail"] == "gucmail.entry:main"
     assert PROJECT["build-system"]["requires"] == ["hatchling>=1.27,<2"]
     assert "hatchling>=1.27,<2" in project["optional-dependencies"]["dev"]
 
@@ -258,7 +258,7 @@ def test_built_wheel_contains_the_complete_package_and_no_private_files() -> Non
     assert f"Version: {VERSION}" in metadata
     assert "Classifier: Development Status :: 4 - Beta" in metadata
     assert "License-Expression: MIT" in metadata
-    assert "gucmail = gucmail.cli:app" in entry_points
+    assert "gucmail = gucmail.entry:main" in entry_points
     group_count, phrase_count = _corpus_counts(corpus)
     assert group_count >= 70
     assert phrase_count >= 450

@@ -3,7 +3,38 @@
 What changed in each release, newest first. Each release gets a short entry written for the
 people using gucmail, not for its developers.
 
-## 1.4.0 (unreleased)
+## 1.5.0 (2026-11-17)
+
+### Improved
+- Faster start. The app opens in about a second and shows your last inbox list right
+  away, then updates it from the server. `gucmail version` answers instantly.
+- Plain language everywhere. Times read "Today 10:00" or "Tue 14:00", folders show
+  Outlook names, and empty screens say what to do next.
+- Errors say what happened and what to do. A rejected password opens the sign-in screen.
+- Quicker mail keys. **d** deletes and **e** archives without a dialog, **!** flags,
+  **s** saves attachments and **Ctrl+Z** undoes the last one.
+- Replies hide the signature and quoted earlier conversation. Press **o** to show them.
+- **Space** selects several messages and **Ctrl+A** selects all. The status line lists
+  what you can do with them.
+- The reader lists attachment names and sizes, and shows names with addresses.
+- The message list shows the date at normal window sizes, like "10:42", "Yesterday" or
+  "4 Mar". ⚑ marks flagged mail and + marks attachments.
+- **Send later** in the composer asks when and schedules the message.
+- Help speaks plainly, and pages no longer start with a status banner.
+- The header shows how much of your mailbox you use, like "Mailbox 74 MiB of 92 MiB
+  (81%)". It adds up your folder sizes on the server and checks again every 10 minutes.
+- Settings search keeps up with fast typing.
+- `gucmail status` gives a short plain summary.
+- `gucmail --help` lists the everyday commands. The rest moved to `gucmail advanced` and
+  still work as before.
+
+### Fixed
+- **Alerts** in the header now says on when new-mail alerts run in the background.
+- Moving mail to "Archive" now uses your Archive folder, not the separate online archive.
+
+## 1.4.0
+
+There was no 1.3.0. Its work is part of this release.
 
 ### Improved
 - A sign-in screen on first start. Type your GUC email and password and press **Test &

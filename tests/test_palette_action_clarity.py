@@ -27,7 +27,7 @@ def test_named_theme_interpretation_describes_its_local_effect() -> None:
     assert result.invocation is not None
     assert result.invocation.command_id == "appearance.apply_theme"
     detail = palette._interpretation_detail(result)
-    assert "changes local application data" in detail
+    assert "changes app data" in detail
     assert "local/server" not in detail
 
 

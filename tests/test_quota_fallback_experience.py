@@ -102,8 +102,8 @@ def test_storage_backend_adds_a_bounded_visible_item_usage_lower_bound(tmp_path:
     snapshot = backend.load_storage(cancel=Event(), progress=lambda _progress: None)
 
     assert snapshot.usage_bytes == 20 * MEBIBYTE
-    assert snapshot.usage_source == "Bounded visible-item lower-bound estimate"
-    assert snapshot.usage_confidence == "Low (bounded estimate)"
+    assert snapshot.usage_source == "Estimate from visible messages"
+    assert snapshot.usage_confidence == "Low (estimate)"
     assert snapshot.usage_sample_count == 2
     assert snapshot.usage_sample_limit == 50
     assert snapshot.total_capacity_bytes is None
@@ -185,7 +185,7 @@ async def test_storage_fallback_controls_remain_visible_in_a_narrow_terminal(
         )
         detail = str(screen.query_one("#storage-detail", Static).render())
         assert "42.0 MiB" in detail
-        assert "Bounded visible-item lower-bound estimate" in detail
+        assert "Estimate from visible messages" in detail
 
         screen.queue_snapshot_focus("remaining_space")
         await wait_until(

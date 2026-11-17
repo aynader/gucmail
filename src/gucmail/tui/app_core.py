@@ -562,6 +562,8 @@ class AppCore(App[None]):
 
         def _select_visible_messages(self, mode: str) -> None: ...
 
+        def _show_selection_status(self) -> None: ...
+
         def _selected_folder_info(self) -> FolderInfo | None: ...
 
         def _selected_message_sender(self) -> Address | None: ...
@@ -574,7 +576,9 @@ class AppCore(App[None]):
 
         @work(thread=True, exclusive=False, group="mailbox-mutation")
         @coordinated_write()
-        def _set_message_flag(self, reference: str, *, flagged: bool) -> None: ...
+        def _set_message_flag(
+            self, reference: str | tuple[str, ...], *, flagged: bool, quiet: bool = False
+        ) -> None: ...
 
         def _set_status(self, text: str) -> None: ...
 
@@ -812,7 +816,7 @@ class AppCore(App[None]):
         )
         self._header_connection = "Account offline" if self.offline else "Account not connected"
         self._header_account_detail = self._header_connection
-        self._header_quota_label = "Storage pending"
+        self._header_quota_label = "Storage unknown" if self.offline else "Storage pending"
         self._status_activity = f"Ready · ? Help · {self._shortcut_label()} Command palette"
         self._message_columns = self._load_message_columns()
         self._reader_mode = str(self._setting_value("layout.reader_mode", "preview"))

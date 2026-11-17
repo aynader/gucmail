@@ -6,7 +6,7 @@ import asyncio
 import contextlib
 from collections.abc import Sequence
 from dataclasses import replace
-from typing import Any, ClassVar, Literal, TypeVar, overload
+from typing import TYPE_CHECKING, Any, ClassVar, Literal, TypeVar, overload
 from urllib.parse import urlsplit
 from uuid import uuid4
 
@@ -27,9 +27,6 @@ from textual.widgets import (
 )
 
 from gucmail.bootstrap import AppContext
-from gucmail.commands import (
-    CommandInvocation,
-)
 from gucmail.constants import MAX_PAGE_SIZE
 from gucmail.errors import (
     ConfigurationError,
@@ -40,26 +37,6 @@ from gucmail.models import (
     MessageSummary,
 )
 from gucmail.security import sanitize_terminal
-from gucmail.services.calendar_preferences import (
-    CalendarOperationPreferences,
-)
-from gucmail.services.contact_preferences import ContactOperationPreferences
-from gucmail.services.drafts import DraftService
-from gucmail.services.keyboard_bindings import (
-    KEYBOARD_SETTING,
-)
-from gucmail.services.keyboard_preferences import KeyboardPreferencesService
-from gucmail.services.shell_preferences import (
-    status_text,
-)
-from gucmail.services.sign_in import SignInResult, needs_sign_in, sign_in
-from gucmail.services.ui_session import (
-    FOCUS_TARGETS,
-    MAX_SCROLL,
-    SEARCH_SCOPES,
-    MailSession,
-)
-from gucmail.tui.activity_screen import MessageOperationRequested
 from gucmail.tui.app_areas import AreasMixin
 from gucmail.tui.app_catalog import CatalogMixin
 from gucmail.tui.app_compose import ComposeMixin
@@ -78,16 +55,6 @@ from gucmail.tui.area_common import (
     ViewState,
     current_row_highlight,
 )
-from gucmail.tui.compose_screen import (
-    ComposerInput,
-    ComposerTextArea,
-    ComposeScreen,
-    _encode_compose_attachment_paths,
-)
-from gucmail.tui.contact_groups_screen import (
-    ContactGroupComposeRequested,
-    ContactGroupsRequested,
-)
 from gucmail.tui.dialogs import (
     ConfirmationScreen,
     FolderDetailsScreen,
@@ -96,67 +63,36 @@ from gucmail.tui.dialogs import (
     MailQueryScreen,
     MessageExportPathScreen,
 )
-from gucmail.tui.drafts_attachments_screen import (
-    DraftAttachmentScreen,
+from gucmail.tui.events import (
+    AppearanceBrowseRequested,
+    AutomaticRepliesRequested,
+    ColumnPreviewRequested,
+    ContactGroupComposeRequested,
+    ContactGroupsRequested,
     DraftHandoff,
-    DraftHandoffKind,
     DraftRecoveryRequested,
-    DraftScheduleScreen,
-)
-from gucmail.tui.help_screen import (
     HelpCommandRequested,
-    HelpScreen,
     HelpSettingRequested,
     HelpTutorialsRequested,
-    SettingsHelpStateStore,
-)
-from gucmail.tui.keyboard_bindings import apply_keyboard_bindings
-from gucmail.tui.keyboard_editor import KeyboardEditorScreen
-from gucmail.tui.literal_table import LiteralDataTable as DataTable
-from gucmail.tui.local_search_screen import (
+    InboxRulesRequested,
     LocalSearchHelpRequested,
     LocalSearchIndexRequested,
     LocalSearchOpenRequested,
     LocalSearchScopeChanged,
-    LocalSearchScreen,
     LocalSearchSemanticSetupRequested,
-    ServiceLocalSearchBackend,
-)
-from gucmail.tui.message_columns_preview import MessageColumnsPreviewScreen
-from gucmail.tui.notification_settings_screen import (
-    AutomaticRepliesRequested,
-    InboxRulesRequested,
-)
-from gucmail.tui.palette_routes import (
-    RouteTarget,
-)
-from gucmail.tui.palette_screen import (
-    PaletteParameterReviewScreen,
-    PaletteScreen,
-    PaletteSequenceDecision,
-    PaletteSequenceItem,
-    PaletteSequencePreview,
-    PaletteSequencePreviewScreen,
-    PaletteSequenceSubmission,
-    PaletteSubmission,
-)
-from gucmail.tui.pim_screens import (
-    CalendarScreen,
+    MessageOperationRequested,
     PimActionRequested,
-)
-from gucmail.tui.reader import FloatingReader, MessagePreviewScroll, ReaderModeScreen, ReaderScreen
-from gucmail.tui.saved_search_screen import (
     SavedSearchHelpRequested,
     SavedSearchRunRequested,
-)
-from gucmail.tui.semantic_screen import SemanticScreen
-from gucmail.tui.settings_screen import (
-    AppearanceBrowseRequested,
-    ColumnPreviewRequested,
     SettingsHelpRequested,
-    SettingsScreen,
     SettingsSetupRequested,
+    ShortcutSettingRequested,
+    ShortcutsRequested,
+    TutorialHelpRequested,
 )
+from gucmail.tui.labels import folder_label
+from gucmail.tui.literal_table import LiteralDataTable as DataTable
+from gucmail.tui.reader import FloatingReader, MessagePreviewScroll, ReaderModeScreen, ReaderScreen
 from gucmail.tui.shell_widgets import (
     AccountStatus,
     AreaScreen,
@@ -166,18 +102,7 @@ from gucmail.tui.shell_widgets import (
     UIState,
     _AutomaticReadRequest,
 )
-from gucmail.tui.shortcuts_screen import (
-    ShortcutSettingRequested,
-    ShortcutsRequested,
-)
-from gucmail.tui.sign_in_screen import SignInScreen
-from gucmail.tui.stable_footer import StableFooter as Footer
-from gucmail.tui.themes import (
-    ThemeDefinition,
-)
-from gucmail.tui.tutorial_screen import TutorialHelpRequested
 from gucmail.tui.visual_language import FRONTEND_CSS
-from gucmail.tui.welcome_tour import WelcomeTourScreen
 from gucmail.tui.write_coordinator import (
     CHANGE_IN_PROGRESS_MESSAGE,
     PENDING_CHANGE_MESSAGE,
@@ -186,7 +111,15 @@ from gucmail.tui.write_coordinator import (
     app_write_coordinator,
 )
 
+if TYPE_CHECKING:
+    from gucmail.services.sign_in import SignInResult
+    from gucmail.tui.compose_screen import ComposeScreen
+    from gucmail.tui.themes import ThemeDefinition
+
 _ShortcutScreenResult = TypeVar("_ShortcutScreenResult")
+_EMPTY_READER = (
+    "Select a message\n\nPress Enter to read it.\n\nC  Compose\n/  Search\nCtrl+K  Commands"
+)
 
 
 class GUCmailApp(
@@ -292,11 +225,17 @@ class GUCmailApp(
         Binding("r", "reply", "Reply", show=False),
         Binding("a", "reply_all", "Reply all", show=False),
         Binding("f", "forward", "Forward", show=False),
-        Binding("d", "delete", "Delete", show=False),
+        Binding("d,delete", "delete", "Delete", show=False),
+        Binding("e", "archive", "Archive", show=False),
+        Binding("exclamation_mark", "toggle_flag", "Flag", show=False),
+        Binding("s", "save_attachments", "Save attachments", show=False),
+        Binding("ctrl+z", "undo", "Undo", show=False),
+        Binding("o", "toggle_quoted", "Show quoted text", show=False),
         Binding("u", "toggle_read", "Read/unread", show=False),
         Binding("m", "mark_selected_read", "Mark selected read", show=False),
-        Binding("e", "export_selected", "Export", show=False),
+        Binding("x", "export_selected", "Export", show=False),
         Binding("space", "toggle_message_selection", "Select", show=False),
+        Binding("ctrl+a", "select_all_messages", "Select all", show=False),
         Binding("escape", "navigate_back", "Back", show=False),
         Binding("backspace", "navigate_back", "Back", show=False),
         Binding("f5", "refresh", "Refresh"),
@@ -310,6 +249,8 @@ class GUCmailApp(
     ]
 
     def compose(self) -> ComposeResult:
+        from gucmail.tui.stable_footer import StableFooter as Footer
+
         launcher_label = self._palette_launcher_label()
         top_launcher = (
             launcher_label if self._palette_launcher_position.startswith("top_") else None
@@ -317,7 +258,8 @@ class GUCmailApp(
         yield CompactHeader(
             f"Account {'offline' if self.offline else 'not connected'} · "
             f"Folder {sanitize_terminal(self.ui.folder, max_length=80)} · "
-            f"{self._watcher_header_label()} · Storage pending",
+            f"{self._watcher_header_label()} · "
+            f"{'Storage unknown' if self.offline else 'Storage pending'}",
             status_id="account-bar",
             classes="monochrome-brand" if self._monochrome_output() else None,
             branding=self._slim_branding(self.active_theme),
@@ -345,8 +287,7 @@ class GUCmailApp(
                 yield PaneDivider(id="pane-divider")
                 with MessagePreviewScroll(id="preview-scroll"):
                     yield Static(
-                        "Select a message\n\nPress Enter to read it.\n\n"
-                        "C  Compose\n/  Search\nCtrl+K  Commands",
+                        _EMPTY_READER,
                         id="preview",
                         markup=False,
                     )
@@ -384,6 +325,8 @@ class GUCmailApp(
 
     @on(ColumnPreviewRequested)
     def _inspect_column_preview(self, event: ColumnPreviewRequested) -> None:
+        from gucmail.tui.message_columns_preview import MessageColumnsPreviewScreen
+
         event.stop()
         settings = event.settings
 
@@ -424,6 +367,8 @@ class GUCmailApp(
         callback: ScreenResultCallbackType[Any] | None = None,
         wait_for_dismiss: bool = False,
     ) -> AwaitMount | asyncio.Future[Any]:
+        from gucmail.tui.keyboard_bindings import apply_keyboard_bindings
+
         selected_screen = self.get_screen(screen)
         selected_screen.add_class("frontend")
         if hasattr(self, "_binding_overrides"):
@@ -433,6 +378,8 @@ class GUCmailApp(
         return super().push_screen(screen, callback, False)
 
     def install_screen(self, screen: Screen[Any], name: str) -> None:
+        from gucmail.tui.keyboard_bindings import apply_keyboard_bindings
+
         if hasattr(self, "_binding_overrides"):
             apply_keyboard_bindings(screen, self._binding_overrides)
         super().install_screen(screen, name)
@@ -458,6 +405,8 @@ class GUCmailApp(
         return super().check_action(action, parameters)
 
     def on_mount(self) -> None:
+        from gucmail.services.sign_in import needs_sign_in
+
         self._bind_palette_shortcuts()
         self.screen.add_class("frontend")
         self._bind_theme_shortcuts()
@@ -495,6 +444,10 @@ class GUCmailApp(
     def _show_sign_in(self) -> None:
         """Ask for an account and password; load the mailbox once they work."""
 
+        from gucmail.services.sign_in import sign_in
+        from gucmail.tui.sign_in_screen import SignInScreen
+        from gucmail.tui.welcome_tour import WelcomeTourScreen
+
         if isinstance(self.screen, SignInScreen):
             return
 
@@ -503,8 +456,17 @@ class GUCmailApp(
 
         def finished(result: SignInResult | None) -> None:
             if result is None:
+                self._header_connection = "Not signed in"
+                self._header_account_detail = self._header_connection
+                self._header_quota_label = "Storage unknown"
+                self._refresh_shell_status()
+                self.query_one("#message-heading", Static).update("Inbox")
+                self.query_one("#preview", Static).update(
+                    "You're not signed in\n\nPress F5 to sign in.\n\nCtrl+K  Commands\n?  Help"
+                )
                 self._set_status("Not signed in · press F5 to sign in")
                 return
+            self.query_one("#preview", Static).update(_EMPTY_READER)
             self._refresh_shell_status()
             self._start_online()
             if result.warning:
@@ -564,6 +526,8 @@ class GUCmailApp(
                     self.call_after_refresh(self._capture_session)
 
     def _capture_session(self) -> None:
+        from gucmail.services.ui_session import FOCUS_TARGETS, MAX_SCROLL, MailSession
+
         if not self.is_running or not self.screen_stack:
             return
         root = self.screen_stack[0]
@@ -637,6 +601,8 @@ class GUCmailApp(
     @on(WriteBlocked)
     def _write_blocked(self, event: WriteBlocked) -> None:
         self._set_status(event.detail)
+        from gucmail.tui.compose_screen import ComposeScreen
+
         if isinstance(self.screen, ComposeScreen):
             self.screen._set_note(event.detail)
         elif isinstance(self.screen, OperationalScreen):
@@ -683,12 +649,12 @@ class GUCmailApp(
             tools.add_leaf(label, data={"kind": "area", "reference": reference})
 
         folders = root.add(
-            "Exchange folders",
+            "Folders",
             data={"kind": "folder_branch", "reference": None, "loaded": False},
             expand=True,
         )
         folders.add_leaf(
-            "Connect to load folders" if self.offline else "Loading folders…",
+            "Not connected" if self.offline else "Loading folders…",
             data={"kind": "placeholder"},
         )
         self._folder_root_node_id = folders.id
@@ -728,12 +694,15 @@ class GUCmailApp(
             "connection": self._header_connection,
             "storage": self._header_quota_label,
             "folder": sanitize_terminal(
-                self._folder_paths.get(self.ui.folder, self.ui.folder), max_length=100
+                self._folder_paths.get(self.ui.folder, folder_label(self.ui.folder)),
+                max_length=100,
             ),
             "monitoring": self._watcher_header_label(),
         }
 
     def _refresh_status_bar(self) -> None:
+        from gucmail.services.shell_preferences import status_text
+
         try:
             bar = self.query_one("#status-bar", Static)
         except NoMatches:
@@ -807,6 +776,8 @@ class GUCmailApp(
 
     @on(LocalSearchScopeChanged)
     def local_search_scope_changed(self, event: LocalSearchScopeChanged) -> None:
+        from gucmail.services.ui_session import SEARCH_SCOPES
+
         if event.mode.value in SEARCH_SCOPES:
             self._last_search_scope = event.mode.value
             self._capture_session()
@@ -815,6 +786,9 @@ class GUCmailApp(
     def local_search_semantic_setup_requested(
         self, event: LocalSearchSemanticSetupRequested
     ) -> None:
+        from gucmail.tui.local_search_screen import LocalSearchScreen, ServiceLocalSearchBackend
+        from gucmail.tui.semantic_screen import SemanticScreen
+
         event.stop()
 
         def set_enabled(enabled: bool) -> bool:
@@ -916,13 +890,13 @@ class GUCmailApp(
                     if isinstance(item, MessageSummary) and item.flagged
                 )
             self._render_message_rows(filtered)
-            self._set_status(f"{reference.title()}: {len(filtered)} in the current bounded page")
+            self._set_status(f"{reference.title()}: {len(filtered)} in the current page")
         elif isinstance(data, dict) and data.get("kind") == "area":
             area = str(data["reference"])
             if area == "search":
                 self.action_search()
                 self._set_status(
-                    "Filter the current bounded page; use CLI search for deeper scope."
+                    "Filter the current page; use CLI search for deeper scope."
                 )
             else:
                 self._open_area(area)
@@ -974,6 +948,8 @@ class GUCmailApp(
         query = event.command_id
         self.pop_screen()
 
+        from gucmail.tui.palette_screen import PaletteScreen
+
         def focus_palette(attempt: int = 0) -> None:
             screen = self.screen
             if isinstance(screen, PaletteScreen):
@@ -998,6 +974,11 @@ class GUCmailApp(
     def help_setting_requested(
         self, event: HelpSettingRequested | ShortcutSettingRequested
     ) -> None:
+        from gucmail.services.keyboard_bindings import KEYBOARD_SETTING
+        from gucmail.services.keyboard_preferences import KeyboardPreferencesService
+        from gucmail.tui.keyboard_editor import KeyboardEditorScreen
+        from gucmail.tui.settings_screen import SettingsScreen
+
         event.stop()
         setting_id = event.setting_id
         if setting_id == KEYBOARD_SETTING:
@@ -1046,6 +1027,8 @@ class GUCmailApp(
     @on(SettingsHelpRequested)
     def settings_help_requested(self, event: SettingsHelpRequested) -> None:
         event.stop()
+        from gucmail.tui.help_screen import HelpScreen
+
         self.push_screen(
             HelpScreen(
                 context=self._help_runtime_context("settings"),
@@ -1063,6 +1046,8 @@ class GUCmailApp(
     @on(SavedSearchHelpRequested)
     def saved_search_help_requested(self, event: SavedSearchHelpRequested) -> None:
         event.stop()
+        from gucmail.tui.help_screen import HelpScreen
+
         self.push_screen(
             HelpScreen(
                 context=self._help_runtime_context("search"),
@@ -1093,6 +1078,8 @@ class GUCmailApp(
     @on(LocalSearchHelpRequested)
     def local_search_help_requested(self, event: LocalSearchHelpRequested) -> None:
         event.stop()
+        from gucmail.tui.help_screen import HelpScreen
+
         self.push_screen(
             HelpScreen(
                 context=self._help_runtime_context("search"),
@@ -1136,6 +1123,11 @@ class GUCmailApp(
     @on(PimActionRequested)
     def pim_action_requested(self, event: PimActionRequested) -> None:
         """Complete cross-area PIM actions without duplicating mailbox services in screens."""
+
+        from gucmail.services.calendar_preferences import CalendarOperationPreferences
+        from gucmail.services.contact_preferences import ContactOperationPreferences
+        from gucmail.tui.palette_routes import RouteTarget
+        from gucmail.tui.pim_screens import CalendarScreen
 
         event.stop()
         if event.area == "contacts" and event.action == "history_index":
@@ -1238,6 +1230,8 @@ class GUCmailApp(
 
     @on(DraftRecoveryRequested)
     def draft_recovery_requested(self, event: DraftRecoveryRequested) -> None:
+        from gucmail.commands import CommandInvocation
+
         event.stop()
         self._palette_recover_draft(
             CommandInvocation.from_mapping("draft.recover", {}), self._palette_context()
@@ -1246,6 +1240,13 @@ class GUCmailApp(
     @on(DraftHandoff)
     def draft_handoff_requested(self, event: DraftHandoff) -> None:
         """Connect the draft workspace to the existing composer and scheduler."""
+
+        from gucmail.services.drafts import DraftService
+        from gucmail.tui.drafts_attachments_screen import (
+            DraftAttachmentScreen,
+            DraftHandoffKind,
+            DraftScheduleScreen,
+        )
 
         event.stop()
         request = event.request
@@ -1256,7 +1257,7 @@ class GUCmailApp(
                 maximum_attachment_bytes=self.context.config.max_attachment_bytes,
             ).get(request.reference)
         except Exception as exc:
-            self._set_status(_safe_failure(exc, action="Draft unavailable"))
+            self._set_status(_safe_failure(exc, action="Couldn't open the draft"))
             return
 
         if request.kind is DraftHandoffKind.SCHEDULE:
@@ -1355,9 +1356,6 @@ __all__ = [
     "AccountStatus",
     "AreaScreen",
     "CompactHeader",
-    "ComposeScreen",
-    "ComposerInput",
-    "ComposerTextArea",
     "ConfirmationScreen",
     "FloatingReader",
     "FolderDetailsScreen",
@@ -1365,31 +1363,48 @@ __all__ = [
     "FolderNameScreen",
     "GUCmailApp",
     "HelpCommandRequested",
-    "HelpScreen",
     "HelpSettingRequested",
     "HelpTutorialsRequested",
     "MailMessageTable",
     "MailQueryScreen",
     "MessageExportPathScreen",
     "MessagePreviewScroll",
-    "PaletteParameterReviewScreen",
-    "PaletteScreen",
-    "PaletteSequenceDecision",
-    "PaletteSequenceItem",
-    "PaletteSequencePreview",
-    "PaletteSequencePreviewScreen",
-    "PaletteSequenceSubmission",
-    "PaletteSubmission",
     "PaneDivider",
     "ReaderModeScreen",
     "ReaderScreen",
-    "SettingsHelpStateStore",
     "UIState",
     "_AutomaticReadRequest",
     "_compose_attachment_paths",
-    "_encode_compose_attachment_paths",
     "_is_mail_folder_class",
     "_open_file_with_registered_handler",
     "_safe_failure",
     "run_tui",
 ]
+
+
+# Screens loaded on first use. Re-exported here for older imports.
+_LAZY_EXPORTS = {
+    "ComposerInput": "gucmail.tui.compose_screen",
+    "ComposerTextArea": "gucmail.tui.compose_screen",
+    "ComposeScreen": "gucmail.tui.compose_screen",
+    "_encode_compose_attachment_paths": "gucmail.tui.compose_screen",
+    "HelpScreen": "gucmail.tui.help_screen",
+    "SettingsHelpStateStore": "gucmail.tui.help_screen",
+    "PaletteParameterReviewScreen": "gucmail.tui.palette_screen",
+    "PaletteScreen": "gucmail.tui.palette_screen",
+    "PaletteSequenceDecision": "gucmail.tui.palette_screen",
+    "PaletteSequenceItem": "gucmail.tui.palette_screen",
+    "PaletteSequencePreview": "gucmail.tui.palette_screen",
+    "PaletteSequencePreviewScreen": "gucmail.tui.palette_screen",
+    "PaletteSequenceSubmission": "gucmail.tui.palette_screen",
+    "PaletteSubmission": "gucmail.tui.palette_screen",
+}
+
+
+def __getattr__(name: str) -> Any:
+    module = _LAZY_EXPORTS.get(name)
+    if module is None:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    from importlib import import_module
+
+    return getattr(import_module(module), name)

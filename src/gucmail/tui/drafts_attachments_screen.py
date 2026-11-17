@@ -13,7 +13,6 @@ from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal, Vertical, VerticalScroll
 from textual.events import Resize
-from textual.message import Message
 from textual.screen import ModalScreen
 from textual.widgets import (
     Button,
@@ -47,6 +46,11 @@ from gucmail.tui.drafts_attachments_backend import (
     SavedAttachmentView,
     WorkspaceCapability,
 )
+from gucmail.tui.events import (
+    DraftHandoff,
+    DraftRecoveryRequested,
+)
+from gucmail.tui.labels import when
 from gucmail.tui.literal_select import LiteralSelect as Select
 from gucmail.tui.literal_table import LiteralDataTable as DataTable
 
@@ -63,18 +67,6 @@ class DraftHandoffRequest:
     kind: DraftHandoffKind
     reference: str
     schedule_expression: str | None = None
-
-
-class DraftHandoff(Message):
-    """Typed boundary from this workspace to the app's composer/scheduler."""
-
-    def __init__(self, request: DraftHandoffRequest) -> None:
-        super().__init__()
-        self.request = request
-
-
-class DraftRecoveryRequested(Message):
-    """Open the latest composer recovery through the shared application service."""
 
 
 DestinationChooser = Callable[[str], Path | None]
@@ -203,18 +195,30 @@ class DraftScheduleScreen(ModalScreen[str | None]):
         Binding("escape", "cancel", "Cancel", show=False),
     ]
 
-    def __init__(self, reference: str, *, expression: str = "tomorrow 09:00") -> None:
+    def __init__(
+        self,
+        reference: str,
+        *,
+        expression: str = "tomorrow 09:00",
+        title: str = "Schedule selected draft",
+        help_text: str | None = None,
+    ) -> None:
         super().__init__()
         self.reference = reference
         self.expression = expression
+        self.title_text = title
+        self.help_text = help_text
 
     def compose(self) -> ComposeResult:
         with Vertical(id="draft-schedule-dialog"):
-            yield Label("Schedule selected draft", id="draft-schedule-title")
+            yield Label(self.title_text, id="draft-schedule-title")
             yield Static(
-                f"Draft: {clean_cell(self.reference, max_length=240)}\n"
-                "Enter a future local time such as 'tomorrow 09:00'. The durable job "
-                "will require final confirmation before sending.",
+                self.help_text
+                or (
+                    f"Draft: {clean_cell(self.reference, max_length=240)}\n"
+                    "Enter a future local time such as 'tomorrow 09:00'. The durable job "
+                    "will require final confirmation before sending."
+                ),
                 id="draft-schedule-help",
                 markup=False,
             )
@@ -311,7 +315,7 @@ class DraftAttachmentScreen(OperationalScreen):
         Binding("enter", "open_draft", "Open draft", show=False),
         Binding("e", "edit_draft", "Edit draft", show=False),
         Binding("ctrl+d", "duplicate_draft", "Duplicate", show=False),
-        Binding("ctrl+s", "sync_draft", "Synchronize", show=False),
+        Binding("ctrl+s", "sync_draft", "Save to server", show=False),
         Binding("a", "show_attachments", "Attachments", show=False),
     ]
 
@@ -355,7 +359,7 @@ class DraftAttachmentScreen(OperationalScreen):
     def compose(self) -> ComposeResult:
         with Vertical(id="draft-workspace-root"):
             yield Label("Drafts & Attachments", id="draft-workspace-title")
-            yield Static("Loading capabilities...", id="draft-workspace-capabilities", markup=False)
+            yield Static("", id="draft-workspace-capabilities", markup=False)
             yield Static("", id="area-state", markup=False)
             with TabbedContent(id="draft-workspace-tabs"):
                 with TabPane("Drafts", id="draft-workspace-drafts-tab"):
@@ -366,18 +370,18 @@ class DraftAttachmentScreen(OperationalScreen):
                         )
                         yield Select(
                             (
-                                ("All copies", ""),
-                                ("Local", "local"),
+                                ("Saved anywhere", ""),
+                                ("This computer", "local"),
                                 ("Server", "server"),
-                                ("Synchronized", "synchronized"),
-                                ("Conflicted", "conflicted"),
+                                ("Both", "synchronized"),
+                                ("Conflict", "conflicted"),
                             ),
                             value="",
                             id="draft-location",
                         )
                         yield Select(
                             (
-                                ("All ages", ""),
+                                ("Any age", ""),
                                 ("Older than 7 days", "7"),
                                 ("Older than 30 days", "30"),
                                 ("Older than 90 days", "90"),
@@ -386,7 +390,7 @@ class DraftAttachmentScreen(OperationalScreen):
                             id="draft-age",
                         )
                         yield Button("Refresh", id="draft-refresh")
-                    yield Button("Recover latest unsaved draft", id="draft-recover")
+                    yield Button("Recover unsaved draft", id="draft-recover")
                     yield DataTable(id="draft-table", cursor_type="row", zebra_stripes=True)
                     with Horizontal(id="draft-pagination"):
                         yield Button("Previous", id="draft-previous", disabled=True)
@@ -399,18 +403,18 @@ class DraftAttachmentScreen(OperationalScreen):
                         ),
                         VerticalScroll(id="draft-detail-scroll"),
                     ):
-                        yield Static("Select a local draft.", id="draft-detail", markup=False)
+                        yield Static("Select a draft.", id="draft-detail", markup=False)
                     with Horizontal(id="draft-actions"):
                         yield Button("New", id="draft-create", variant="success")
                         yield Button("Open", id="draft-open")
                         yield Button("Duplicate", id="draft-duplicate")
-                        yield Button("Synchronize", id="draft-sync")
-                        yield Button("Resolve conflict", id="draft-resolve", variant="warning")
+                        yield Button("Save to server", id="draft-sync")
+                        yield Button("Fix conflict", id="draft-resolve", variant="warning")
                         yield Button("Attachments", id="draft-attachments")
-                        yield Button("Export JSON", id="draft-export")
+                        yield Button("Export", id="draft-export")
                         yield Button("Schedule", id="draft-schedule")
                         yield Button("Send", id="draft-send", variant="warning")
-                        yield Button("Delete local", id="draft-delete", variant="error")
+                        yield Button("Delete", id="draft-delete", variant="error")
                 with TabPane("Attachments", id="draft-workspace-attachments-tab"):
                     with Horizontal(id="attachment-toolbar"):
                         yield Input(
@@ -451,7 +455,7 @@ class DraftAttachmentScreen(OperationalScreen):
                         )
                     yield DataTable(id="attachment-table", cursor_type="row", zebra_stripes=True)
                     yield Static(
-                        "Enter a message or local draft reference, then load bounded metadata.",
+                        "Enter a message or local draft reference, then load metadata.",
                         id="attachment-detail",
                         markup=False,
                     )
@@ -467,7 +471,7 @@ class DraftAttachmentScreen(OperationalScreen):
         self.set_class(self.size.width < 100 or self.size.height < 30, "compact-drafts")
         self._layout_compact_search()
         draft_table = self.query_one("#draft-table", DataTable)
-        draft_table.add_columns("State", "Subject", "Recipients", "Updated", "Files", "Reference")
+        draft_table.add_columns("Saved", "Subject", "To", "Changed", "Files")
         attachment_table = self.query_one("#attachment-table", DataTable)
         attachment_table.add_columns("Source", "Name", "Size", "Type", "Risk", "Reference")
         self.call_after_refresh(self.action_refresh)
@@ -500,16 +504,18 @@ class DraftAttachmentScreen(OperationalScreen):
 
     @staticmethod
     def _capability_text(capabilities: Sequence[WorkspaceCapability]) -> str:
-        parts = []
+        # Only mention what is missing. Working features need no label.
         names = {
-            "local_drafts": "Local drafts",
-            "server_draft_sync": "Draft sync",
+            "local_drafts": "Drafts on this computer",
+            "server_draft_sync": "Saving drafts to the server",
             "server_attachments": "Mail attachments",
         }
-        for capability in capabilities:
-            label = names.get(capability.name, capability.name.replace("_", " "))
-            parts.append(label if capability.available else f"{label} unavailable")
-        return " · ".join(parts)
+        missing = [
+            names.get(capability.name, capability.name.replace("_", " "))
+            for capability in capabilities
+            if not capability.available
+        ]
+        return ("Not available now: " + ", ".join(missing)) if missing else ""
 
     def action_refresh(self) -> None:
         query = self.query_one("#draft-filter", Input).value.strip()
@@ -645,26 +651,20 @@ class DraftAttachmentScreen(OperationalScreen):
         table = self.query_one("#draft-table", DataTable)
         table.clear()
         for draft in snapshot.drafts:
-            state = "CONFLICT" if draft.conflicted else draft.sync_state
             table.add_row(
-                clean_cell(state, max_length=24),
+                _draft_place(draft),
                 clean_cell(draft.subject, max_length=100) or "(no subject)",
-                clean_cell(", ".join(draft.recipients), max_length=90) or "(none)",
-                clean_cell(draft.updated_at, max_length=36),
-                str(draft.attachment_count),
-                clean_cell(draft.reference, max_length=72),
+                clean_cell(", ".join(draft.recipients), max_length=90),
+                clean_cell(self._when(draft.updated_at), max_length=36),
+                str(draft.attachment_count) if draft.attachment_count else "",
                 key=draft.reference,
             )
         self.query_one("#draft-workspace-capabilities", Static).update(
             self._capability_text(snapshot.capabilities)
         )
         if snapshot.drafts:
-            suffix = " · More available" if snapshot.next_offset is not None else ""
-            self._set_view_state(
-                ViewState.READY,
-                f"Drafts {snapshot.offset + 1}-{snapshot.offset + len(snapshot.drafts)} "
-                f"of {snapshot.matched_count}{suffix}",
-            )
+            count = snapshot.matched_count
+            self._set_view_state(ViewState.READY, f"{count} draft{'' if count == 1 else 's'}")
             target = previous if previous in self._drafts else snapshot.drafts[0].reference
             row = next(
                 index for index, item in enumerate(snapshot.drafts) if item.reference == target
@@ -674,10 +674,10 @@ class DraftAttachmentScreen(OperationalScreen):
         else:
             self._selected_draft = None
             self.query_one("#draft-detail", Static).update(
-                "No saved local drafts match this view. If you closed an unfinished composer, "
-                "choose Recover latest unsaved draft above."
+                "No drafts here. If the app closed while you were writing, "
+                "press Recover unsaved draft."
             )
-            self._set_view_state(ViewState.EMPTY, "No matching local drafts.")
+            self._set_view_state(ViewState.EMPTY, "No drafts")
         if self._draft_selection_prompt is not None and snapshot.drafts:
             self._set_view_state(
                 ViewState.READY,
@@ -697,21 +697,30 @@ class DraftAttachmentScreen(OperationalScreen):
             return
         self._select_draft(str(event.row_key.value))
 
+    def _when(self, value: str | None) -> str:
+        context = getattr(self.app, "context", None)
+        zone = str(getattr(getattr(context, "config", None), "timezone", None) or "UTC")
+        return when(value, zone)
+
     def _select_draft(self, reference: str) -> None:
         draft = self._drafts.get(reference)
         if draft is None:
             return
         self._selected_draft = reference
-        detail = [
-            clean_cell(draft.subject, max_length=240) or "(no subject)",
-            f"To/Cc/Bcc: {clean_cell(', '.join(draft.recipients), max_length=400) or '(none)'}",
-            f"State: {clean_cell(draft.sync_state)} | Local revision: {draft.revision} | "
-            f"Attachments: {draft.attachment_count}",
-            f"Updated: {clean_cell(draft.updated_at) or '(unknown)'}",
-            clean_cell(draft.body_preview, max_length=700) or "(empty body)",
-        ]
+        detail = [clean_cell(draft.subject, max_length=240) or "(no subject)"]
+        if draft.recipients:
+            detail.append(f"To: {clean_cell(', '.join(draft.recipients), max_length=400)}")
+        detail.append(f"Saved: {_draft_place(draft)}")
+        if draft.updated_at:
+            detail.append(f"Changed: {clean_cell(self._when(draft.updated_at))}")
+        if draft.attachment_count:
+            detail.append(f"Attachments: {draft.attachment_count}")
+        detail.extend(("", clean_cell(draft.body_preview, max_length=700) or "(empty)"))
         if draft.conflict_reason:
-            detail.append(f"Conflict: {clean_cell(draft.conflict_reason, max_length=500)}")
+            detail.append(
+                "The server copy changed too. Open Fix conflict to choose which to keep. "
+                f"({clean_cell(draft.conflict_reason, max_length=300)})"
+            )
         self.query_one("#draft-detail", Static).update("\n".join(detail))
         self._update_draft_actions()
 
@@ -977,9 +986,9 @@ class DraftAttachmentScreen(OperationalScreen):
         else:
             self._selected_attachment = None
             self.query_one("#attachment-detail", Static).update(
-                "No attachments match this bounded view."
+                "No attachments match this view."
             )
-            self._set_view_state(ViewState.EMPTY, "No attachments match this bounded view.")
+            self._set_view_state(ViewState.EMPTY, "No attachments match this view.")
         self._update_attachment_actions()
         pending = self._pending_attachment_action
         self._pending_attachment_action = None
@@ -1239,3 +1248,20 @@ __all__ = [
     "DraftScheduleScreen",
     "HandoffCallback",
 ]
+
+
+_DRAFT_PLACES = {
+    "local_only": "This computer",
+    "server_only": "Server",
+    "synchronized": "Both",
+    "local_dirty": "This computer (newer)",
+    "server_dirty": "Server (newer)",
+    "conflicted": "Conflict",
+    "server_missing": "This computer (server copy gone)",
+}
+
+
+def _draft_place(draft: DraftRowView) -> str:
+    if draft.conflicted:
+        return "Conflict"
+    return _DRAFT_PLACES.get(draft.sync_state, clean_cell(draft.sync_state, max_length=24))

@@ -11,7 +11,6 @@ from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal, HorizontalScroll, Vertical, VerticalScroll
 from textual.events import Resize
-from textual.message import Message
 from textual.screen import ModalScreen, Screen
 from textual.widgets import Button, Input, Label, Static, TextArea
 
@@ -20,6 +19,10 @@ from gucmail.security import sanitize_terminal
 from gucmail.services.search import build_search_plan, parse_query
 from gucmail.state import StateStore
 from gucmail.tui.area_common import ConfirmationScreen, clean_cell, current_row_highlight
+from gucmail.tui.events import (
+    SavedSearchHelpRequested,
+    SavedSearchRunRequested,
+)
 from gucmail.tui.literal_table import LiteralDataTable as DataTable
 
 
@@ -70,28 +73,6 @@ class SavedSearchPreview:
 class SavedSearchEditorValue:
     name: str
     query_text: str
-
-
-class SavedSearchRunRequested(Message):
-    """Ask the app to run one exact advanced expression in its mail result view."""
-
-    def __init__(
-        self,
-        *,
-        name: str | None,
-        query_text: str,
-        payload: Mapping[str, Any],
-        source: str,
-    ) -> None:
-        super().__init__()
-        self.name = sanitize_terminal(name, max_length=120) if name else None
-        self.query_text = query_text.strip()
-        self.payload = dict(payload)
-        self.source = source
-
-
-class SavedSearchHelpRequested(Message):
-    """Ask the app to open context Help for the saved-search product area."""
 
 
 class SavedSearchBackend(Protocol):
@@ -538,15 +519,14 @@ class SavedSearchScreen(Screen[None]):
 
     def compose(self) -> ComposeResult:
         with Vertical(id="saved-search-root"):
-            yield Label("Search · Saved searches", id="saved-search-title")
+            yield Label("Saved searches", id="saved-search-title")
             yield Static(
-                "Named advanced queries are local, account-scoped, and run through the "
-                "same bounded Exchange/residual planner as live search.",
+                "Searches you saved, ready to run again.",
                 id="saved-search-subtitle",
                 markup=False,
             )
             yield Input(
-                placeholder="Filter names, query text, scope, or execution details",
+                placeholder="Filter saved searches",
                 id="saved-search-filter",
             )
             with Horizontal(id="saved-search-content"):
@@ -652,16 +632,15 @@ class SavedSearchScreen(Screen[None]):
             history_enabled = bool(getattr(self.backend, "history_enabled", True))
             empty.update(
                 (
-                    "No recent searches yet. Run a saved or interactive query to build history."
+                    "No recent searches yet."
                     if history_enabled
                     else "Search history is disabled. Enable it in Search & Indexing settings."
                 )
                 if self.mode == "recent"
-                else "No saved searches yet. Press Ctrl+N to save a reusable advanced query."
+                else "No saved searches yet. Press Ctrl+N to save one."
             )
             self.query_one("#saved-search-detail-text", Static).update(
-                "Saved searches remain available offline; running mailbox searches requires "
-                "an Exchange connection."
+                "Running a saved search needs a connection to the mail server."
             )
         else:
             row = 0

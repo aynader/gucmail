@@ -8,7 +8,7 @@ from textual.app import App, ComposeResult
 from textual.containers import VerticalScroll
 from textual.widgets import Button, Collapsible, Input, Static, TabbedContent, Tabs, TextArea
 
-import gucmail.tui.app_areas as app_module
+import gucmail.secret_store as app_module
 from gucmail.notification_events import NewMailEvent
 from gucmail.notification_policies import MonitoringProfile, ProviderPolicy
 from gucmail.notification_rules import (

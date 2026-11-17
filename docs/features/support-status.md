@@ -69,7 +69,7 @@ account access remain `not_probed` until a capability-specific probe records evi
 | Contacts CRUD, duplicates, merge, vCard, directory | Implemented | Merge deletes are recoverable; group items are distinguished from individual contacts |
 | Contact groups | Bounded implementation | Account-local groups and personal mailbox SMTP-group CRUD, stale-preview checks and reviewed Bcc composition; nested/linked membership and directory-group management remain outside the editor; mailbox account support unprobed |
 | Tasks CRUD and export | Implemented | Typed simple recurrence writes and simple backup restore exist; occurrence-scoped changes and complete recurrence-history restore remain unavailable |
-| Exact mailbox quota | Capability-gated | Standard EWS often cannot return exact used/quota bytes |
+| Mailbox storage | Implemented | Usage is the sum of folder sizes. The server doesn't report limits, so the send limit is configured (92 MiB by default) |
 | Full backup, parent-diff incremental snapshots, verify, offline browse, restore | Implemented | Incrementals compare bounded full snapshots rather than native EWS change tracking; restore is best-effort and historical IDs cannot be recreated |
 | FTS5, fuzzy search, clusters, insights | Implemented locally | Bounded scans; index is disposable |
 | Semantic search | Implemented locally with opt-in | Corpus/topic ranking uses the existing local index; freshness and field coverage are explicit. No model download or remote embedding service is used |

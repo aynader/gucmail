@@ -199,11 +199,11 @@ class LocalDiagnosticsBackend:
             if self.gateway_factory is None:
                 details = (
                     "Connection check not run: the application is offline.",
-                    "Leave offline mode before requesting a bounded authenticated status read.",
+                    "Leave offline mode before requesting a authenticated status read.",
                 )
             else:
                 self._cancelled(cancel, "Connection check")
-                progress(OperationProgress("Reading one bounded mailbox status response"))
+                progress(OperationProgress("Reading one mailbox status response"))
                 status = self.gateway_factory().status()
                 details = (
                     "Connection: available",
@@ -221,7 +221,7 @@ class LocalDiagnosticsBackend:
             details = (
                 f"Represented operations: {len(capabilities)} · "
                 f"implemented adapters: {implemented}",
-                "Server and account axes remain not_probed until bounded live evidence exists.",
+                "Server and account axes remain not_probed until live evidence exists.",
                 "",
                 *(
                     f"{item.family} / {item.operation} · {item.safety.value} · "
@@ -261,7 +261,7 @@ class LocalDiagnosticsBackend:
         progress(OperationProgress("Building redacted local checks"))
         checks = run_doctor(self.context, network=False, authenticate=False)
         self._cancelled(cancel, "Diagnostic export")
-        progress(OperationProgress("Writing sanitized JSON bundle"))
+        progress(OperationProgress("Writing JSON bundle"))
         return write_diagnostic_bundle(self.context, Path(destination), results=checks)
 
     def plan_cache_repair(self, *, cancel: Event, progress: ProgressReporter) -> CacheRepairPlan:
@@ -302,7 +302,7 @@ class LocalDiagnosticsBackend:
     ) -> IndexRebuildPlan:
         clean_folder = folder.strip()
         if not clean_folder:
-            raise PublicOperationError("Choose one folder for the bounded index rebuild.")
+            raise PublicOperationError("Choose one folder for the index rebuild.")
         if not 1 <= limit <= 500:
             raise PublicOperationError("Index rebuild limit must be between 1 and 500.")
         self._cancelled(cancel, "Index rebuild preview")
@@ -340,7 +340,7 @@ class LocalDiagnosticsBackend:
             raise PublicOperationError("Index rebuild confirmation does not match its preview.")
         if self.gateway_factory is None:
             raise OfflineOperationError(
-                "Index rebuild needs bounded online message metadata; local verification "
+                "Index rebuild needs online message metadata; local verification "
                 "remains available."
             )
         index = SearchIndex(self.context.paths.index_database)
@@ -352,7 +352,7 @@ class LocalDiagnosticsBackend:
                 "Attachment indexing settings changed after preview; review the rebuild again."
             )
         self._cancelled(cancel, "Index rebuild")
-        progress(OperationProgress("Loading bounded index sources", total=plan.limit))
+        progress(OperationProgress("Loading index sources", total=plan.limit))
         producer = MailboxIndexProducer(
             self.gateway_factory(), plan.attachment_preferences, cancel_event=cancel
         )
@@ -361,7 +361,7 @@ class LocalDiagnosticsBackend:
             limit=plan.limit,
             progress=lambda completed: progress(
                 OperationProgress(
-                    "Preparing bounded index replacement", completed=completed, total=plan.limit
+                    "Preparing index replacement", completed=completed, total=plan.limit
                 )
             ),
         )
@@ -443,7 +443,7 @@ class DiagnosticsScreen(OperationalScreen):
                 yield Static("", id="diagnostics-summary", markup=False)
             with Horizontal(id="diagnostics-export-row"):
                 yield Input(value=self.default_export_path, id="diagnostics-export-path")
-                yield Button("Export sanitized bundle", id="diagnostics-export")
+                yield Button("Export bundle", id="diagnostics-export")
             with Horizontal(id="diagnostics-index-row"):
                 yield Input(value=self.default_folder, id="diagnostics-index-folder")
                 yield Input(value="500", id="diagnostics-index-limit", type="integer")
@@ -541,10 +541,10 @@ class DiagnosticsScreen(OperationalScreen):
             "or authenticated/network probes. Existing files are never overwritten."
         )
         self._confirm(
-            "Export sanitized diagnostics?",
+            "Export diagnostics?",
             detail,
             lambda: self._begin_operation(
-                "Exporting sanitized diagnostics",
+                "Exporting diagnostics",
                 lambda cancel, progress: self.backend.export_bundle(
                     destination, cancel=cancel, progress=progress
                 ),
@@ -556,11 +556,11 @@ class DiagnosticsScreen(OperationalScreen):
     def _bundle_exported(self, value: object) -> None:
         if not isinstance(value, Path):
             raise PublicOperationError("Diagnostics backend returned an invalid export path.")
-        self._set_view_state(ViewState.READY, f"Sanitized diagnostic bundle written to {value}")
+        self._set_view_state(ViewState.READY, f"Diagnostic report written to {value}")
 
     def action_repair_cache(self) -> None:
         self._begin_operation(
-            "Previewing disposable cache repair",
+            "Checking the cache",
             lambda cancel, progress: self.backend.plan_cache_repair(
                 cancel=cancel, progress=progress
             ),
@@ -582,7 +582,7 @@ class DiagnosticsScreen(OperationalScreen):
             "Repair disposable cache?",
             detail,
             lambda: self._begin_operation(
-                "Repairing disposable cache",
+                "Repairing the cache",
                 lambda cancel, progress: self.backend.repair_cache(
                     value,
                     confirmation_scope=value.confirmation_scope,

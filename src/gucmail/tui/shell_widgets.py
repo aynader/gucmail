@@ -315,7 +315,7 @@ class AreaScreen(ModalScreen[None]):
     @work(thread=True, exclusive=True, group="area-load")
     def load_content(self, generation: int) -> None:
         try:
-            content = self.loader() or "No items in this bounded view."
+            content = self.loader() or "No items in this view."
         except Exception as exc:
             content = _safe_failure(exc)
         self.app.call_from_thread(self._show_content, generation, content)

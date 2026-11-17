@@ -173,7 +173,8 @@ def test_bulk_mark_read_and_export_have_keys_in_the_mail_screen():
 
     keys = {binding.action: binding.key for binding in GUCmailApp.BINDINGS}  # type: ignore[union-attr]
     assert keys["mark_selected_read"] == "m"
-    assert keys["export_selected"] == "e"
+    assert keys["export_selected"] == "x"
+    assert keys["archive"] == "e"
 
 
 def test_shortcuts_saved_before_the_split_still_load():
@@ -182,4 +183,13 @@ def test_shortcuts_saved_before_the_split_still_load():
     old = {"gucmail.tui.app.HelpScreen:tutorials:alt+t:0": "alt+y"}
     assert normalize_binding_overrides(old) == {
         "gucmail.tui.help_screen.HelpScreen:tutorials:alt+t:0": "alt+y"
+    }
+
+
+def test_calendar_shortcuts_saved_before_the_pim_split_still_load():
+    from gucmail.services.keyboard_bindings import normalize_binding_overrides
+
+    old = {"gucmail.tui.pim_screens.CalendarScreen:edit:e:0": "alt+y"}
+    assert normalize_binding_overrides(old) == {
+        "gucmail.tui.calendar_screens.CalendarScreen:edit:e:0": "alt+y"
     }

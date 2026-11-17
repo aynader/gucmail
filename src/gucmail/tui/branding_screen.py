@@ -665,7 +665,7 @@ class BrandingBrowserScreen(OperationalScreen):
             self._show(preview, "Branding applied and persisted.")
             self.post_message(BrandingApplied(preview))
 
-        self._begin_operation("Apply branding", execute, complete)
+        self._begin_operation("Applying the title style", execute, complete)
 
     def action_cancel_preview(self) -> None:
         if self._guard_pending_mutation(shared=False):

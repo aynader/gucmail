@@ -35,8 +35,16 @@ gucmail --json --non-interactive --yes messages delete MESSAGE_REF --behavior de
 
 ## Root commands
 
-`version`, `login`, `logout`, `status`, `doctor`, `diagnostics`, `tui`, `send`, `reply`,
-`reply-all`, `forward`, `search`, `health`, and `watch`.
+`version`, `login`, `logout`, `status`, `doctor`, `tui`, `send`, `reply`, `reply-all`,
+`forward`, `search` and `watch`.
+
+`gucmail --help` lists the everyday groups. Power-user groups live under `gucmail advanced`
+and also keep working at the top level, so `gucmail advanced cache status` and
+`gucmail cache status` are the same.
+
+| Group | Commands |
+|---|---|
+| `advanced` | `diagnostics`, `health`, `saved-searches`, `webhooks`, `config`, `layouts`, `cache`, `ews`, `automatic-replies`, `inbox-rules`, `contact-groups`, `directory`, `recipients`, `scheduler`, `headless`, `startup`, `recurring`, `index`, `ocr`, `semantic`, `clusters`, `insights` |
 
 ## Mail and local state
 

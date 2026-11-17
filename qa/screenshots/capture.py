@@ -796,7 +796,7 @@ async def main():
                 GIF_DIR.mkdir(parents=True, exist_ok=True)
                 await pilot.pause(0.5)
                 shot(app, "palette_000", GIF_DIR)
-            for index, ch in enumerate("schedule this for tomorrow 9am", start=1):
+            for index, ch in enumerate("mail from Laila Samir with pdfs", start=1):
                 await pilot.press(ch if ch != " " else "space")
                 if record and index % 2 == 0:
                     await pilot.pause(0.3)

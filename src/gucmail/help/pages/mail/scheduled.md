@@ -10,4 +10,4 @@ Multiple workers use transactional claims. A known pre-request temporary failure
 
 ## Time and sleep
 
-Store an explicit offset or review the resolved time zone. If the computer sleeps, local sending pauses. Closing the TUI is safe only when another scheduler process or OS task still runs. Overdue work is evaluated on the next run according to policy. Undo Send is a local countdown, not recall after Exchange accepts a message. Read [Does my PC need to stay on?](help:faq.pc-on).
+Store an explicit offset or review the resolved time zone. If the computer sleeps, local sending pauses. Closing the app is safe when the background task is on (`gucmail notifications on`) or another scheduler task runs. Overdue work is evaluated on the next run according to policy. Undo Send is a local countdown, not recall after Exchange accepts a message. Read [Does my PC need to stay on?](help:faq.pc-on).

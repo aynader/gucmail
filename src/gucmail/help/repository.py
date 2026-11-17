@@ -206,7 +206,12 @@ class HelpRepository:
     ) -> RenderedHelpPage:
         page = self.get(page_id)
         availability, detail = _availability(page, context)
-        status = f"> **Availability:** {detail}\n\n"
+        # Say nothing when the feature simply works. Flag only the exceptions.
+        status = (
+            ""
+            if availability is HelpAvailability.AVAILABLE
+            else f"> **Availability:** {detail}\n\n"
+        )
         related = ""
         if page.related_pages:
             links = "\n".join(
@@ -455,21 +460,20 @@ def _availability(
     if context is not None and not page.supports_platform(context.platform):
         return (
             HelpAvailability.NOT_APPLICABLE,
-            f"This article targets {', '.join(page.platforms)}; "
-            f"current platform is {context.platform}.",
+            f"For {', '.join(page.platforms)} only.",
         )
     if page.feature_kind in {HelpFeatureKind.LOCAL, HelpFeatureKind.REFERENCE}:
-        return HelpAvailability.AVAILABLE, "Available offline in this installation."
+        return HelpAvailability.AVAILABLE, "Works offline."
     if not page.required_capabilities:
-        return HelpAvailability.AVAILABLE, "Available when an online mailbox session is connected."
+        return HelpAvailability.AVAILABLE, "Needs a connection to the GUC server."
     if context is None:
-        return HelpAvailability.UNKNOWN, "Server capability has not been checked in this Help view."
+        return HelpAvailability.UNKNOWN, "Not checked on the GUC server yet."
     values = [context.capabilities.get(name) for name in page.required_capabilities]
     if any(value is False for value in values):
         return (
             HelpAvailability.UNAVAILABLE,
-            "Unavailable according to the current capability status.",
+            "The GUC server doesn't allow this.",
         )
     if all(value is True for value in values):
-        return HelpAvailability.AVAILABLE, "Available according to the current capability status."
-    return HelpAvailability.UNKNOWN, "Server or account capability has not been verified."
+        return HelpAvailability.AVAILABLE, "Supported by the GUC server."
+    return HelpAvailability.UNKNOWN, "Not checked on the GUC server yet."

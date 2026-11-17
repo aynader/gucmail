@@ -9,19 +9,14 @@ import subprocess
 import sys
 from pathlib import Path
 
-from gucmail.errors import (
-    MutationExecutionError,
-)
-from gucmail.security import sanitize_terminal
 
+def _safe_failure(exc: BaseException, *, action: str = "") -> str:
+    """A plain failure line that says what to do. Never echoes raw exception text."""
 
-def _safe_failure(exc: BaseException, *, action: str = "Operation unavailable") -> str:
-    """Return a useful failure label without echoing arbitrary exception text."""
+    from gucmail.problems import plain_problem
 
-    if isinstance(exc, MutationExecutionError):
-        return exc.message + " " + (exc.context.suggestion or "")
-    error_type = sanitize_terminal(type(exc).__name__, max_length=100) or "Error"
-    return f"{action} ({error_type}). Details omitted; use gucmail doctor or redacted logs."
+    problem = plain_problem(exc)
+    return f"{action}. {problem}" if action else problem
 
 
 def _open_file_with_registered_handler(path: Path) -> None:

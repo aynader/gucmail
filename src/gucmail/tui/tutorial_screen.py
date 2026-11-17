@@ -9,7 +9,6 @@ from textual import on
 from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal, Vertical, VerticalScroll
-from textual.message import Message
 from textual.screen import Screen
 from textual.widgets import Button, Input, Static, TextArea
 
@@ -21,14 +20,9 @@ from gucmail.help.tutorials import (
     check_exercise,
 )
 from gucmail.security import sanitize_terminal
+from gucmail.tui.events import TutorialHelpRequested
 from gucmail.tui.literal_select import LiteralSelect as Select
 from gucmail.tui.literal_table import LiteralDataTable as DataTable
-
-
-class TutorialHelpRequested(Message):
-    def __init__(self, page_id: str) -> None:
-        super().__init__()
-        self.page_id = page_id
 
 
 class TutorialScreen(Screen[None]):

@@ -331,11 +331,11 @@ async def test_diagnostics_palette_executes_views_reconnect_and_bounded_log_brow
             await pilot.pause(0.025)
             if isinstance(app.screen, AreaScreen):
                 content = str(app.screen.query_one("#area-content", Static).render())
-                if "Bounded sanitized files" in content:
+                if "Files:" in content:
                     break
         assert isinstance(app.screen, AreaScreen)
         content = str(app.screen.query_one("#area-content", Static).render())
-        assert "Bounded sanitized files" in content
+        assert "Files:" in content
         assert "private-person@example.test" not in content
         assert "<redacted>@example.test" in content
         assert "should-not-escape" not in content

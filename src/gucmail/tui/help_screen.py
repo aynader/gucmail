@@ -8,7 +8,6 @@ from textual import events, on
 from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal, Vertical, VerticalScroll
-from textual.message import Message
 from textual.screen import Screen
 from textual.widgets import (
     Button,
@@ -33,11 +32,14 @@ from gucmail.help import (
     parse_help_link,
 )
 from gucmail.settings import SettingsService
-from gucmail.tui.literal_select import LiteralSelect as Select
-from gucmail.tui.shell_widgets import CompactHeader
-from gucmail.tui.shortcuts_screen import (
+from gucmail.tui.events import (
+    HelpCommandRequested,
+    HelpSettingRequested,
+    HelpTutorialsRequested,
     ShortcutsRequested,
 )
+from gucmail.tui.literal_select import LiteralSelect as Select
+from gucmail.tui.shell_widgets import CompactHeader
 from gucmail.tui.stable_footer import StableFooter as Footer
 
 
@@ -85,28 +87,6 @@ class SettingsHelpStateStore:
             session.apply(reason="Help favorites and history updated")
         except (ConfigurationError, OSError, ValueError):
             return
-
-
-class HelpCommandRequested(Message):
-    """Request a safe palette preview for a command link from Help."""
-
-    def __init__(self, command_id: str) -> None:
-        super().__init__()
-        self.command_id = command_id
-
-
-class HelpSettingRequested(Message):
-    """Request the exact Settings row linked from Help."""
-
-    def __init__(self, setting_id: str) -> None:
-        super().__init__()
-        self.setting_id = setting_id
-
-
-class HelpTutorialsRequested(Message):
-    def __init__(self, page_id: str) -> None:
-        super().__init__()
-        self.page_id = page_id
 
 
 class HelpScreen(Screen[None]):
@@ -196,7 +176,7 @@ class HelpScreen(Screen[None]):
             yield Button("Keys", id="help-shortcuts", tooltip="Browse current keyboard bindings")
             yield Input(
                 value=self.initial_query,
-                placeholder="Search Help, errors, commands, settings, or ask a question…",
+                placeholder="Search Help…",
                 id="help-search",
             )
             yield Select(categories, value="", allow_blank=False, id="help-category")

@@ -425,7 +425,7 @@ def messages_search(
     limit: int = typer.Option(25, min=1, max=500),
     offset: int = typer.Option(0, min=0),
 ) -> None:
-    """Run a bounded server search; use the local index for deep/full-text queries."""
+    """Search your mail."""
 
     if all_folders and (folder is not None or local or fuzzy):
         raise typer.BadParameter(

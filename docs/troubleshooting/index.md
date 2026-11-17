@@ -1,113 +1,97 @@
-# Troubleshooting by symptom
+# Troubleshooting
 
-Start with the visible symptom. Commands below are diagnostic unless marked otherwise. `gucmail
-doctor` does not authenticate unless authentication is intentionally requested or an existing
-credential is being tested.
+Find your problem below. `gucmail doctor` is always a safe first step. It checks your setup
+without signing in or touching your mail.
 
 ## `gucmail` is not recognized
 
-1. Confirm that installation completed in the same environment you are using.
-2. On Windows, try `py -3.11 -m gucmail --help`.
-3. For a repository virtual environment, try `.\.venv\Scripts\gucmail.exe --help`.
-4. With pipx, run `pipx list` and ensure the pipx binary directory is on `PATH`.
+Open a new PowerShell window. If it still fails, run `py -3.11 -m pipx ensurepath`, open another
+new window and try again. `py -3.11 -m gucmail` also works.
 
-## Login fails or repeatedly prompts
+## Your password isn't accepted
 
-Run `gucmail status`, then `gucmail doctor`. Confirm the email, username, HTTPS endpoint, keyboard
-layout, and system clock. A changed password invalidates the stored keyring entry; run `gucmail
-logout`, then `gucmail login` once. Do not retry rapidly. An authentication failure uses exit code
-`4`.
+Press F5 in the app to sign in again, or run `gucmail login`. If you changed your GUC password,
+this is expected. Don't retry many times quickly. The server may block you for a while.
 
-## Keyring is unavailable
+## Can't reach the server
 
-Use the secure prompt for the current run. Do not put the password in `config.toml` or a shell
-command. `gucmail doctor` reports whether the OS keyring backend can be used.
+Check your internet connection, then press F5 once. `gucmail doctor --network` tests the
+connection to the GUC mail server without signing in. If the server is busy, gucmail waits and
+tries again by itself.
 
-## TLS, DNS, timeout, or throttling error
+## "The GUC server does not permit…"
 
-Check network access and the endpoint with `gucmail doctor`. Keep TLS verification enabled. A network
-failure uses exit code `5`. If Exchange supplies a back-off duration, wait for it; the client applies
-bounded exponential backoff and jitter. Do not start several watchers to work around throttling.
+The GUC server doesn't offer that feature to your account. Nothing was changed. The
+[support status](../features/support-status.md) page lists what works.
 
-## A feature says unsupported or unauthorized
+## "That message changed or moved"
 
-Run:
+Someone (you, in Outlook or on your phone) changed it since gucmail last looked. Press F5 and try
+again.
 
-```text
-gucmail ews capabilities
-gucmail ews describe OPERATION
-```
+## An attachment won't save
 
-`unsupported_server_version`, `disabled_by_server_configuration`, `unauthorized_for_account`, and
-`administrative_only` are different outcomes. No live probe means `not_probed` or
-`implemented_not_live_verified`, not success.
-
-## A message or folder reference is stale
-
-Moving or updating an Exchange item can change its server ID or change key. Refresh or list its
-folder again. Do not paste raw EWS IDs into ordinary workflows. Exit code `6` means not found; `7`
-means a conflict such as a changed item.
-
-## Attachment will not save
-
-Check the reported size against the default 50 MiB limit, free disk space, destination permissions,
-and filename collision. Dangerous extensions require acknowledgment. A path outside the selected
-download directory is rejected. Item attachments may have different server limitations from files.
+Check free disk space and that you can write to the download folder. Files over 50 MiB are
+refused by default. Risky file types, like `.exe`, ask before saving.
 
 ## A draft disappeared after a crash
 
-Run `gucmail drafts recover`. While the composer is open, recovery journals are written atomically
-every 30 seconds by default and once more on cancel. A server/local conflict is not overwritten
-automatically; inspect `gucmail drafts conflicts`.
-
-## A scheduled message did not send
-
-Run:
-
 ```text
-gucmail scheduler status
-gucmail scheduled list
-gucmail scheduler doctor
+gucmail drafts recover
 ```
 
-The local strategy needs the computer awake, network access, valid credentials, and periodic
-`scheduler run-once` execution. Missed jobs are considered on the next run. `waiting_connectivity`
-and `waiting_authentication` can retry conservatively; `send_state_uncertain` requires review and is
-not retried blindly. See [Scheduling](../scheduling/index.md).
+Drafts save every 30 seconds while you type. If your draft changed somewhere else too, gucmail keeps
+both and asks. `gucmail drafts conflicts` lists those.
 
-## Backup verify fails
+## Scheduled mail didn't send
 
-Stop using that copy for restore. Keep the directory unchanged, run `gucmail backup inspect`, and
-compare the manifest, object counts, and cryptographic hashes. An encrypted backup needs the same
-passphrase used at creation. A restore always starts with a plan; never bypass integrity failure.
+```text
+gucmail scheduled list
+gucmail scheduler status
+```
 
-## Search returns too few or stale results
+Your computer must be on, awake and online at the send time, with alerts or the scheduler task
+installed. A message marked **uncertain** may have gone already. Check **Sent** before sending it
+again. See [Scheduled mail](../scheduling/index.md).
 
-Check the selected source: live server, cache, search index, backup, or local. Run `gucmail index
-status`, then update or verify the index. Rebuild only if verification reports damage. Fuzzy search
-uses a default threshold of `82`; lower thresholds increase noise. Semantic search is optional and
-off by default.
+## New-mail alerts stopped
 
-## Cache or database is locked/corrupt
+```text
+gucmail notifications status
+```
 
-Close duplicate client or scheduler processes and retry. `gucmail cache status` reports health.
-Clearing the disposable cache must not remove scheduled jobs, recovery drafts, indexes, or backups.
-Use exit code `11` details to identify the affected local store.
+If the task isn't running, turn alerts off and on again with `gucmail notifications off` and
+`gucmail notifications on`.
 
-## Webhook delivery fails
+## Search misses mail
 
-First use `gucmail webhooks test NAME` for a network-free synthetic preview, then use
-`gucmail --yes webhooks test NAME --deliver` for one outbound test. Confirm HTTPS, method, timeout,
-keyring secret, field allowlist, and receiver HMAC configuration. Redirects are not followed. HTTP
-`408`, `409`, `425`, `429`, `500`, `502`, `503`, and `504` can retry within the configured limit.
+Each result says whether it came from the server, the local index or a backup. If you use the
+local index, run `gucmail index update`. Try `--fuzzy` for typos.
 
-## The TUI layout is unreadable
+## A backup fails its check
 
-Increase terminal size or use the routed narrow layout. Try `--no-color`, set `no_color = true`, or
-choose a Unicode-capable font. `?` opens context help and the active shortcut list.
+Don't restore from it. Run `gucmail backup inspect` to see what's wrong, and make a new backup.
+Encrypted backups need the passphrase you chose when making them.
 
-## Safe diagnostics to share
+## "Local data is locked" or "needs repair"
 
-Use `gucmail diagnostics` or the sanitized bundle option if available. Review the output before
-sharing. It should contain versions, path health, capability status, and redacted errors—not
-passwords, cookies, headers, bodies, attachments, or raw personal addresses.
+Close other gucmail windows and background commands, then try again. `gucmail cache status`
+shows what's wrong. Clearing the cache never removes drafts, scheduled mail or backups.
+
+## A webhook doesn't arrive
+
+```text
+gucmail webhooks test NAME
+gucmail --yes webhooks test NAME --deliver
+```
+
+The first shows what would be sent. The second sends one test. Webhooks must use HTTPS.
+
+## The screen is hard to read
+
+Make the window wider, or try another theme in Settings. `gucmail --no-color` turns colours off.
+
+## Asking for help
+
+`gucmail diagnostics` prints versions and setup details with addresses and passwords removed.
+Read it before sharing. Never share your password, `creds.env` or message content.

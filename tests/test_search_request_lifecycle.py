@@ -252,7 +252,7 @@ async def test_mail_search_exposes_loading_and_ignores_results_after_cancel_or_t
             await wait(pilot, lambda: app.ui.busy is None)
             expected_status = str(app.query_one("#status-bar").render())
             assert (
-                "cancelled" if cancel == "escape" else "timed out"
+                "cancelled" if cancel == "escape" else "taking too long"
             ) in expected_status.casefold()
             gateway.release.set()
             await wait(pilot, finished.is_set)

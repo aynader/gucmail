@@ -4,15 +4,11 @@ from __future__ import annotations
 
 from dataclasses import replace
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
 from textual import work
 
-from gucmail.commands import (
-    CommandContext,
-    CommandInvocation,
-)
 from gucmail.errors import (
     ConfigurationError,
     ConflictError,
@@ -28,50 +24,30 @@ from gucmail.models import (
     MessageDetail,
 )
 from gucmail.security import sanitize_terminal
-from gucmail.services.attachment_preferences import AttachmentPreferences
-from gucmail.services.attachments import AttachmentService
-from gucmail.services.compose import (
-    ComposeKind,
-    ComposeService,
-)
-from gucmail.services.compose_preferences import ComposerPreferences
-from gucmail.services.drafts import DraftService, DraftSyncCoordinator
-from gucmail.services.editor import ExternalDraftEditor
-from gucmail.services.gateway import DeferredGateway as _DeferredGateway
-from gucmail.services.mail_preferences import (
-    MailResponsePreferences,
-)
-from gucmail.services.messages import MessageService
+from gucmail.services.compose import ComposeKind
 from gucmail.tui.app_core import AppCore
 from gucmail.tui.app_helpers import _compose_attachment_paths, _safe_failure
-from gucmail.tui.compose_screen import ComposeScreen
-from gucmail.tui.composer_submission import (
-    SubmissionOutcome,
-    attempt_message,
-)
-from gucmail.tui.dialogs import ConfirmationScreen
-from gucmail.tui.drafts_attachments_backend import ServiceDraftAttachmentBackend
-from gucmail.tui.drafts_attachments_screen import (
-    DraftAttachmentScreen,
-    DraftScheduleScreen,
-)
-from gucmail.tui.palette_routes import (
-    PaletteRoute,
-    RouteTarget,
-)
-from gucmail.tui.pim_screens import (
-    ContactsScreen,
-    CorrespondentsScreen,
-)
 from gucmail.tui.write_coordinator import (
     coordinated_write,
 )
+
+if TYPE_CHECKING:
+    from gucmail.commands import CommandContext, CommandInvocation
+    from gucmail.tui.compose_screen import ComposeScreen
+    from gucmail.tui.composer_submission import SubmissionOutcome
+    from gucmail.tui.drafts_attachments_backend import ServiceDraftAttachmentBackend
+    from gucmail.tui.palette_routes import PaletteRoute
 
 
 class ComposeMixin(AppCore):
     """Methods of GUCmailApp; see gucmail.tui.app."""
 
     def _draft_attachment_backend(self) -> ServiceDraftAttachmentBackend:
+        from gucmail.services.attachments import AttachmentService
+        from gucmail.services.drafts import DraftService, DraftSyncCoordinator
+        from gucmail.services.gateway import DeferredGateway as _DeferredGateway
+        from gucmail.tui.drafts_attachments_backend import ServiceDraftAttachmentBackend
+
         drafts = DraftService(
             self.context.state,
             self.context.paths.recovery_dir,
@@ -95,6 +71,10 @@ class ComposeMixin(AppCore):
         *,
         attachment_action: str | None = None,
     ) -> None:
+        from gucmail.services.attachment_preferences import AttachmentPreferences
+        from gucmail.tui.drafts_attachments_screen import DraftAttachmentScreen
+        from gucmail.tui.palette_routes import RouteTarget
+
         current = self._route_screen(RouteTarget.DRAFTS)
         if isinstance(current, DraftAttachmentScreen):
             if attachment_action:
@@ -129,7 +109,7 @@ class ComposeMixin(AppCore):
         except Exception as exc:
             self.call_from_thread(
                 self._set_status,
-                _safe_failure(exc, action="Draft scheduling unavailable"),
+                _safe_failure(exc, action="Couldn't schedule the draft"),
             )
             return
 
@@ -158,6 +138,8 @@ class ComposeMixin(AppCore):
     def _palette_recover_draft(
         self, invocation: CommandInvocation, _context: CommandContext
     ) -> None:
+        from gucmail.services.drafts import DraftService
+
         service = DraftService(
             self.context.state,
             self.context.paths.recovery_dir,
@@ -180,6 +162,8 @@ class ComposeMixin(AppCore):
         _invocation: CommandInvocation,
         _context: CommandContext,
     ) -> None:
+        from gucmail.tui.compose_screen import ComposeScreen
+
         composer = self.screen if isinstance(self.screen, ComposeScreen) else None
         if composer is None:
             self._set_status("Open a composer before saving the current draft.")
@@ -197,6 +181,9 @@ class ComposeMixin(AppCore):
         invocation: CommandInvocation,
         _context: CommandContext,
     ) -> None:
+        from gucmail.tui.compose_screen import ComposeScreen
+        from gucmail.tui.drafts_attachments_screen import DraftAttachmentScreen
+
         composer = self.screen if isinstance(self.screen, ComposeScreen) else None
         draft_workspace = self.screen if isinstance(self.screen, DraftAttachmentScreen) else None
         if draft_workspace is not None and draft_workspace.selected_draft_reference:
@@ -210,6 +197,9 @@ class ComposeMixin(AppCore):
         composer.action_schedule_draft(expression=expression)
 
     def _compose_from_route(self, route: PaletteRoute, invocation: CommandInvocation) -> None:
+        from gucmail.tui.palette_routes import RouteTarget
+        from gucmail.tui.pim_screens import ContactsScreen, CorrespondentsScreen
+
         explicit = self._palette_scalar(invocation.get("person"))
         if route.intent == "prefill_selected_contact":
             contacts = self._route_screen(RouteTarget.CONTACTS)
@@ -253,6 +243,8 @@ class ComposeMixin(AppCore):
 
     @work(thread=True, exclusive=True, group="compose-prepare")
     def _prepare_compose_for_message_recipients(self, reference: str) -> None:
+        from gucmail.services.messages import MessageService
+
         try:
             detail = MessageService(self._ensure_gateway(), state=self.context.state).show_message(
                 reference
@@ -261,7 +253,7 @@ class ComposeMixin(AppCore):
         except Exception as exc:
             self.call_from_thread(
                 self._set_status,
-                _safe_failure(exc, action="Message recipients unavailable"),
+                _safe_failure(exc, action="Couldn't load the recipients"),
             )
 
     def _open_compose_for_message_recipients(self, detail: MessageDetail) -> None:
@@ -295,7 +287,8 @@ class ComposeMixin(AppCore):
             self.call_from_thread(self._set_status, message)
         except Exception as exc:
             self.call_from_thread(
-                self._set_status, _safe_failure(exc, action="Send outcome unavailable")
+                self._set_status,
+                _safe_failure(exc, action="Not sure it was sent. Check Sent first"),
             )
 
     @staticmethod
@@ -312,6 +305,9 @@ class ComposeMixin(AppCore):
         new: bool = False,
         review_send: bool = False,
     ) -> None:
+        from gucmail.services.compose_preferences import ComposerPreferences
+        from gucmail.tui.compose_screen import ComposeScreen
+
         if draft is None or new or draft.reference.startswith("preview:"):
             preferences = ComposerPreferences.from_settings(self._settings_service())
             draft = preferences.seed_new(draft or DraftData(reference=f"dft-{uuid4().hex}"))
@@ -342,6 +338,8 @@ class ComposeMixin(AppCore):
 
     @work(thread=True, exclusive=True, group="compose-save-preflight")
     def prepare_draft_save(self, composer: ComposeScreen, payload: dict[str, Any]) -> None:
+        from gucmail.services.compose import ComposeService
+
         try:
             validation = ComposeService(
                 max_attachment_bytes=self.context.config.max_attachment_bytes,
@@ -480,6 +478,9 @@ class ComposeMixin(AppCore):
         payload: dict[str, Any],
         command: str,
     ) -> None:
+        from gucmail.services.drafts import DraftService
+        from gucmail.services.editor import ExternalDraftEditor
+
         try:
             service = DraftService(
                 self.context.state,
@@ -504,7 +505,7 @@ class ComposeMixin(AppCore):
         except Exception as exc:
             self.call_from_thread(
                 composer._set_note,
-                _safe_failure(exc, action="External editor unavailable"),
+                _safe_failure(exc, action="Couldn't open your editor"),
             )
 
     def attach_selected_message_to_composer(
@@ -516,7 +517,7 @@ class ComposeMixin(AppCore):
         if not reference:
             composer._set_note("Select a message before forwarding it as an attachment.")
             return
-        composer._set_note("Retrieving a bounded MIME copy for attachment…")
+        composer._set_note("Retrieving a MIME copy for attachment…")
         self._attach_message_mime(composer, reference)
 
     def schedule_composer_draft(
@@ -537,6 +538,8 @@ class ComposeMixin(AppCore):
         payload: dict[str, Any],
         expression: str,
     ) -> None:
+        from gucmail.services.drafts import DraftService
+
         try:
             service = DraftService(
                 self.context.state,
@@ -562,7 +565,7 @@ class ComposeMixin(AppCore):
         except Exception as exc:
             self.call_from_thread(
                 composer._set_note,
-                _safe_failure(exc, action="Draft scheduling unavailable"),
+                _safe_failure(exc, action="Couldn't schedule the draft"),
             )
 
     def _open_composer_schedule_review(
@@ -571,6 +574,8 @@ class ComposeMixin(AppCore):
         reference: str,
         expression: str,
     ) -> None:
+        from gucmail.tui.drafts_attachments_screen import DraftScheduleScreen
+
         if not composer.is_mounted:
             return
 
@@ -600,7 +605,7 @@ class ComposeMixin(AppCore):
         except Exception as exc:
             self.call_from_thread(
                 composer._set_note,
-                _safe_failure(exc, action="Forward-as-attachment unavailable"),
+                _safe_failure(exc, action="Couldn't forward as an attachment"),
             )
 
     def _assert_composer_change_allowed(self, reference: str) -> None:
@@ -614,6 +619,8 @@ class ComposeMixin(AppCore):
             )
 
     def _write_composer_recovery(self, payload: dict[str, Any]) -> None:
+        from gucmail.services.drafts import DraftService
+
         with self._composer_recovery_lock:
             reference = str(payload.get("reference"))
             sequence = payload.get("recovery_sequence")
@@ -638,7 +645,7 @@ class ComposeMixin(AppCore):
         try:
             self._write_composer_recovery(payload)
         except Exception as exc:
-            self._set_status(_safe_failure(exc, action="Draft recovery unavailable"))
+            self._set_status(_safe_failure(exc, action="Couldn't recover the draft"))
             return False
         return True
 
@@ -649,10 +656,12 @@ class ComposeMixin(AppCore):
         except Exception as exc:
             self.call_from_thread(
                 self._set_status,
-                _safe_failure(exc, action="Draft recovery unavailable"),
+                _safe_failure(exc, action="Couldn't recover the draft"),
             )
 
     def _preview_discard_composer(self, composer: ComposeScreen) -> None:
+        from gucmail.tui.dialogs import ConfirmationScreen
+
         if composer._guard_running_change():
             return
         draft = self._draft_from_payload(composer._payload(action="discard"))
@@ -671,6 +680,8 @@ class ComposeMixin(AppCore):
     @work(thread=True, exclusive=False, group="compose-discard")
     @coordinated_write()
     def _discard_composer(self, composer: ComposeScreen, draft: DraftData) -> None:
+        from gucmail.services.drafts import DraftService
+
         try:
             self._assert_composer_change_allowed(draft.reference)
             if draft.server_id and self.offline:
@@ -691,7 +702,7 @@ class ComposeMixin(AppCore):
         except Exception as exc:
             self.call_from_thread(
                 self._set_status,
-                _safe_failure(exc, action="Draft discard unavailable"),
+                _safe_failure(exc, action="Couldn't discard the draft"),
             )
 
     @work(thread=True, exclusive=False, group="compose-submit")
@@ -703,7 +714,9 @@ class ComposeMixin(AppCore):
             # when its composer has already dismissed after confirmation.
             self._write_composer_recovery(payload)
         except Exception as exc:
-            self.call_from_thread(self._set_status, _safe_failure(exc, action="Draft recovery"))
+            self.call_from_thread(
+                self._set_status, _safe_failure(exc, action="Couldn't recover the draft")
+            )
             if composer is not None:
                 self.call_from_thread(
                     composer.submission_finished,
@@ -735,6 +748,11 @@ class ComposeMixin(AppCore):
     def _submit_composer(
         self, payload: dict[str, Any], *, composer: ComposeScreen | None = None
     ) -> None:
+        from gucmail.services.compose import ComposeService
+        from gucmail.services.compose_preferences import ComposerPreferences
+        from gucmail.services.drafts import DraftService, DraftSyncCoordinator
+        from gucmail.tui.composer_submission import attempt_message
+
         queue_started = False
         try:
             draft = self._draft_from_payload(payload)
@@ -782,8 +800,8 @@ class ComposeMixin(AppCore):
                     self._composer_outcome(
                         composer,
                         "saved",
-                        f"Draft saved locally: {stored.reference} · "
-                        f"{_safe_failure(exc, action='Exchange draft sync unavailable')}",
+                        "Draft saved on this computer only. "
+                        + _safe_failure(exc, action="Couldn't save it to the server"),
                     )
                     return
                 self._composer_outcome(
@@ -955,7 +973,9 @@ class ComposeMixin(AppCore):
                     )
                 self.call_from_thread(self._set_status, message)
         except Exception as exc:
-            self.call_from_thread(self._set_status, _safe_failure(exc, action="Delayed send"))
+            self.call_from_thread(
+                self._set_status, _safe_failure(exc, action="Couldn't queue the message")
+            )
 
     def _remember_contacted_people(self, draft: DraftData) -> bool:
         """Persist only explicit successful-send recipients, most recent first."""
@@ -973,6 +993,9 @@ class ComposeMixin(AppCore):
 
     @work(thread=True, exclusive=True, group="compose-prepare")
     def _prepare_reply(self, reference: str, *, reply_all: bool | None) -> None:
+        from gucmail.services.compose import ComposeService
+        from gucmail.services.mail_preferences import MailResponsePreferences
+
         try:
             service = ComposeService(
                 self._ensure_gateway(),
@@ -997,6 +1020,9 @@ class ComposeMixin(AppCore):
 
     @work(thread=True, exclusive=True, group="compose-prepare")
     def _prepare_forward(self, reference: str) -> None:
+        from gucmail.services.compose import ComposeService
+        from gucmail.services.mail_preferences import MailResponsePreferences
+
         try:
             service = ComposeService(
                 self._ensure_gateway(),

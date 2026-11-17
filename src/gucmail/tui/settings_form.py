@@ -25,10 +25,9 @@ class SettingRow(Widget, can_focus=True):
     SettingRow.selected.group-start { height: 5; }
     SettingRow .setting-line { height: 1; width: 100%; }
     SettingRow .setting-pointer { width: 3; color: $gucmail-primary-accent; }
-    SettingRow .setting-number { width: 6; color: $gucmail-muted-text; }
     SettingRow .setting-label { width: 1fr; color: $gucmail-primary-text; }
     SettingRow .setting-value { width: 29%; min-width: 12; color: $gucmail-primary-text; }
-    SettingRow .setting-hint { display: none; height: 1; margin-left: 9;
+    SettingRow .setting-hint { display: none; height: 1; margin-left: 3;
         color: $gucmail-muted-text; }
     SettingRow.selected .setting-hint { display: block; }
     SettingRow.selected .setting-value { color: $gucmail-primary-accent; }
@@ -77,7 +76,6 @@ class SettingRow(Widget, can_focus=True):
     def compose(self) -> ComposeResult:
         with Horizontal(classes="setting-line"):
             yield Static("", classes="setting-pointer", markup=False)
-            yield Static(f"{self.number:02}", classes="setting-number", markup=False)
             yield Static(
                 Text(self.label, no_wrap=True, overflow="ellipsis"), classes="setting-label"
             )

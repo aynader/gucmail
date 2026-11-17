@@ -749,7 +749,7 @@ class ServiceDraftAttachmentBackend:
         selected = tuple(combined_rows[:bounded])
         progress(
             OperationProgress(
-                "Loaded bounded attachment metadata", completed=len(selected), total=matched_count
+                "Loaded attachment metadata", completed=len(selected), total=matched_count
             )
         )
         return AttachmentWorkspaceSnapshot(
@@ -1128,7 +1128,7 @@ class ServiceDraftAttachmentBackend:
         )
         return DraftOperationView(
             owner_reference,
-            f"Exported bounded attachment metadata to {path}.",
+            f"Exported attachment metadata to {path}.",
             path,
         )
 

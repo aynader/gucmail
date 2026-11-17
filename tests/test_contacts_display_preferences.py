@@ -361,7 +361,7 @@ async def test_normal_settings_cancel_apply_relabel_selection_duplicates_and_ori
         assert [c.reference for c in contacts_screen._contacts] == ["b", "c", "a"]
         assert contacts_screen._highlighted == "b" and contacts_screen._selected == {"b"}
         assert str(table.get_cell("b", "name")) == "Zulu, Ada"
-        assert "Stored name: Z Alias" in str(
+        assert "Saved as: Z Alias" in str(
             contacts_screen.query_one("#contacts-detail", Static).render()
         )
         assert len(gateway.calls) == calls

@@ -17,11 +17,12 @@ STEPS: tuple[tuple[str, str], ...] = (
         "↑ and ↓ move through your messages.\nTab moves between folders, messages and the reader.",
     ),
     (
-        "Open and go back",
-        "Enter opens the selected message.\nEsc goes back.",
+        "Open and tidy up",
+        "Enter opens a message and Esc goes back.\n"
+        "d deletes, e archives, ! flags. Ctrl+Z undoes.",
     ),
     (
-        "Everything else: Ctrl+K",
+        "Everything else is Ctrl+K",
         'Type what you want, like "compose", "calendar" or "search from Mona".\n'
         "Press ? any time for help.",
     ),

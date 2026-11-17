@@ -9,7 +9,7 @@ from dataclasses import replace
 from datetime import datetime
 from pathlib import Path
 from threading import Event
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 from uuid import uuid4
 
 from rich.markup import escape
@@ -25,11 +25,9 @@ from textual.widgets import (
 )
 from textual.worker import Worker, get_current_worker
 
-from gucmail.commands import (
-    CommandInvocation,
-)
 from gucmail.constants import MAX_PAGE_SIZE
 from gucmail.errors import (
+    AuthenticationError,
     ConfigurationError,
     MutationExecutionError,
 )
@@ -43,40 +41,36 @@ from gucmail.models import (
     SearchQuery,
 )
 from gucmail.security import sanitize_terminal
-from gucmail.services._base import MutationPlan
-from gucmail.services.contact_preferences import ContactOperationPreferences
-from gucmail.services.gateway import DeferredGateway as _DeferredGateway
-from gucmail.services.mail_preferences import (
-    MailDeletionPreferences,
-    conversation_page_positions,
-    group_message_page,
-)
-from gucmail.services.messages import MessageService
-from gucmail.services.quota import (
-    compact_quota_status,
-)
-from gucmail.services.sign_in import needs_sign_in
-from gucmail.services.ui_session import (
-    MailSession,
-)
 from gucmail.tui.app_core import AppCore
 from gucmail.tui.app_helpers import _open_file_with_registered_handler, _safe_failure
-from gucmail.tui.dialogs import (
-    ConfirmationScreen,
-    FolderNameScreen,
-    MailQueryScreen,
-    MessageExportPathScreen,
-)
+from gucmail.tui.labels import folder_label
 from gucmail.tui.literal_table import LiteralDataTable as DataTable
-from gucmail.tui.reader import FloatingReader, ReaderModeScreen, ReaderScreen
 from gucmail.tui.shell_widgets import AreaScreen, _AutomaticReadRequest
 from gucmail.tui.write_coordinator import (
     coordinated_write,
 )
 
+if TYPE_CHECKING:
+    from gucmail.commands import CommandInvocation
+    from gucmail.services._base import MutationPlan
+    from gucmail.services.ui_session import MailSession
+    from gucmail.tui.reader import FloatingReader
+
 
 class MailMixin(AppCore):
     """Methods of GUCmailApp; see gucmail.tui.app."""
+
+    # The last quick change Ctrl+Z can reverse. (kind, references, origin folder, old flag)
+    _last_undo: tuple[str, tuple[str, ...], str, tuple[tuple[str, bool], ...]] | None = None
+    _show_quoted = False
+
+    def action_toggle_quoted(self) -> None:
+        """Show or hide the signature and the earlier conversation under a reply."""
+
+        self._show_quoted = not self._show_quoted
+        detail = self._message_detail
+        if isinstance(detail, MessageDetail):
+            self._render_message(detail, mode="pane" if self._preview_visible else "auto")
 
     def _initial_mailbox_refresh(self) -> None:
         # A user action may have started a search before the first layout completed.
@@ -143,10 +137,34 @@ class MailMixin(AppCore):
             return
         folder = self.ui.folder
         limit = self._mailbox_page_limit()
+        label = sanitize_terminal(folder, max_length=80)
+        saved = self._show_saved_message_list(folder)
         generation = self._begin_mailbox_request(
-            f"Loading {sanitize_terminal(folder, max_length=80)}… · Esc cancels"
+            f"Showing saved list · updating {label}…"
+            if saved
+            else f"Loading {label}… · Esc cancels"
         )
         self._refresh_mailbox_worker(generation, folder, limit)
+
+    def _saves_message_list(self, folder: str) -> bool:
+        config = self.context.config
+        return config.cache_enabled and folder.casefold() == config.default_folder.casefold()
+
+    def _show_saved_message_list(self, folder: str) -> bool:
+        """Show the last saved list at start, so mail appears before the server answers."""
+
+        if self._messages or self.ui.search or not self._saves_message_list(folder):
+            return False
+        from gucmail.services.mail_list_cache import load_message_list
+
+        try:
+            saved = load_message_list(self.context.state, folder)
+        except Exception:
+            return False
+        if not saved:
+            return False
+        self._render_messages(saved)
+        return True
 
     def _begin_mailbox_request(self, status: str) -> int:
         """Allocate the read identity on the UI thread, before a worker can start."""
@@ -165,16 +183,11 @@ class MailMixin(AppCore):
 
     @work(thread=True, exclusive=True, group="mailbox-refresh")
     def _refresh_mailbox_worker(self, generation: int, folder: str, limit: int) -> None:
+        from gucmail.services.messages import MessageService
+        from gucmail.services.quota import compact_quota_status
+
         try:
             gateway = self._ensure_gateway()
-            status = gateway.status()
-            try:
-                quota_report = self._quota_service(gateway).report()
-                quota_label = compact_quota_status(quota_report)
-                quota_percent = self._quota_percent(quota_report)
-            except Exception:
-                quota_label = "Storage unavailable"
-                quota_percent = None
             messages = (
                 MessageService(gateway)
                 .list_messages(
@@ -184,40 +197,55 @@ class MailMixin(AppCore):
                 )
                 .items
             )
-            self.call_from_thread(
-                self._complete_mailbox_refresh,
-                generation,
-                folder,
-                status,
-                messages,
-                quota_label,
-                quota_percent,
-                limit,
-            )
         except Exception as exc:
             self.call_from_thread(
                 self._fail_mailbox_refresh,
                 generation,
-                _safe_failure(exc, action="Mailbox unavailable"),
+                _safe_failure(exc, action="Couldn't load mail"),
             )
+            if isinstance(exc, AuthenticationError) and not self.offline:
+                # A saved password stopped working. Ask for the new one right away.
+                self.call_from_thread(self._show_sign_in)
+            return
+        self.call_from_thread(self._complete_mailbox_refresh, generation, folder, messages, limit)
+        if self._saves_message_list(folder):
+            from gucmail.services.mail_list_cache import save_message_list
+
+            with contextlib.suppress(Exception):
+                save_message_list(self.context.state, folder, list(messages))
+        # Account details and storage load after the list, so mail shows first.
+        try:
+            status = gateway.status()
+        except Exception:
+            return
+        try:
+            quota_report = self._quota_service(gateway).report()
+            quota_label = compact_quota_status(quota_report)
+            quota_percent = self._quota_percent(quota_report)
+        except Exception:
+            quota_label = "Storage unavailable"
+            quota_percent = None
+        self.call_from_thread(
+            self._complete_mailbox_status, generation, status, quota_label, quota_percent
+        )
+
+    def _complete_mailbox_status(
+        self, generation: int, status: Any, quota_label: str, quota_percent: float | None
+    ) -> None:
+        if generation != self._mailbox_generation:
+            return
+        self._render_status(status, quota_label=quota_label)
+        self._mailbox_quota_percent = quota_percent
 
     def _complete_mailbox_refresh(
-        self,
-        generation: int,
-        folder: str,
-        status: Any,
-        messages: Any,
-        quota_label: str,
-        quota_percent: float | None,
-        limit: int,
+        self, generation: int, folder: str, messages: Any, limit: int
     ) -> None:
         if generation != self._mailbox_generation or folder != self.ui.folder:
             return
         if self._mailbox_timeout is not None:
             self._mailbox_timeout.stop()
             self._mailbox_timeout = None
-        self._render_status(status, quota_label=quota_label)
-        self._mailbox_quota_percent = quota_percent
+        self._header_connection = "Connected"
         self._loaded_mailbox_limit = limit
         self._loaded_mailbox_folder = folder
         self._mailbox_next_offset = len(messages)
@@ -252,6 +280,8 @@ class MailMixin(AppCore):
     def _load_next_mailbox_page_worker(
         self, generation: int, folder: str, offset: int, limit: int, mouse: bool
     ) -> None:
+        from gucmail.services.messages import MessageService
+
         try:
             page = MessageService(self._ensure_gateway(), state=self.context.state).list_messages(
                 folder=folder, limit=limit, offset=offset, order_by=self._mail_sort_order
@@ -269,7 +299,7 @@ class MailMixin(AppCore):
             self.call_from_thread(
                 self._fail_next_mailbox_page,
                 generation,
-                _safe_failure(exc, action="Loading more failed"),
+                _safe_failure(exc, action="Couldn't load more mail"),
             )
 
     def _complete_next_mailbox_page(
@@ -343,7 +373,7 @@ class MailMixin(AppCore):
         self._header_connection = "Connection unavailable"
         self._header_account_detail = self._header_connection
         self._refresh_shell_status()
-        self._set_status(f"{message} · F5 retry · Ctrl+F5 reconnect")
+        self._set_status(f"{message} · F5 retries")
 
     def _mailbox_load_timed_out(self, generation: int) -> None:
         if generation != self._mailbox_generation:
@@ -354,10 +384,7 @@ class MailMixin(AppCore):
         self._header_connection = "Connection timed out"
         self._header_account_detail = self._header_connection
         self._refresh_shell_status()
-        self._set_status(
-            "Mailbox request timed out; its late result will be ignored · "
-            "F5 retry · Ctrl+F5 reconnect"
-        )
+        self._set_status("The mail server is taking too long · F5 retries")
 
     def _render_status(self, status: Any, *, quota_label: str = "Storage unavailable") -> None:
         if isinstance(status, dict):
@@ -369,7 +396,15 @@ class MailMixin(AppCore):
             self._header_quota_label = sanitize_terminal(quota_label, max_length=160)
             self._refresh_shell_status()
 
-    def _format_mail_timestamp(self, value: datetime | None) -> str:
+    def _format_mail_timestamp(self, value: datetime | None, *, long: bool = False) -> str:
+        from gucmail.config import AppConfig
+        from gucmail.formatting import friendly_time, list_time
+
+        if self.context.config.datetime_format == AppConfig().datetime_format:
+            # The default format is long. Show a short friendly time instead.
+            if long:
+                return friendly_time(value, timezone=self.context.config.timezone)
+            return list_time(value, timezone=self.context.config.timezone)
         return format_timestamp(
             value,
             pattern=self.context.config.datetime_format,
@@ -377,6 +412,9 @@ class MailMixin(AppCore):
         )
 
     def _render_messages(self, messages: Any) -> None:
+        if not self.query("#message-heading"):
+            # The main window is gone (closing). A late result has nowhere to go.
+            return
         self._search_heading_label: str | None = None
         self._messages = tuple(messages or ())
         self._render_message_rows(self._messages)
@@ -384,6 +422,11 @@ class MailMixin(AppCore):
             self._pending_session_position = None
 
     def _render_message_rows(self, messages: Any) -> None:
+        from gucmail.services.mail_preferences import (
+            conversation_page_positions,
+            group_message_page,
+        )
+
         self._message_page_rows = tuple(messages or ())
         self._visible_messages = group_message_page(
             self._message_page_rows, enabled=self._group_conversations
@@ -393,10 +436,14 @@ class MailMixin(AppCore):
             if self._group_conversations
             else (None,) * len(self._visible_messages)
         )
-        grouping_label = " · grouped in this page" if self._group_conversations else ""
+        grouping_label = " · as conversations" if self._group_conversations else ""
+        count = len(self._visible_messages)
+        heading = getattr(self, "_search_heading_label", None) or self._folder_paths.get(
+            self.ui.folder, folder_label(self.ui.folder)
+        )
         self.query_one("#message-heading", Static).update(
-            f"{sanitize_terminal(getattr(self, '_search_heading_label', None) or self.ui.folder)}"
-            f" · {len(self._visible_messages)} messages"
+            f"{sanitize_terminal(heading)}"
+            f" · {count} message{'' if count == 1 else 's'}"
             f"{grouping_label}"
         )
         visible_references = {
@@ -426,7 +473,12 @@ class MailMixin(AppCore):
                     is_read = item.is_read
                     flagged = item.flagged
                     important = item.importance is Importance.HIGH
-                    unread = selected + ("●" if not is_read else " ")
+                    unread = (
+                        selected
+                        + ("●" if not is_read else " ")
+                        + ("⚑" if flagged else " ")
+                        + ("+" if item.has_attachments else " ")
+                    )
                     sender = item.sender.name or item.sender.email if item.sender else ""
                     received = self._format_mail_timestamp(item.received_at)
                     size = str(item.size or "")
@@ -442,7 +494,12 @@ class MailMixin(AppCore):
                     is_read = bool(item.get("is_read", False))
                     flagged = bool(item.get("flagged", False))
                     important = str(item.get("importance", "")).casefold() == "high"
-                    unread = selected + ("●" if not is_read else " ")
+                    unread = (
+                        selected
+                        + ("●" if not is_read else " ")
+                        + ("⚑" if flagged else " ")
+                        + ("+" if item.get("has_attachments") else " ")
+                    )
                     sender = str(item.get("sender", ""))
                     received = str(item.get("received_at", ""))
                     size = str(item.get("size", ""))
@@ -567,7 +624,7 @@ class MailMixin(AppCore):
             self.call_from_thread(
                 self._fail_message_load,
                 generation,
-                _safe_failure(exc, action="Message unavailable"),
+                _safe_failure(exc, action="Couldn't open the message"),
             )
 
     def _complete_message_load(
@@ -586,9 +643,8 @@ class MailMixin(AppCore):
         self._message_detail_reference = reference
         self.ui.busy = None
         self._render_message(detail, mode=mode)
-        self._set_status(
-            f"Message {sanitize_terminal(reference, max_length=60)} loaded without remote content"
-        )
+        has_html = isinstance(detail, MessageDetail) and bool(detail.body_html)
+        self._set_status("Remote images blocked" if has_html else "Ready")
 
     def _fail_message_load(self, generation: int, message: str) -> None:
         if generation != self._message_generation:
@@ -605,9 +661,7 @@ class MailMixin(AppCore):
         self._message_generation += 1
         self._cancel_automatic_read()
         self.ui.busy = None
-        self._set_status(
-            "Message request timed out; its late result will be ignored · Enter retries"
-        )
+        self._set_status("The message is taking too long to open · Enter retries")
 
     def _cancel_automatic_read(self) -> None:
         if self._automatic_read_timer is not None:
@@ -708,6 +762,8 @@ class MailMixin(AppCore):
     @work(thread=True, exclusive=False, group="automatic-read-state")
     @coordinated_write()
     def _automatic_mark_read_worker(self, request: _AutomaticReadRequest) -> None:
+        from gucmail.services.messages import MessageService
+
         claimed = False
         started = False
         error: Exception | None = None
@@ -736,7 +792,7 @@ class MailMixin(AppCore):
         if self._automatic_read_request is request:
             self._cancel_automatic_read()
         if error is not None:
-            message = _safe_failure(error, action="Automatic read-state update unavailable")
+            message = _safe_failure(error, action="Couldn't mark it read")
             if started:
                 message += " It may have completed; refresh before another change."
             self._set_status(message)
@@ -773,21 +829,47 @@ class MailMixin(AppCore):
         if isinstance(detail, MessageDetail):
             sender = detail.summary.sender
             received_at = detail.summary.received_at
+
+            def person(item: Address | None) -> str:
+                if item is None:
+                    return ""
+                if item.name and item.name != item.email:
+                    return f"{item.name} <{item.email}>"
+                return item.email
+
+            def people(items: Sequence[Address]) -> str:
+                return escape(sanitize_terminal(", ".join(person(item) for item in items)))
+
             lines = [
                 f"[b]{escape(sanitize_terminal(detail.summary.subject or '(no subject)'))}[/b]",
-                f"From: {escape(sanitize_terminal(sender.name or sender.email if sender else ''))}",
-                "To: " + ", ".join(escape(sanitize_terminal(item.email)) for item in detail.to),
-                f"[dim]{escape(self._format_mail_timestamp(received_at))}[/dim]",
+                f"From: {escape(sanitize_terminal(person(sender)))}",
+                f"To: {people(detail.to)}",
+                f"[dim]{escape(self._format_mail_timestamp(received_at, long=True))}[/dim]",
             ]
             if detail.cc:
-                lines.append(
-                    "Cc: " + ", ".join(escape(sanitize_terminal(item.email)) for item in detail.cc)
-                )
+                lines.append(f"Cc: {people(detail.cc)}")
             if detail.summary.importance is not Importance.NORMAL:
                 lines.append(f"Importance: {detail.summary.importance.value}")
-            if detail.attachments:
-                lines.append(f"Attachments: {len(detail.attachments)} · use Commands to save")
-            lines.extend(("", escape(sanitize_terminal(detail.body_text, max_length=1_000_000))))
+            files = [item for item in detail.attachments if not item.is_inline]
+            if files:
+                names = ", ".join(
+                    sanitize_terminal(item.name, max_length=80)
+                    + (f" ({human_bytes(item.size)})" if item.size else "")
+                    + (" (risky file type)" if item.dangerous else "")
+                    for item in files[:6]
+                )
+                more = f" and {len(files) - 6} more" if len(files) > 6 else ""
+                lines.append(f"Attachments: {escape(names)}{more} · s saves")
+            from gucmail.quotes import split_quoted
+
+            body = sanitize_terminal(detail.body_text, max_length=1_000_000)
+            fresh, quoted = split_quoted(body)
+            lines.extend(("", escape(fresh)))
+            if quoted and not self._show_quoted:
+                count = len(quoted.splitlines())
+                lines.extend(("", f"[dim]··· {count} lines hidden · o shows them[/dim]"))
+            elif quoted:
+                lines.extend(("", f"[dim]{escape(quoted)}[/dim]"))
             return "\n".join(lines)
         return escape(sanitize_terminal(detail, max_length=1_000_000))
 
@@ -846,6 +928,8 @@ class MailMixin(AppCore):
         return escape(sanitize_terminal("\n".join(lines), max_length=1_000_000))
 
     def _render_message(self, detail: Any, *, mode: str = "auto") -> None:
+        from gucmail.tui.reader import ReaderModeScreen, ReaderScreen
+
         if mode == "details":
             self.push_screen(
                 ReaderScreen(
@@ -921,6 +1005,8 @@ class MailMixin(AppCore):
         *,
         on_ready: Callable[[FloatingReader], None] | None = None,
     ) -> FloatingReader:
+        from gucmail.tui.reader import FloatingReader
+
         try:
             reader = self.query_one("#floating-reader", FloatingReader)
         except NoMatches:
@@ -966,6 +1052,9 @@ class MailMixin(AppCore):
 
     @work(thread=True, exclusive=True, group="pim-related-mail")
     def _search_contact_correspondence(self, addresses: tuple[str, ...]) -> None:
+        from gucmail.services.contact_preferences import ContactOperationPreferences
+        from gucmail.services.messages import MessageService
+
         try:
             ContactOperationPreferences.from_settings(self._settings_service()).require("history")
             service = MessageService(self._ensure_gateway(), state=self.context.state)
@@ -990,12 +1079,12 @@ class MailMixin(AppCore):
                 self._render_palette_search,
                 tuple(found.values()),
                 f"Correspondence with {len(addresses)} contact address(es)",
-                execution or "Bounded sender and recipient search completed.",
+                execution or "Sender and recipient search completed.",
             )
         except Exception as exc:
             self.call_from_thread(
                 self._set_status,
-                _safe_failure(exc, action="Contact correspondence search unavailable"),
+                _safe_failure(exc, action="Couldn't find mail with this contact"),
             )
 
     def _remember_mail_search_scope(self, scope: str, folder: str | None = None) -> None:
@@ -1007,6 +1096,9 @@ class MailMixin(AppCore):
         self._capture_session()
 
     def _prompt_mail_search(self, *, scope: str, folder: str | None = None) -> None:
+        from gucmail.commands import CommandInvocation
+        from gucmail.tui.dialogs import MailQueryScreen
+
         def accepted(query_text: str | None) -> None:
             if query_text:
                 self._palette_search(
@@ -1049,6 +1141,8 @@ class MailMixin(AppCore):
 
     @work(thread=True, exclusive=True, group="mailbox-refresh", name="_search_mail")
     def _search_mail_worker(self, generation: int, query: SearchQuery, label: str) -> None:
+        from gucmail.services.messages import MessageService
+
         worker = get_current_worker()
         if worker.is_cancelled or generation != self._mailbox_generation:
             return
@@ -1068,7 +1162,7 @@ class MailMixin(AppCore):
             )
         except Exception as exc:
             self.call_from_thread(
-                self._fail_mail_search, generation, _safe_failure(exc, action="Search unavailable")
+                self._fail_mail_search, generation, _safe_failure(exc, action="Search didn't work")
             )
 
     def _search_expression(
@@ -1098,6 +1192,8 @@ class MailMixin(AppCore):
         source: str,
         name: str | None,
     ) -> None:
+        from gucmail.services.messages import MessageService
+
         worker = get_current_worker()
         if worker.is_cancelled or generation != self._mailbox_generation:
             return
@@ -1131,7 +1227,7 @@ class MailMixin(AppCore):
             )
         except Exception as exc:
             self.call_from_thread(
-                self._fail_mail_search, generation, _safe_failure(exc, action="Search unavailable")
+                self._fail_mail_search, generation, _safe_failure(exc, action="Search didn't work")
             )
 
     def _complete_mail_search(
@@ -1164,17 +1260,47 @@ class MailMixin(AppCore):
 
     @work(thread=True, exclusive=False, group="mailbox-mutation")
     @coordinated_write()
-    def _set_message_flag(self, reference: str, *, flagged: bool) -> None:
+    def _set_message_flag(
+        self, reference: str | tuple[str, ...], *, flagged: bool, quiet: bool = False
+    ) -> None:
+        from gucmail.services.messages import MessageService
+
+        references = (reference,) if isinstance(reference, str) else reference
         try:
             service = MessageService(self._ensure_gateway(), state=self.context.state)
-            service.execute_mutation(service.plan_flag((reference,), flagged=flagged))
-            self.call_from_thread(
-                self._set_status, "Flagged message" if flagged else "Removed flag"
-            )
+            plan = service.plan_flag(references, flagged=flagged)
+            service.execute_mutation(plan, confirmation_scope=plan.confirmation_scope)
+            if not quiet:
+                count = f"{len(references)} " if len(references) > 1 else ""
+                self.call_from_thread(
+                    self._set_status,
+                    f"{count}Flagged · Ctrl+Z undo" if flagged else f"{count}Flag removed".strip(),
+                )
             self.call_from_thread(self.refresh_mailbox)
         except Exception as exc:
             self.call_from_thread(
-                self._set_status, _safe_failure(exc, action="Flag update unavailable")
+                self._set_status, _safe_failure(exc, action="Couldn't change the flag")
+            )
+
+    @work(thread=True, exclusive=False, group="mailbox-mutation")
+    @coordinated_write()
+    def _restore_message_flags(self, previous: tuple[tuple[str, bool], ...]) -> None:
+        """Put flags back as they were. One worker, since a second write would be refused."""
+
+        from gucmail.services.messages import MessageService
+
+        try:
+            service = MessageService(self._ensure_gateway(), state=self.context.state)
+            for state in (True, False):
+                group = tuple(ref for ref, was in previous if was is state)
+                if group:
+                    plan = service.plan_flag(group, flagged=state)
+                    service.execute_mutation(plan, confirmation_scope=plan.confirmation_scope)
+            self.call_from_thread(self._set_status, "Flags restored")
+            self.call_from_thread(self.refresh_mailbox)
+        except Exception as exc:
+            self.call_from_thread(
+                self._set_status, _safe_failure(exc, action="Couldn't restore the flags")
             )
 
     def _selected_message_sender(self) -> Address | None:
@@ -1210,22 +1336,42 @@ class MailMixin(AppCore):
             item.reference for item in self._visible_messages if isinstance(item, MessageSummary)
         }
         if not reference or reference not in visible:
-            self._set_status("Highlight a visible message before toggling its selection.")
+            self._set_status("Pick a message first.")
             return
         if reference in self._selected_message_references:
             self._selected_message_references.remove(reference)
         else:
             self._selected_message_references.add(reference)
         self._render_message_rows(self._message_page_rows)
+        self._show_selection_status()
+
+    def _show_selection_status(self) -> None:
+        count = len(self._selected_message_references)
+        if not count:
+            self._set_status("Nothing selected")
+            return
         self._set_status(
-            f"{len(self._selected_message_references)} of {len(self._visible_messages)} "
-            "visible message(s) selected · Space toggles"
+            f"{count} selected · d delete · e archive · ! flag · m mark read · x export"
+            " · Space or Ctrl+A to change"
         )
+
+    def action_select_all_messages(self) -> None:
+        """Select every visible message. Pressed again, clear the selection."""
+
+        visible = {
+            item.reference for item in self._visible_messages if isinstance(item, MessageSummary)
+        }
+        if visible and visible <= self._selected_message_references:
+            self._selected_message_references.clear()
+            self._render_message_rows(self._message_page_rows)
+            self._show_selection_status()
+            return
+        self._select_visible_messages("all")
 
     def _select_visible_messages(self, mode: str) -> None:
         visible = tuple(item for item in self._visible_messages if isinstance(item, MessageSummary))
         if not visible:
-            self._set_status("No visible messages are available for selection.")
+            self._set_status("No messages to select.")
             return
         if mode == "all":
             selected = visible
@@ -1251,13 +1397,15 @@ class MailMixin(AppCore):
                 return
             selected = visible
         else:
-            self._set_status("Unknown bounded selection mode.")
+            self._set_status("Unknown selection mode.")
             return
         self._selected_message_references = {item.reference for item in selected}
         self._render_message_rows(self._message_page_rows)
-        self._set_status(f"Selected {len(selected)} of {len(visible)} visible bounded message(s)")
+        self._show_selection_status()
 
     def _prompt_message_importance(self, invocation: CommandInvocation) -> None:
+        from gucmail.tui.dialogs import FolderNameScreen
+
         if not self._needs_message("Set importance"):
             return
         value = self._palette_scalar(invocation.get("importance"))
@@ -1289,11 +1437,13 @@ class MailMixin(AppCore):
                 [reference], importance=importance
             )
         except Exception as exc:
-            self._set_status(_safe_failure(exc, action="Importance update unavailable"))
+            self._set_status(_safe_failure(exc, action="Couldn't change importance"))
             return
         self._execute_message_mutation(plan, success="Message importance updated")
 
     def _prompt_message_category(self, invocation: CommandInvocation, *, mode: str) -> None:
+        from gucmail.tui.dialogs import FolderNameScreen
+
         label = "Add category" if mode == "add" else "Remove category"
         if not self._needs_message(label):
             return
@@ -1325,11 +1475,13 @@ class MailMixin(AppCore):
                 [reference], [category], mode=mode
             )
         except Exception as exc:
-            self._set_status(_safe_failure(exc, action="Category update unavailable"))
+            self._set_status(_safe_failure(exc, action="Couldn't change categories"))
             return
         self._execute_message_mutation(plan, success=f"Category {mode} completed")
 
     def _prompt_message_copy(self, invocation: CommandInvocation) -> None:
+        from gucmail.tui.dialogs import FolderNameScreen
+
         if not self._needs_message("Copy message"):
             return
         destination = self._palette_scalar(invocation.get("folder"))
@@ -1358,11 +1510,13 @@ class MailMixin(AppCore):
         try:
             plan = self._message_mutation_service().plan_copy([reference], destination)
         except Exception as exc:
-            self._set_status(_safe_failure(exc, action="Message copy unavailable"))
+            self._set_status(_safe_failure(exc, action="Couldn't copy the message"))
             return
         self._execute_message_mutation(plan, success=f"Message copied to {destination}")
 
     def _prompt_message_move(self, invocation: CommandInvocation) -> None:
+        from gucmail.tui.dialogs import FolderNameScreen
+
         if not self._needs_message("Move message"):
             return
         destination = self._palette_scalar(invocation.get("folder"))
@@ -1391,13 +1545,15 @@ class MailMixin(AppCore):
     def _preview_message_move(
         self, destination: str, *, restoring: bool, reference: str | None = None
     ) -> None:
+        from gucmail.tui.dialogs import ConfirmationScreen
+
         reference = reference or self.ui.selected_reference
         if not reference:
             return
         try:
             plan = self._message_mutation_service().plan_move([reference], destination)
         except Exception as exc:
-            self._set_status(_safe_failure(exc, action="Message move unavailable"))
+            self._set_status(_safe_failure(exc, action="Couldn't move the message"))
             return
         detail = f"{plan.summary}\n\nExact local reference:\n{reference}"
 
@@ -1418,6 +1574,8 @@ class MailMixin(AppCore):
         )
 
     def _preview_permanent_message_delete(self) -> None:
+        from gucmail.tui.dialogs import ConfirmationScreen
+
         if not self._needs_message("Permanently delete"):
             return
         reference = self.ui.selected_reference or ""
@@ -1436,6 +1594,8 @@ class MailMixin(AppCore):
     @work(thread=True, exclusive=False, group="message-mutation")
     @coordinated_write()
     def _execute_message_mutation(self, plan: MutationPlan, *, success: str) -> None:
+        from gucmail.services.messages import MessageService
+
         try:
             result = MessageService(
                 self._ensure_gateway(), state=self.context.state
@@ -1453,7 +1613,7 @@ class MailMixin(AppCore):
         except Exception as exc:
             self.call_from_thread(
                 self._set_status,
-                _safe_failure(exc, action="Message update unavailable"),
+                _safe_failure(exc, action="Couldn't update the message"),
             )
 
     def _show_message_operation_failure(self, error: MutationExecutionError) -> None:
@@ -1473,6 +1633,10 @@ class MailMixin(AppCore):
             self.refresh_mailbox()
 
     def _preview_bulk_mark_read(self, scope: str) -> None:
+        from gucmail.services.gateway import DeferredGateway as _DeferredGateway
+        from gucmail.services.messages import MessageService
+        from gucmail.tui.dialogs import ConfirmationScreen
+
         if scope == "visible":
             summaries = tuple(
                 item
@@ -1494,7 +1658,7 @@ class MailMixin(AppCore):
             [item.reference for item in summaries],
             read=True,
         )
-        detail = f"{plan.summary}\nScope: {scope} bounded rows\nReferences (exact):\n" + "\n".join(
+        detail = f"{plan.summary}\nScope: {scope} rows\nReferences (exact):\n" + "\n".join(
             plan.targets
         )
 
@@ -1507,6 +1671,8 @@ class MailMixin(AppCore):
     @work(thread=True, exclusive=False, group="mailbox-mutation")
     @coordinated_write()
     def _execute_bulk_mark_read(self, plan: MutationPlan) -> None:
+        from gucmail.services.messages import MessageService
+
         try:
             result = MessageService(
                 self._ensure_gateway(), state=self.context.state
@@ -1516,16 +1682,18 @@ class MailMixin(AppCore):
             )
             self.call_from_thread(
                 self._set_status,
-                f"Marked {len(result.results)} bounded message(s) read",
+                f"Marked {len(result.results)} message(s) read",
             )
             self.call_from_thread(self.refresh_mailbox)
         except Exception as exc:
             self.call_from_thread(
                 self._set_status,
-                _safe_failure(exc, action="Bulk read-state update unavailable"),
+                _safe_failure(exc, action="Couldn't mark the messages"),
             )
 
     def _prompt_selected_message_export(self) -> None:
+        from gucmail.tui.dialogs import ConfirmationScreen, MessageExportPathScreen
+
         summaries = self._selected_message_summaries()
         if not summaries:
             self._set_status("Select one or more visible messages before exporting.")
@@ -1541,7 +1709,7 @@ class MailMixin(AppCore):
                     subjects={item.reference: item.subject for item in summaries},
                 )
             except Exception as exc:
-                self._set_status(_safe_failure(exc, action="Message export preview unavailable"))
+                self._set_status(_safe_failure(exc, action="Couldn't export the message"))
                 return
             detail = plan.summary + "\nReferences (exact):\n" + "\n".join(plan.targets)
 
@@ -1560,6 +1728,8 @@ class MailMixin(AppCore):
         )
 
     def _preview_open_selected_externally(self) -> None:
+        from gucmail.tui.dialogs import ConfirmationScreen
+
         selected = self._selected_message_summaries()
         summary = selected[0] if len(selected) == 1 else self._selected_message_summary()
         if summary is None:
@@ -1576,7 +1746,7 @@ class MailMixin(AppCore):
                 subjects={summary.reference: summary.subject},
             )
         except Exception as exc:
-            self._set_status(_safe_failure(exc, action="External-open preview unavailable"))
+            self._set_status(_safe_failure(exc, action="Couldn't open the file"))
             return
         detail = (
             "Export one raw .eml copy to the private application cache, then ask the "
@@ -1602,24 +1772,162 @@ class MailMixin(AppCore):
                 if len(paths) != 1:
                     raise ConfigurationError("External open expected exactly one exported file.")
                 _open_file_with_registered_handler(paths[0])
-                message = f"Opened exported message with the registered handler: {paths[0]}"
+                message = f"Opened {paths[0].name}"
             else:
-                message = f"Exported {len(paths)} message(s) to {paths[0].parent}"
+                noun = "message" if len(paths) == 1 else "messages"
+                message = f"Exported {len(paths)} {noun} to {paths[0].parent}"
             self.call_from_thread(self._set_status, message)
         except Exception as exc:
             self.call_from_thread(
                 self._set_status,
                 _safe_failure(
                     exc,
-                    action="External message open unavailable"
+                    action="Couldn't open the message"
                     if open_after
-                    else "Message export unavailable",
+                    else "Couldn't export the message",
                 ),
             )
 
+    def _in_deleted_folder(self) -> bool:
+        folder = self.ui.folder
+        path = self._folder_paths.get(folder, folder_label(folder))
+        return path.rsplit("/", 1)[-1].casefold() in {"deleted", "deleted items", "trash"}
+
+    def _quick_targets(self) -> tuple[str, ...]:
+        selected = tuple(item.reference for item in self._selected_message_summaries())
+        if selected:
+            return selected
+        return (self.ui.selected_reference,) if self.ui.selected_reference else ()
+
     def action_delete(self) -> None:
+        """Move to Deleted Items at once. Ctrl+Z brings it back."""
+
+        from gucmail.services.mail_preferences import MailDeletionPreferences
+
         if not self._needs_message("Delete"):
             return
+        if self._in_deleted_folder():
+            self._confirm_permanent_style_delete()
+            return
+        try:
+            destination = MailDeletionPreferences.from_settings(
+                self._settings_service()
+            ).destination_for()
+        except ConfigurationError as exc:
+            self._set_status(sanitize_terminal(str(exc), max_length=500))
+            return
+        self._quick_move(destination or "deleteditems", "Deleted")
+
+    def action_archive(self) -> None:
+        """Move to the Archive folder at once. Ctrl+Z brings it back."""
+
+        if self._needs_message("Archive"):
+            self._quick_move("archive", "Archived")
+
+    def action_toggle_flag(self) -> None:
+        """Flag the selected messages, or unflag them when all are flagged already."""
+
+        summaries = self._selected_message_summaries()
+        if not summaries:
+            summary = self._selected_message_summary()
+            if summary is None:
+                self._needs_message("Flag")
+                return
+            summaries = (summary,)
+        flagged = not all(item.flagged for item in summaries)
+        previous = tuple((item.reference, item.flagged) for item in summaries)
+        self._last_undo = ("flag", tuple(ref for ref, _ in previous), "", previous)
+        self._set_message_flag(tuple(item.reference for item in summaries), flagged=flagged)
+
+    def action_save_attachments(self) -> None:
+        if self._needs_message("Save attachments"):
+            self._open_draft_attachment_workspace(
+                self.ui.selected_reference, attachment_action="save_all"
+            )
+
+    def action_undo(self) -> None:
+        undo = getattr(self, "_last_undo", None)
+        if undo is None:
+            self._set_status("Nothing to undo")
+            return
+        self._last_undo = None
+        kind, references, origin, flagged = undo
+        if kind == "flag":
+            self._restore_message_flags(flagged)
+            return
+        self._set_status("Undoing…")
+        self._quick_move_worker(references, origin, "Moved back", undoable=False)
+
+    def _quick_move(self, destination: str, label: str) -> None:
+        targets = self._quick_targets()
+        if not targets:
+            return
+        # Hide the rows now. The list refreshes from the server after the move.
+        remaining = tuple(
+            item
+            for item in self._messages
+            if not (isinstance(item, MessageSummary) and item.reference in targets)
+        )
+        previous = self._messages
+        self._selected_message_references.difference_update(targets)
+        self._render_messages(remaining)
+        self._set_status(f"{label}…")
+        self._quick_move_worker(
+            targets, destination, label, origin=self.ui.folder, previous=previous
+        )
+
+    @work(thread=True, exclusive=False, group="mailbox-mutation")
+    @coordinated_write()
+    def _quick_move_worker(
+        self,
+        references: tuple[str, ...],
+        destination: str,
+        label: str,
+        *,
+        origin: str = "",
+        undoable: bool = True,
+        previous: tuple[Any, ...] | None = None,
+    ) -> None:
+        from gucmail.services.messages import MessageService
+
+        def restore() -> None:
+            # The move did not finish. Put the hidden rows back until the next refresh.
+            if previous is not None:
+                self._render_messages(previous)
+
+        service = MessageService(self._ensure_gateway(), state=self.context.state)
+        try:
+            plan = service.plan_move(references, destination)
+            result = service.execute_mutation(plan, confirmation_scope=plan.confirmation_scope)
+        except MutationExecutionError as exc:
+            self.call_from_thread(restore)
+            self.call_from_thread(self._show_message_operation_failure, exc)
+            return
+        except Exception as exc:
+            self.call_from_thread(restore)
+            self.call_from_thread(
+                self._set_status, _safe_failure(exc, action=f"Couldn't finish: {label}")
+            )
+            self.call_from_thread(self.refresh_mailbox)
+            return
+        moved = tuple(item.result_reference or item.reference for item in result.outcomes)
+        count = len(references)
+        noun = "" if count == 1 else f" {count} messages"
+
+        def done() -> None:
+            if undoable and origin:
+                self._last_undo = ("move", moved, origin, ())
+                self._set_status(f"{label}{noun} · Ctrl+Z undo")
+            else:
+                self._set_status(f"{label}{noun}")
+            self.refresh_mailbox()
+
+        self.call_from_thread(done)
+
+    def _confirm_permanent_style_delete(self) -> None:
+        from gucmail.services.mail_preferences import MailDeletionPreferences
+        from gucmail.tui.dialogs import ConfirmationScreen
+
         reference = self.ui.selected_reference or ""
         try:
             destination = MailDeletionPreferences.from_settings(
@@ -1632,7 +1940,7 @@ class MailMixin(AppCore):
             self._set_status(f"Delete unavailable: {sanitize_terminal(str(exc), max_length=500)}")
             return
         except Exception as exc:
-            self._set_status(_safe_failure(exc, action="Delete unavailable"))
+            self._set_status(_safe_failure(exc, action="Couldn't delete"))
             return
 
         def confirmed(value: bool | None) -> None:
@@ -1646,10 +1954,10 @@ class MailMixin(AppCore):
 
         self.push_screen(
             ConfirmationScreen(
-                "Move one message?",
-                f"{plan.summary}\nScope: exactly 1 message\nReference: {reference}\n"
-                "This moves the message; permanent deletion requires a separate explicit action.",
-                confirm_label="Move message",
+                "Delete this message?",
+                "It is already in Deleted Items. Deleting it again removes it from this "
+                "folder. It may still be recoverable on the server for a while.",
+                confirm_label="Delete",
             ),
             confirmed,
         )
@@ -1657,6 +1965,8 @@ class MailMixin(AppCore):
     @work(thread=True, exclusive=False, group="mailbox-mutation")
     @coordinated_write()
     def _delete_message(self, reference: str) -> None:
+        from gucmail.services.messages import MessageService
+
         try:
             service = MessageService(self._ensure_gateway(), state=self.context.state)
             plan = service.plan_delete((reference,), permanent=False)
@@ -1690,6 +2000,8 @@ class MailMixin(AppCore):
     @work(thread=True, exclusive=False, group="mailbox-mutation")
     @coordinated_write()
     def _toggle_message_read(self, reference: str, *, read: bool) -> None:
+        from gucmail.services.messages import MessageService
+
         try:
             service = MessageService(self._ensure_gateway(), state=self.context.state)
             service.execute_mutation(service.plan_mark_read((reference,), read=read))
@@ -1699,6 +2011,8 @@ class MailMixin(AppCore):
             self.call_from_thread(self._set_status, _safe_failure(exc))
 
     def action_refresh(self) -> None:
+        from gucmail.services.sign_in import needs_sign_in
+
         if not self.offline and self.gateway is None and needs_sign_in(self.context):
             # Someone who chose "Not now" at startup signs in with F5.
             self._show_sign_in()
@@ -1747,4 +2061,4 @@ class MailMixin(AppCore):
             self._set_status("Connection reset · loading a fresh session…")
             self.action_refresh()
         except Exception as exc:
-            self._set_status(_safe_failure(exc, action="Reconnect unavailable"))
+            self._set_status(_safe_failure(exc, action="Couldn't reconnect"))

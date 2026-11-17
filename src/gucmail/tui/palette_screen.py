@@ -168,7 +168,7 @@ class PaletteSequencePreviewScreen(ModalScreen[PaletteSequenceDecision | None]):
             with VerticalScroll(id="sequence-content"):
                 yield Static(
                     f"1. Search (read-only)\n2. {self._target_label(target)}\n\n"
-                    f"Matched: {qualifier}{len(self.preview.items)} bounded item(s)\n"
+                    f"Matched: {qualifier}{len(self.preview.items)} item(s)\n"
                     f"Estimated size: {size_text}\n{self.preview.search_summary}",
                     id="sequence-summary",
                     markup=False,
@@ -741,7 +741,7 @@ class PaletteScreen(ModalScreen[PaletteSubmission | PaletteSequenceSubmission | 
                     }
                     else ""
                 )
-                status = "Unavailable" if unavailable else ""
+                status = "Not available here" if unavailable else ""
                 description = (
                     self._metadata_description(command.name, command.description)
                     if self.show_descriptions
@@ -796,7 +796,7 @@ class PaletteScreen(ModalScreen[PaletteSubmission | PaletteSequenceSubmission | 
         route_reason = self._route_gate_reason(command.command_id)
         if route_reason:
             return sanitize_terminal(
-                f"→ {command.name} ({result.confidence:.0%}) · unavailable\n{route_reason}",
+                f"→ {command.name} · not available here\n{route_reason}",
                 max_length=1_000,
             )
         parameters = self._format_parameters(result.invocation)
@@ -807,21 +807,20 @@ class PaletteScreen(ModalScreen[PaletteSubmission | PaletteSequenceSubmission | 
         } and not result.invocation.get("query"):
             parameters = "Enter opens a prompt for message text."
         effect = (
-            "changes Exchange mailbox and local application data"
-            if command.changes_server and command.changes_local
-            else "changes Exchange mailbox data"
+            "changes your mailbox"
             if command.changes_server
-            else "changes local application data"
-            if command.changes_local
-            else "changes state"
-            if command.mutates
-            else "read-only"
+            else "changes app data"
+            if command.changes_local or command.mutates
+            else ""
         )
-        safety = " · " + ("confirmation required · " if plan.confirmation_required else "") + effect
+        notes = [effect] if effect else []
+        if plan.confirmation_required:
+            notes.append("asks first")
+        safety = (" · " + " · ".join(notes)) if notes else ""
         # The first two plan preview fields are this same name/description.
         # Keep the real plan intact for review; avoid repeating it in the heading.
         detail = parameters or self._metadata_description(command.name, command.description)
-        heading = f"→ {command.name} ({result.confidence:.0%}){safety}"
+        heading = f"→ {command.name}{safety}"
         return sanitize_terminal(
             heading + ("\n" + detail if detail else ""),
             max_length=1_000,
@@ -836,7 +835,7 @@ class PaletteScreen(ModalScreen[PaletteSubmission | PaletteSequenceSubmission | 
         first = sequence.steps[0]
         parameters = self._format_parameters(first.invocation) if first.invocation else ""
         return sanitize_terminal(
-            "Bounded sequence · "
+            "Sequence · "
             + " → ".join(names)
             + f"\n{parameters or 'No search parameters'}\n"
             + "Enter previews real matches; no follow-up runs before a second confirmation.",
@@ -871,7 +870,11 @@ class PaletteScreen(ModalScreen[PaletteSubmission | PaletteSequenceSubmission | 
     @staticmethod
     def _format_parameters(invocation: CommandInvocation) -> str:
         values = []
-        for name, value in invocation.parameters:
+        parameters = tuple(invocation.parameters)
+        for name, value in parameters:
+            if name == "query" and len(parameters) > 1:
+                # The other filters already say what the free text meant.
+                continue
             display = (
                 getattr(value, "display", None)
                 or getattr(value, "expression", None)
@@ -879,7 +882,9 @@ class PaletteScreen(ModalScreen[PaletteSubmission | PaletteSequenceSubmission | 
                 or getattr(value, "local", None)
                 or value
             )
-            values.append(f"{name.replace('_', ' ').title()}: {display}")
+            if isinstance(display, bool):
+                display = "Yes" if display else "No"
+            values.append(f"{name.replace('_', ' ').capitalize()}: {display}")
         return " · ".join(values)
 
     def _coerce_reviewed_invocation(

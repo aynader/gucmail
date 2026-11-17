@@ -126,6 +126,32 @@ def event_time_labels(event: CalendarEvent, timezone: str) -> tuple[str, str]:
     )
 
 
+def friendly_event_times(
+    event: CalendarEvent, timezone: str, *, now: datetime | None = None
+) -> tuple[str, str]:
+    """Short screen labels, such as ("Today 10:00", "11:30") or ("Mon", "All day")."""
+
+    from datetime import timedelta
+
+    from gucmail.formatting import friendly_time
+
+    if event.is_all_day:
+        zone = event.timezone
+        start = friendly_time(event.start, timezone=zone, now=now, date_only=True)
+        last = event.end - timedelta(days=1)
+        if (
+            last.astimezone(validate_timezone(zone)).date()
+            > event.start.astimezone(validate_timezone(zone)).date()
+        ):
+            return start, "Until " + friendly_time(last, timezone=zone, now=now, date_only=True)
+        return start, "All day"
+    zone_info = validate_timezone(timezone)
+    start = friendly_time(event.start, timezone=timezone, now=now)
+    if event.end.astimezone(zone_info).date() == event.start.astimezone(zone_info).date():
+        return start, event.end.astimezone(zone_info).strftime("%H:%M")
+    return start, friendly_time(event.end, timezone=timezone, now=now)
+
+
 def event_display_data(event: CalendarEvent, timezone: str) -> dict[str, Any]:
     """A human-output copy; original domain values remain the JSON/export contract."""
 

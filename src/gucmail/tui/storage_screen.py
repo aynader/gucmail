@@ -491,7 +491,7 @@ class StorageScreen(OperationalScreen):
             yield Label("Mailbox Storage", id="storage-title")
             yield Static("Loading storage information…", id="area-state", markup=False)
             yield Static("", id="storage-overview", markup=False)
-            with Collapsible(title="Quota details and sources", id="storage-evidence"):
+            with Collapsible(title="Limits", id="storage-evidence"):
                 yield Static("", id="storage-summary", markup=False)
                 with Vertical(id="storage-quota-pane"):
                     yield DataTable(
@@ -540,11 +540,7 @@ class StorageScreen(OperationalScreen):
         ):
             table.add_column(label, key=key, width=width)
         self.query_one("#storage-analysis-table", DataTable).add_columns(
-            "Item",
-            "Category",
-            "Size",
-            "Count",
-            "Source",
+            "Item", "Where", "Size", "Count"
         )
         self.call_after_refresh(self.action_refresh)
 
@@ -571,9 +567,9 @@ class StorageScreen(OperationalScreen):
         ):
             if threshold.threshold_id == str(event.row_key.value):
                 self.query_one("#storage-detail", Static).update(
-                    f"{clean_cell(threshold.label)} · {human_bytes(threshold.effective_bytes)}\n"
-                    f"Source: {clean_cell(threshold.source)}\n"
-                    f"Confidence: {clean_cell(threshold.confidence) or 'Unknown'}"
+                    f"{clean_cell(threshold.label)} {human_bytes(threshold.effective_bytes)}"
+                    if threshold.effective_bytes is not None
+                    else f"{clean_cell(threshold.label)}: not reported by the server"
                 )
                 break
 
@@ -600,10 +596,8 @@ class StorageScreen(OperationalScreen):
             # immediately replaced by the first local-storage row's detail.
             self.set_timer(0.05, self._apply_queued_snapshot_focus)
         if not result.server_available:
-            fallback_message = "Server quota unavailable" + (
-                " · showing a bounded visible-item usage estimate."
-                if result.usage_sample_count is not None
-                else "."
+            fallback_message = "The server doesn't report your quota" + (
+                ". Showing an estimate." if result.usage_sample_count is not None else "."
             )
             self._set_view_state(
                 ViewState.OFFLINE if self.offline else ViewState.READY,
@@ -612,12 +606,12 @@ class StorageScreen(OperationalScreen):
         elif result.overview_rows:
             self._set_view_state(
                 ViewState.READY,
-                "Storage overview",
+                "Mailbox storage",
             )
         else:
             self._set_view_state(
                 ViewState.EMPTY,
-                "Quota information loaded; no storage analytics have been run yet.",
+                "Choose a view and press Analyze to see what uses space.",
             )
         queued = self._queued_analysis
         self._queued_analysis = None
@@ -677,7 +671,7 @@ class StorageScreen(OperationalScreen):
             ]
             if snapshot.usage_sample_count is not None:
                 lines.append(
-                    f"Bounded estimate coverage: {snapshot.usage_sample_count} item(s)"
+                    f"Estimate covers {snapshot.usage_sample_count} item(s)"
                     + (
                         f" of scan limit {snapshot.usage_sample_limit}"
                         if snapshot.usage_sample_limit is not None
@@ -814,7 +808,7 @@ class StorageScreen(OperationalScreen):
         if snapshot.usage_sample_count is not None:
             summary += (
                 "\nEstimate coverage: "
-                f"{snapshot.usage_sample_count} bounded visible items"
+                f"{snapshot.usage_sample_count} visible items"
                 + (
                     f" (scan limit {snapshot.usage_sample_limit})"
                     if snapshot.usage_sample_limit is not None
@@ -825,11 +819,17 @@ class StorageScreen(OperationalScreen):
         if snapshot.unavailable_reason:
             summary += f"\nServer note: {clean_cell(snapshot.unavailable_reason, max_length=300)}"
         self.query_one("#storage-summary", Static).update(summary)
-        overview = [
-            f"Usage  {usage}    ·    Send limit  {human_bytes(send_threshold)}",
-        ]
+        if snapshot.usage_bytes is not None and send_threshold:
+            left = max(send_threshold - snapshot.usage_bytes, 0)
+            percent = round(100 * snapshot.usage_bytes / send_threshold)
+            overview = [
+                f"Used  {usage} of {human_bytes(send_threshold)} ({percent}%)    ·    "
+                f"Left  {human_bytes(left)}"
+            ]
+        else:
+            overview = [f"Used  {usage}"]
         if snapshot.usage_sample_count is not None:
-            overview.append(f"Visible-item estimate · {snapshot.usage_sample_count} items sampled")
+            overview.append(f"Estimated from {snapshot.usage_sample_count} messages")
         if snapshot.send_blocked is True:
             overview.append("Sending is blocked by the mailbox quota.")
         if snapshot.receive_blocked is True:
@@ -845,10 +845,9 @@ class StorageScreen(OperationalScreen):
         for row in rows:
             table.add_row(
                 clean_cell(row.label, max_length=100),
-                clean_cell(row.category, max_length=40),
+                _where(row.category),
                 human_bytes(row.size_bytes),
-                str(row.item_count) if row.item_count is not None else "Unknown",
-                clean_cell(row.source, max_length=50),
+                str(row.item_count) if row.item_count is not None else "",
                 key=row.row_id,
             )
         if rows:
@@ -859,9 +858,7 @@ class StorageScreen(OperationalScreen):
             self._show_row(focused_row)
         else:
             self._selected_row = None
-            self.query_one("#storage-detail", Static).update(
-                "No rows are available for this bounded analysis."
-            )
+            self.query_one("#storage-detail", Static).update("Nothing to show for this view.")
         self._pending_focus_label = None
         self._update_cleanup_button()
 
@@ -905,12 +902,10 @@ class StorageScreen(OperationalScreen):
             "\n".join(
                 (
                     clean_cell(row.label, max_length=220),
-                    f"Category: {clean_cell(row.category)}",
-                    f"Size: {human_bytes(row.size_bytes)} · Count: "
-                    f"{row.item_count if row.item_count is not None else 'Unknown'}",
-                    f"Source: {clean_cell(row.source)}",
-                    "Cleanup candidate: "
-                    f"{'Yes, for plan review' if row.cleanup_candidate else 'No'}",
+                    f"Where: {_where(row.category)}",
+                    f"Size: {human_bytes(row.size_bytes)}"
+                    + (f" · {row.item_count} items" if row.item_count is not None else ""),
+                    "Can be cleaned up" if row.cleanup_candidate else "",
                     clean_cell(row.details, max_length=500),
                 )
             )
@@ -965,7 +960,7 @@ class StorageScreen(OperationalScreen):
         self._analysis = result
         self._render_rows(result.rows)
         message = (
-            f"{clean_cell(result.title)}: {len(result.rows)} bounded rows."
+            f"{clean_cell(result.title)}: {len(result.rows)} rows."
             if result.rows
             else f"{clean_cell(result.title)} returned no rows."
         )
@@ -1080,3 +1075,8 @@ __all__ = [
     "StorageSnapshotView",
     "StorageUsageRow",
 ]
+
+
+def _where(category: str) -> str:
+    labels = {"local": "This computer", "server": "Mailbox", "mailbox": "Mailbox"}
+    return labels.get(category.casefold(), clean_cell(category.capitalize(), max_length=40))

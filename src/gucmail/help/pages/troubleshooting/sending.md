@@ -1,4 +1,4 @@
-# Sending, draft, and uncertain-result problems
+# Sending problems
 
 Sending failures fall into different safety classes. The recovery action depends on whether the request definitely remained local or may have reached Exchange.
 

@@ -154,7 +154,7 @@ class OfflinePimScreen(OperationalScreen):
         self.query_one("#offline-pim-prev", Button).disabled = True
         self.query_one("#offline-pim-next", Button).disabled = True
         self._begin_operation(
-            "Reading saved records",
+            "Loading saved items",
             lambda cancel, _progress: archive.list_items(
                 kinds=KINDS[self.area],
                 offset=offset,

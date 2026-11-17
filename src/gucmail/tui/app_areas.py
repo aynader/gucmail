@@ -10,7 +10,7 @@ from dataclasses import replace
 from datetime import date, datetime
 from pathlib import Path
 from threading import Event
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 from zoneinfo import ZoneInfo
 
 from textual import work
@@ -20,9 +20,6 @@ from textual.widgets import (
     Input,
 )
 
-from gucmail.commands import (
-    CommandInvocation,
-)
 from gucmail.errors import (
     ConfigurationError,
 )
@@ -34,122 +31,45 @@ from gucmail.models import (
     SearchQuery,
 )
 from gucmail.notification_policies import MonitoringProfile
-from gucmail.secret_store import SecretStore
 from gucmail.security import sanitize_terminal
-from gucmail.services.automatic_replies import AutomaticReplyService
-from gucmail.services.backup import BackupService
-from gucmail.services.calendar import CalendarService
-from gucmail.services.calendar_display import CalendarDisplayPreferences
-from gucmail.services.calendar_preferences import (
-    CalendarOperationPreferences,
-)
-from gucmail.services.calendar_working_time import CalendarWorkingTime
-from gucmail.services.contact_groups import ContactGroupService, LocalContactGroups
-from gucmail.services.contact_preferences import ContactOperationPreferences
-from gucmail.services.contacts import ContactsService
-from gucmail.services.contacts_display import ContactsDisplayPreferences
-from gucmail.services.delegates import DelegateService
-from gucmail.services.drafts import DraftService
-from gucmail.services.gateway import DeferredGateway as _DeferredGateway
-from gucmail.services.inbox_rules import InboxRuleService
-from gucmail.services.index import SearchIndex
-from gucmail.services.local_search import LocalSearchMode, LocalSearchService
-from gucmail.services.message_export import MessageExportService
-from gucmail.services.messages import MessageService
-from gucmail.services.notification_configuration import NotificationConfigurationService
-from gucmail.services.notification_simulation import (
-    NotificationSample,
-    NotificationSimulationService,
-)
-from gucmail.services.notification_switch import NotificationSwitch
-from gucmail.services.notifications import (
-    DeliveryResult,
-    NotificationDispatcher,
-    notification_event_schema,
-)
-from gucmail.services.ocr import OcrService
-from gucmail.services.pim_preferences import CalendarCreationPreferences, TaskCreationPreferences
-from gucmail.services.quota import (
-    QuotaService,
-    quota_service_from_settings,
-)
-from gucmail.services.recurring import RecurringService
-from gucmail.services.scheduler import SchedulerService
-from gucmail.services.semantic import SemanticStore, account_identity
-from gucmail.services.semantic_search import SemanticSearchService
-from gucmail.services.startup_runtime import StartupService
-from gucmail.services.tasks import TaskService
-from gucmail.services.tasks_display import TaskDisplayPreferences
-from gucmail.services.webhooks import (
-    WebhookConfig,
-    WebhookNotificationProvider,
-    WebhookRegistry,
-)
 from gucmail.settings import SettingsContext, SettingsService
-from gucmail.tui.activity_screen import ActivityScreen
 from gucmail.tui.app_core import AppCore
 from gucmail.tui.app_helpers import _safe_failure
-from gucmail.tui.app_palette import PaletteMixin
-from gucmail.tui.appearance_screen import ThemeBrowserScreen
-from gucmail.tui.area_backends import (
-    ActivityAreaBackend,
-    BackupAreaBackend,
-    SettingsAreaBackend,
-    StorageAreaBackend,
-)
 from gucmail.tui.area_common import (
     OperationProgress,
     ProgressReporter,
 )
-from gucmail.tui.automatic_replies_screen import AutomaticRepliesScreen
-from gucmail.tui.backup_screen import BackupScreen
-from gucmail.tui.branding_screen import BrandingBrowserScreen
-from gucmail.tui.contact_groups_screen import (
-    ContactGroupsScreen,
-)
-from gucmail.tui.delegates_screen import DelegatesScreen
-from gucmail.tui.diagnostics_screen import DiagnosticsScreen, LocalDiagnosticsBackend
-from gucmail.tui.help_screen import HelpScreen
-from gucmail.tui.inbox_rules_screen import InboxRulesScreen
 from gucmail.tui.literal_select import LiteralSelect as Select
-from gucmail.tui.local_search_screen import (
-    LocalSearchScreen,
-    ServiceLocalSearchBackend,
-)
-from gucmail.tui.notification_settings_screen import (
-    NotificationSettingsScreen,
-)
-from gucmail.tui.ocr_screen import OcrScreen
-from gucmail.tui.offline_pim_screen import OfflinePimScreen
-from gucmail.tui.palette_routes import (
-    RouteTarget,
-)
-from gucmail.tui.pim_screens import (
-    CalendarScreen,
-    CalendarServiceBackend,
-    ContactsScreen,
-    ContactsServiceBackend,
-    CorrespondentsScreen,
-    TasksScreen,
-    TasksServiceBackend,
-)
-from gucmail.tui.saved_search_screen import (
-    SavedSearchScreen,
-    StateSavedSearchBackend,
-)
-from gucmail.tui.scheduled_screen import ScheduledScreen, SchedulerServiceBackend
-from gucmail.tui.settings_screen import (
-    SettingsScreen,
-)
 from gucmail.tui.shell_widgets import AreaScreen
-from gucmail.tui.startup_screen import StartupScreen
-from gucmail.tui.storage_screen import StorageScreen
+
+if TYPE_CHECKING:
+    from gucmail.commands import CommandInvocation
+    from gucmail.services.local_search import LocalSearchMode
+    from gucmail.services.message_export import MessageExportService
+    from gucmail.services.messages import MessageService
+    from gucmail.services.notification_simulation import (
+        NotificationSample,
+    )
+    from gucmail.services.notifications import (
+        DeliveryResult,
+    )
+    from gucmail.services.quota import QuotaService
+    from gucmail.services.scheduler import SchedulerService
+    from gucmail.services.semantic_search import SemanticSearchService
+    from gucmail.services.webhooks import (
+        WebhookConfig,
+    )
+    from gucmail.tui.pim_screens import (
+        ContactsServiceBackend,
+    )
 
 
 class AreasMixin(AppCore):
     """Methods of GUCmailApp; see gucmail.tui.app."""
 
     def _quota_service(self, gateway: Any) -> QuotaService:
+        from gucmail.services.quota import quota_service_from_settings
+
         settings = SettingsService(
             self.context.config_store,
             context=SettingsContext(
@@ -167,6 +87,8 @@ class AreasMixin(AppCore):
         return quota_service_from_settings(gateway, setting)
 
     def _calendar_area(self) -> str:
+        from gucmail.services.calendar import CalendarService
+
         view = CalendarService(
             self._ensure_gateway(),
             display_timezone=self.context.config.timezone,
@@ -181,6 +103,8 @@ class AreasMixin(AppCore):
         return self._bounded_lines(lines, empty="No events in the next 30 days.")
 
     def _contacts_area(self) -> str:
+        from gucmail.services.contacts import ContactsService
+
         contacts = ContactsService(
             self._ensure_gateway(),
             default_limit=min(self.context.config.page_size, 100),
@@ -194,9 +118,11 @@ class AreasMixin(AppCore):
             )
             for contact in contacts
         ]
-        return self._bounded_lines(lines, empty="No contacts in this bounded view.")
+        return self._bounded_lines(lines, empty="No contacts in this view.")
 
     def _tasks_area(self) -> str:
+        from gucmail.services.tasks import TaskService
+
         tasks = TaskService(
             self._ensure_gateway(),
             default_limit=min(self.context.config.page_size, 100),
@@ -206,9 +132,12 @@ class AreasMixin(AppCore):
             + (f"  ·  due {task.due_date.isoformat()}" if task.due_date else "")
             for task in tasks
         ]
-        return self._bounded_lines(lines, empty="No tasks in this bounded view.")
+        return self._bounded_lines(lines, empty="No tasks in this view.")
 
     def _scheduler_service(self) -> SchedulerService:
+        from gucmail.services.drafts import DraftService
+        from gucmail.services.scheduler import SchedulerService
+
         def sender(draft: DraftData, **_kwargs: Any) -> object:
             return self._ensure_gateway().send(draft)
 
@@ -237,6 +166,8 @@ class AreasMixin(AppCore):
         return self._bounded_lines(lines, empty="No local scheduled messages.")
 
     def _backups_area(self) -> str:
+        from gucmail.services.backup import BackupService
+
         backups = BackupService(self.context.paths.backup_dir, state=self.context.state).list(
             limit=100,
             inspect_corrupt_sizes=False,
@@ -249,6 +180,8 @@ class AreasMixin(AppCore):
         return self._bounded_lines(lines, empty="No local backups.")
 
     def _storage_area(self) -> str:
+        from gucmail.services.quota import QuotaService
+
         reports = QuotaService.local_disk_usage(
             {
                 "data": self.context.paths.data_dir,
@@ -269,11 +202,13 @@ class AreasMixin(AppCore):
         ]
         lines.append(
             "Mailbox total capacity is unknown unless Exchange reports it. "
-            "Open Storage to refresh the bounded usage estimate and independent thresholds."
+            "Open Storage to refresh the usage estimate and independent thresholds."
         )
         return "\n".join(lines)
 
     def _activity_area(self) -> str:
+        from gucmail.services.notifications import NotificationDispatcher
+
         history = NotificationDispatcher([], state=self.context.state).history(limit=100)
         self.context.state.initialize()
         with self.context.state.connection() as connection:
@@ -314,6 +249,9 @@ class AreasMixin(AppCore):
     def _contacts_backend(self) -> ContactsServiceBackend:
         from gucmail.services.contact_history import ContactHistoryIndex
         from gucmail.services.contact_preferences import ContactOperationPreferences
+        from gucmail.services.contacts import ContactsService
+        from gucmail.services.gateway import DeferredGateway as _DeferredGateway
+        from gucmail.tui.pim_screens import ContactsServiceBackend
 
         page_size = min(max(self.context.config.page_size, 1), 200)
         deferred_gateway = _DeferredGateway(self._ensure_gateway)
@@ -330,6 +268,7 @@ class AreasMixin(AppCore):
         )
 
     def _open_unanswered(self) -> None:
+        from gucmail.services.gateway import DeferredGateway as _DeferredGateway
         from gucmail.services.unanswered import UnansweredService
         from gucmail.tui.unanswered_screen import UnansweredScreen
 
@@ -346,6 +285,9 @@ class AreasMixin(AppCore):
         )
 
     def _open_correspondents(self, order: str) -> None:
+        from gucmail.services.contact_preferences import ContactOperationPreferences
+        from gucmail.tui.pim_screens import CorrespondentsScreen
+
         self.push_screen(
             CorrespondentsScreen(
                 self._contacts_backend(),
@@ -366,6 +308,9 @@ class AreasMixin(AppCore):
         default_folders: Sequence[str] = (),
         default_destination: str | None = None,
     ) -> None:
+        from gucmail.tui.area_backends import BackupAreaBackend
+        from gucmail.tui.backup_screen import BackupScreen
+
         online = not self.offline
         configured_destination = self._setting_value("backup.default_destination", None)
         backup_destination = (
@@ -431,6 +376,11 @@ class AreasMixin(AppCore):
         backup_id: str | None = None,
         auto_run: bool = False,
     ) -> None:
+        from gucmail.services.backup import BackupService
+        from gucmail.services.index import SearchIndex
+        from gucmail.services.local_search import LocalSearchService
+        from gucmail.tui.local_search_screen import LocalSearchScreen, ServiceLocalSearchBackend
+
         service = LocalSearchService(
             SearchIndex(self.context.paths.index_database),
             BackupService(self._backup_repository_path(), state=self.context.state),
@@ -462,6 +412,10 @@ class AreasMixin(AppCore):
         )
 
     def _semantic_service(self) -> SemanticSearchService:
+        from gucmail.services.index import SearchIndex
+        from gucmail.services.semantic import SemanticStore, account_identity
+        from gucmail.services.semantic_search import SemanticSearchService
+
         return SemanticSearchService(
             SearchIndex(self.context.paths.index_database),
             SemanticStore(
@@ -474,6 +428,9 @@ class AreasMixin(AppCore):
         )
 
     def action_local_ocr(self) -> None:
+        from gucmail.services.ocr import OcrService
+        from gucmail.tui.ocr_screen import OcrScreen
+
         self.push_screen(OcrScreen(OcrService()))
 
     def _close_runtime_for_cache_repair(self) -> None:
@@ -488,6 +445,56 @@ class AreasMixin(AppCore):
             self.gateway = None
 
     def _open_area(self, area: str) -> None:
+        from gucmail.secret_store import SecretStore
+        from gucmail.services.automatic_replies import AutomaticReplyService
+        from gucmail.services.backup import BackupService
+        from gucmail.services.calendar import CalendarService
+        from gucmail.services.calendar_display import CalendarDisplayPreferences
+        from gucmail.services.calendar_preferences import CalendarOperationPreferences
+        from gucmail.services.calendar_working_time import CalendarWorkingTime
+        from gucmail.services.contact_groups import ContactGroupService, LocalContactGroups
+        from gucmail.services.contact_preferences import ContactOperationPreferences
+        from gucmail.services.contacts_display import ContactsDisplayPreferences
+        from gucmail.services.delegates import DelegateService
+        from gucmail.services.gateway import DeferredGateway as _DeferredGateway
+        from gucmail.services.inbox_rules import InboxRuleService
+        from gucmail.services.notification_configuration import NotificationConfigurationService
+        from gucmail.services.notification_switch import NotificationSwitch
+        from gucmail.services.pim_preferences import (
+            CalendarCreationPreferences,
+            TaskCreationPreferences,
+        )
+        from gucmail.services.recurring import RecurringService
+        from gucmail.services.startup_runtime import StartupService
+        from gucmail.services.tasks import TaskService
+        from gucmail.services.tasks_display import TaskDisplayPreferences
+        from gucmail.services.webhooks import WebhookRegistry
+        from gucmail.tui.activity_screen import ActivityScreen
+        from gucmail.tui.appearance_screen import ThemeBrowserScreen
+        from gucmail.tui.area_backends import (
+            ActivityAreaBackend,
+            SettingsAreaBackend,
+            StorageAreaBackend,
+        )
+        from gucmail.tui.automatic_replies_screen import AutomaticRepliesScreen
+        from gucmail.tui.branding_screen import BrandingBrowserScreen
+        from gucmail.tui.contact_groups_screen import ContactGroupsScreen
+        from gucmail.tui.delegates_screen import DelegatesScreen
+        from gucmail.tui.inbox_rules_screen import InboxRulesScreen
+        from gucmail.tui.notification_settings_screen import NotificationSettingsScreen
+        from gucmail.tui.offline_pim_screen import OfflinePimScreen
+        from gucmail.tui.pim_screens import (
+            CalendarScreen,
+            CalendarServiceBackend,
+            ContactsScreen,
+            TasksScreen,
+            TasksServiceBackend,
+        )
+        from gucmail.tui.scheduled_screen import ScheduledScreen, SchedulerServiceBackend
+        from gucmail.tui.settings_screen import SettingsScreen
+        from gucmail.tui.startup_screen import StartupScreen
+        from gucmail.tui.storage_screen import StorageScreen
+
         if area == "layouts":
             self.action_layout_presets()
             return
@@ -732,6 +739,8 @@ class AreasMixin(AppCore):
         initial_query: str = "",
         active_view: str | None = None,
     ) -> None:
+        from gucmail.tui.help_screen import HelpScreen
+
         active = (
             active_view or type(self.screen).__name__.removesuffix("Screen").casefold() or "mail"
         )
@@ -758,6 +767,10 @@ class AreasMixin(AppCore):
 
     @work(thread=True, exclusive=True, group="pim-related-mail")
     def _search_calendar_related_messages(self, references: tuple[str, ...]) -> None:
+        from gucmail.services.calendar import CalendarService
+        from gucmail.services.calendar_preferences import CalendarOperationPreferences
+        from gucmail.services.messages import MessageService
+
         try:
             CalendarOperationPreferences.from_settings(self._settings_service()).require_related()
             references = tuple(dict.fromkeys(references))[:5]
@@ -809,7 +822,7 @@ class AreasMixin(AppCore):
                 if len(subjects) == 1
                 else f"Related mail for {len(subjects)} selected events"
             )
-            execution = f"{len(subjects)} bounded server-side subject search(es); " + (
+            execution = f"{len(subjects)} server-side subject search(es); " + (
                 summaries[-1] if summaries else "no residual evaluation"
             )
             self.call_from_thread(
@@ -821,12 +834,14 @@ class AreasMixin(AppCore):
         except Exception as exc:
             self.call_from_thread(
                 self._set_status,
-                _safe_failure(exc, action="Related-mail search unavailable"),
+                _safe_failure(exc, action="Couldn't find related mail"),
             )
 
     def _render_calendar_related_search(
         self, messages: tuple[MessageSummary, ...], label: str, execution: str
     ) -> None:
+        from gucmail.services.calendar_preferences import CalendarOperationPreferences
+
         try:
             CalendarOperationPreferences.from_settings(self._settings_service()).require_related()
         except ConfigurationError as exc:
@@ -835,6 +850,9 @@ class AreasMixin(AppCore):
         self._render_palette_search(messages, label, execution)
 
     def _open_storage_analysis(self, analysis_id: str) -> None:
+        from gucmail.tui.palette_routes import RouteTarget
+        from gucmail.tui.storage_screen import StorageScreen
+
         screen = self._route_screen(RouteTarget.STORAGE)
         if isinstance(screen, StorageScreen):
             screen.queue_analysis(analysis_id)
@@ -849,6 +867,9 @@ class AreasMixin(AppCore):
         self.set_timer(0.08, analyze)
 
     def _open_activity_with_control(self, control: str) -> None:
+        from gucmail.tui.activity_screen import ActivityScreen
+        from gucmail.tui.palette_routes import RouteTarget
+
         screen = self._route_screen(RouteTarget.ACTIVITY)
         if isinstance(screen, ActivityScreen):
             screen.queue_watcher_control(control)
@@ -863,6 +884,9 @@ class AreasMixin(AppCore):
         self.set_timer(0.08, execute)
 
     def _open_activity_with_notification_test(self, provider: str) -> None:
+        from gucmail.tui.activity_screen import ActivityScreen
+        from gucmail.tui.palette_routes import RouteTarget
+
         screen = self._route_screen(RouteTarget.ACTIVITY)
         if isinstance(screen, ActivityScreen):
             screen.queue_notification_test(provider)
@@ -879,6 +903,9 @@ class AreasMixin(AppCore):
     def _recent_rule_sample(
         self, profile: MonitoringProfile, cancel: Event, progress: ProgressReporter
     ) -> NotificationSample:
+        from gucmail.services.messages import MessageService
+        from gucmail.services.notification_simulation import NotificationSimulationService
+
         service = NotificationSimulationService(
             MessageService(self._ensure_gateway(), state=self.context.state),
             account_id=self.context.config.email or "configured-account",
@@ -900,6 +927,9 @@ class AreasMixin(AppCore):
         config: WebhookConfig,
         event: NotificationEvent,
     ) -> DeliveryResult:
+        from gucmail.secret_store import SecretStore
+        from gucmail.services.webhooks import WebhookNotificationProvider
+
         webhook_secrets = SecretStore("webhooks")
         with WebhookNotificationProvider(
             replace(config, enabled=True),
@@ -915,6 +945,9 @@ class AreasMixin(AppCore):
         name: str | None = None,
         provider_kind: str | None = None,
     ) -> None:
+        from gucmail.tui.notification_settings_screen import NotificationSettingsScreen
+        from gucmail.tui.palette_routes import RouteTarget
+
         def execute(mounted: Screen[Any] | None = None) -> None:
             mounted = mounted or self._route_screen(RouteTarget.NOTIFICATIONS)
             if not isinstance(mounted, NotificationSettingsScreen):
@@ -932,6 +965,9 @@ class AreasMixin(AppCore):
         self.set_timer(0.08, execute)
 
     def _open_activity_with_delivery_retry(self, category: str = "webhook") -> None:
+        from gucmail.tui.activity_screen import ActivityScreen
+        from gucmail.tui.palette_routes import RouteTarget
+
         screen = self._route_screen(RouteTarget.ACTIVITY)
         if isinstance(screen, ActivityScreen):
             screen.queue_delivery_retry(category)
@@ -946,6 +982,9 @@ class AreasMixin(AppCore):
         self.set_timer(0.08, execute)
 
     def _open_activity_filtered(self, category: str, text: str = "") -> None:
+        from gucmail.tui.activity_screen import ActivityScreen
+        from gucmail.tui.palette_routes import RouteTarget
+
         def apply_filter(mounted: Screen[Any] | None = None) -> None:
             mounted = mounted or self._route_screen(RouteTarget.ACTIVITY)
             if not isinstance(mounted, ActivityScreen):
@@ -962,6 +1001,8 @@ class AreasMixin(AppCore):
         self.set_timer(0.08, apply_filter)
 
     def action_copy_webhook_event_schema(self) -> None:
+        from gucmail.services.notifications import notification_event_schema
+
         document = json.dumps(notification_event_schema(), ensure_ascii=False, indent=2)
         self.copy_to_clipboard(document)
         self._set_status("Copied webhook event JSON Schema to the clipboard")
@@ -972,6 +1013,8 @@ class AreasMixin(AppCore):
         mode: str = "saved",
         create: bool = False,
     ) -> None:
+        from gucmail.tui.saved_search_screen import SavedSearchScreen, StateSavedSearchBackend
+
         initial_query = self._current_search_text
         if not initial_query:
             try:
@@ -994,6 +1037,8 @@ class AreasMixin(AppCore):
         )
 
     def _open_diagnostics_area(self, initial_action: str | None = None) -> None:
+        from gucmail.tui.diagnostics_screen import DiagnosticsScreen, LocalDiagnosticsBackend
+
         online = not self.offline
         self.push_screen(
             DiagnosticsScreen(
@@ -1010,6 +1055,9 @@ class AreasMixin(AppCore):
         )
 
     def _open_diagnostics_view(self, view: str) -> None:
+        from gucmail.tui.diagnostics_screen import DiagnosticsScreen
+        from gucmail.tui.palette_routes import RouteTarget
+
         current = self._route_screen(RouteTarget.DIAGNOSTICS)
         if isinstance(current, DiagnosticsScreen):
             current.configure_view(view)
@@ -1054,6 +1102,8 @@ class AreasMixin(AppCore):
 
     @staticmethod
     def _contacts_invocation_query(invocation: CommandInvocation) -> str:
+        from gucmail.tui.app_palette import PaletteMixin
+
         query = (
             PaletteMixin._palette_scalar(invocation.get("query"))
             or PaletteMixin._palette_scalar(invocation.get("person"))
@@ -1074,9 +1124,15 @@ class AreasMixin(AppCore):
         return query
 
     def _message_mutation_service(self) -> MessageService:
+        from gucmail.services.gateway import DeferredGateway as _DeferredGateway
+        from gucmail.services.messages import MessageService
+
         return MessageService(cast(Any, _DeferredGateway(self._ensure_gateway)))
 
     def _message_export_service(self) -> MessageExportService:
+        from gucmail.services.gateway import DeferredGateway as _DeferredGateway
+        from gucmail.services.message_export import MessageExportService
+
         maximum = max(int(self.context.config.max_attachment_bytes), 1)
         return MessageExportService(
             cast(Any, _DeferredGateway(self._ensure_gateway)),

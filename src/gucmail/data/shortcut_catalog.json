@@ -7,7 +7,7 @@
       "scope": "Other screens",
       "default_key": "ctrl+r",
       "action": "force_synchronization",
-      "description": "Force sync",
+      "description": "Check now",
       "priority": false,
       "show": false
     },
@@ -142,12 +142,32 @@
       "show": false
     },
     {
-      "id": "gucmail.tui.app.GUCmailApp:export_selected:e:0",
+      "id": "gucmail.tui.app.GUCmailApp:delete:delete:0",
+      "context": "gucmail.tui.app.GUCmailApp",
+      "scope": "Mail",
+      "default_key": "delete",
+      "action": "delete",
+      "description": "Delete",
+      "priority": false,
+      "show": false
+    },
+    {
+      "id": "gucmail.tui.app.GUCmailApp:archive:e:0",
       "context": "gucmail.tui.app.GUCmailApp",
       "scope": "Global",
       "default_key": "e",
-      "action": "export_selected",
-      "description": "Export",
+      "action": "archive",
+      "description": "Archive",
+      "priority": false,
+      "show": false
+    },
+    {
+      "id": "gucmail.tui.app.GUCmailApp:toggle_flag:exclamation_mark:0",
+      "context": "gucmail.tui.app.GUCmailApp",
+      "scope": "Global",
+      "default_key": "exclamation_mark",
+      "action": "toggle_flag",
+      "description": "Flag",
       "priority": false,
       "show": false
     },
@@ -182,6 +202,16 @@
       "show": false
     },
     {
+      "id": "gucmail.tui.app.GUCmailApp:toggle_quoted:o:0",
+      "context": "gucmail.tui.app.GUCmailApp",
+      "scope": "Global",
+      "default_key": "o",
+      "action": "toggle_quoted",
+      "description": "Show quoted text",
+      "priority": false,
+      "show": false
+    },
+    {
       "id": "gucmail.tui.app.GUCmailApp:help:question_mark:0",
       "context": "gucmail.tui.app.GUCmailApp",
       "scope": "Global",
@@ -198,6 +228,16 @@
       "default_key": "r",
       "action": "reply",
       "description": "Reply",
+      "priority": false,
+      "show": false
+    },
+    {
+      "id": "gucmail.tui.app.GUCmailApp:save_attachments:s:0",
+      "context": "gucmail.tui.app.GUCmailApp",
+      "scope": "Global",
+      "default_key": "s",
+      "action": "save_attachments",
+      "description": "Save attachments",
       "priority": false,
       "show": false
     },
@@ -238,6 +278,16 @@
       "default_key": "u",
       "action": "toggle_read",
       "description": "Read/unread",
+      "priority": false,
+      "show": false
+    },
+    {
+      "id": "gucmail.tui.app.GUCmailApp:export_selected:x:0",
+      "context": "gucmail.tui.app.GUCmailApp",
+      "scope": "Global",
+      "default_key": "x",
+      "action": "export_selected",
+      "description": "Export",
       "priority": false,
       "show": false
     },
@@ -462,6 +512,86 @@
       "show": false
     },
     {
+      "id": "gucmail.tui.calendar_screens.CalendarEditorScreen:save:ctrl+s:0",
+      "context": "gucmail.tui.calendar_screens.CalendarEditorScreen",
+      "scope": "Calendar",
+      "default_key": "ctrl+s",
+      "action": "save",
+      "description": "Save",
+      "priority": false,
+      "show": false
+    },
+    {
+      "id": "gucmail.tui.calendar_screens.CalendarScreen:delete:d:0",
+      "context": "gucmail.tui.calendar_screens.CalendarScreen",
+      "scope": "Calendar",
+      "default_key": "d",
+      "action": "delete",
+      "description": "Delete",
+      "priority": false,
+      "show": false
+    },
+    {
+      "id": "gucmail.tui.calendar_screens.CalendarScreen:edit:e:0",
+      "context": "gucmail.tui.calendar_screens.CalendarScreen",
+      "scope": "Calendar",
+      "default_key": "e",
+      "action": "edit",
+      "description": "Edit",
+      "priority": false,
+      "show": false
+    },
+    {
+      "id": "gucmail.tui.calendar_screens.CalendarScreen:correspondence:h:0",
+      "context": "gucmail.tui.calendar_screens.CalendarScreen",
+      "scope": "Calendar",
+      "default_key": "h",
+      "action": "correspondence",
+      "description": "Correspondence",
+      "priority": false,
+      "show": false
+    },
+    {
+      "id": "gucmail.tui.calendar_screens.CalendarScreen:create:n:0",
+      "context": "gucmail.tui.calendar_screens.CalendarScreen",
+      "scope": "Calendar",
+      "default_key": "n",
+      "action": "create",
+      "description": "New event",
+      "priority": false,
+      "show": false
+    },
+    {
+      "id": "gucmail.tui.calendar_screens.CalendarScreen:refresh:r:0",
+      "context": "gucmail.tui.calendar_screens.CalendarScreen",
+      "scope": "Calendar",
+      "default_key": "r",
+      "action": "refresh",
+      "description": "Refresh",
+      "priority": false,
+      "show": false
+    },
+    {
+      "id": "gucmail.tui.calendar_screens.CalendarScreen:toggle_selection:space:0",
+      "context": "gucmail.tui.calendar_screens.CalendarScreen",
+      "scope": "Calendar",
+      "default_key": "space",
+      "action": "toggle_selection",
+      "description": "Select",
+      "priority": false,
+      "show": false
+    },
+    {
+      "id": "gucmail.tui.calendar_screens.CalendarScreen:today:t:0",
+      "context": "gucmail.tui.calendar_screens.CalendarScreen",
+      "scope": "Calendar",
+      "default_key": "t",
+      "action": "today",
+      "description": "Today",
+      "priority": false,
+      "show": false
+    },
+    {
       "id": "gucmail.tui.contact_groups_screen.ContactGroupEditor:review:ctrl+s:0",
       "context": "gucmail.tui.contact_groups_screen.ContactGroupEditor",
       "scope": "Contacts",
@@ -470,6 +600,106 @@
       "description": "Review",
       "priority": false,
       "show": true
+    },
+    {
+      "id": "gucmail.tui.contacts_screens.ContactEditorScreen:save:ctrl+s:0",
+      "context": "gucmail.tui.contacts_screens.ContactEditorScreen",
+      "scope": "Contacts",
+      "default_key": "ctrl+s",
+      "action": "save",
+      "description": "Save",
+      "priority": false,
+      "show": false
+    },
+    {
+      "id": "gucmail.tui.contacts_screens.ContactsScreen:delete:d:0",
+      "context": "gucmail.tui.contacts_screens.ContactsScreen",
+      "scope": "Contacts",
+      "default_key": "d",
+      "action": "delete",
+      "description": "Delete",
+      "priority": false,
+      "show": false
+    },
+    {
+      "id": "gucmail.tui.contacts_screens.ContactsScreen:edit:e:0",
+      "context": "gucmail.tui.contacts_screens.ContactsScreen",
+      "scope": "Contacts",
+      "default_key": "e",
+      "action": "edit",
+      "description": "Edit",
+      "priority": false,
+      "show": false
+    },
+    {
+      "id": "gucmail.tui.contacts_screens.ContactsScreen:create:n:0",
+      "context": "gucmail.tui.contacts_screens.ContactsScreen",
+      "scope": "Contacts",
+      "default_key": "n",
+      "action": "create",
+      "description": "New contact",
+      "priority": false,
+      "show": false
+    },
+    {
+      "id": "gucmail.tui.contacts_screens.ContactsScreen:refresh:r:0",
+      "context": "gucmail.tui.contacts_screens.ContactsScreen",
+      "scope": "Contacts",
+      "default_key": "r",
+      "action": "refresh",
+      "description": "Refresh",
+      "priority": false,
+      "show": false
+    },
+    {
+      "id": "gucmail.tui.contacts_screens.ContactsScreen:toggle_selection:space:0",
+      "context": "gucmail.tui.contacts_screens.ContactsScreen",
+      "scope": "Contacts",
+      "default_key": "space",
+      "action": "toggle_selection",
+      "description": "Select",
+      "priority": false,
+      "show": false
+    },
+    {
+      "id": "gucmail.tui.contacts_screens.CorrespondentsScreen:compose:c:0",
+      "context": "gucmail.tui.contacts_screens.CorrespondentsScreen",
+      "scope": "Contacts",
+      "default_key": "c",
+      "action": "compose",
+      "description": "Compose",
+      "priority": false,
+      "show": false
+    },
+    {
+      "id": "gucmail.tui.contacts_screens.CorrespondentsScreen:refresh:r:0",
+      "context": "gucmail.tui.contacts_screens.CorrespondentsScreen",
+      "scope": "Contacts",
+      "default_key": "r",
+      "action": "refresh",
+      "description": "Refresh",
+      "priority": false,
+      "show": false
+    },
+    {
+      "id": "gucmail.tui.desktop_setup_screen.DesktopSetupScreen:refresh:f5:0",
+      "context": "gucmail.tui.desktop_setup_screen.DesktopSetupScreen",
+      "scope": "Other screens",
+      "default_key": "f5",
+      "action": "refresh",
+      "description": "Refresh",
+      "priority": false,
+      "show": true
+    },
+    {
+      "id": "gucmail.tui.desktop_setup_screen.DesktopSetupScreen:refresh:r:0",
+      "context": "gucmail.tui.desktop_setup_screen.DesktopSetupScreen",
+      "scope": "Other screens",
+      "default_key": "r",
+      "action": "refresh",
+      "description": "Refresh",
+      "priority": false,
+      "show": false
     },
     {
       "id": "gucmail.tui.diagnostics_screen.DiagnosticsScreen:repair_cache:c:0",
@@ -537,7 +767,7 @@
       "scope": "Mail",
       "default_key": "ctrl+s",
       "action": "sync_draft",
-      "description": "Synchronize",
+      "description": "Save to server",
       "priority": false,
       "show": false
     },
@@ -788,236 +1018,6 @@
       "default_key": "r",
       "action": "refresh",
       "description": "Refresh",
-      "priority": false,
-      "show": false
-    },
-    {
-      "id": "gucmail.tui.pim_screens.CalendarEditorScreen:save:ctrl+s:0",
-      "context": "gucmail.tui.pim_screens.CalendarEditorScreen",
-      "scope": "Calendar",
-      "default_key": "ctrl+s",
-      "action": "save",
-      "description": "Save",
-      "priority": false,
-      "show": false
-    },
-    {
-      "id": "gucmail.tui.pim_screens.CalendarScreen:delete:d:0",
-      "context": "gucmail.tui.pim_screens.CalendarScreen",
-      "scope": "Calendar",
-      "default_key": "d",
-      "action": "delete",
-      "description": "Delete",
-      "priority": false,
-      "show": false
-    },
-    {
-      "id": "gucmail.tui.pim_screens.CalendarScreen:edit:e:0",
-      "context": "gucmail.tui.pim_screens.CalendarScreen",
-      "scope": "Calendar",
-      "default_key": "e",
-      "action": "edit",
-      "description": "Edit",
-      "priority": false,
-      "show": false
-    },
-    {
-      "id": "gucmail.tui.pim_screens.CalendarScreen:correspondence:h:0",
-      "context": "gucmail.tui.pim_screens.CalendarScreen",
-      "scope": "Calendar",
-      "default_key": "h",
-      "action": "correspondence",
-      "description": "Correspondence",
-      "priority": false,
-      "show": false
-    },
-    {
-      "id": "gucmail.tui.pim_screens.CalendarScreen:create:n:0",
-      "context": "gucmail.tui.pim_screens.CalendarScreen",
-      "scope": "Calendar",
-      "default_key": "n",
-      "action": "create",
-      "description": "New event",
-      "priority": false,
-      "show": false
-    },
-    {
-      "id": "gucmail.tui.pim_screens.CalendarScreen:refresh:r:0",
-      "context": "gucmail.tui.pim_screens.CalendarScreen",
-      "scope": "Calendar",
-      "default_key": "r",
-      "action": "refresh",
-      "description": "Refresh",
-      "priority": false,
-      "show": false
-    },
-    {
-      "id": "gucmail.tui.pim_screens.CalendarScreen:toggle_selection:space:0",
-      "context": "gucmail.tui.pim_screens.CalendarScreen",
-      "scope": "Calendar",
-      "default_key": "space",
-      "action": "toggle_selection",
-      "description": "Select",
-      "priority": false,
-      "show": false
-    },
-    {
-      "id": "gucmail.tui.pim_screens.CalendarScreen:today:t:0",
-      "context": "gucmail.tui.pim_screens.CalendarScreen",
-      "scope": "Calendar",
-      "default_key": "t",
-      "action": "today",
-      "description": "Today",
-      "priority": false,
-      "show": false
-    },
-    {
-      "id": "gucmail.tui.pim_screens.ContactEditorScreen:save:ctrl+s:0",
-      "context": "gucmail.tui.pim_screens.ContactEditorScreen",
-      "scope": "Contacts",
-      "default_key": "ctrl+s",
-      "action": "save",
-      "description": "Save",
-      "priority": false,
-      "show": false
-    },
-    {
-      "id": "gucmail.tui.pim_screens.ContactsScreen:delete:d:0",
-      "context": "gucmail.tui.pim_screens.ContactsScreen",
-      "scope": "Contacts",
-      "default_key": "d",
-      "action": "delete",
-      "description": "Delete",
-      "priority": false,
-      "show": false
-    },
-    {
-      "id": "gucmail.tui.pim_screens.ContactsScreen:edit:e:0",
-      "context": "gucmail.tui.pim_screens.ContactsScreen",
-      "scope": "Contacts",
-      "default_key": "e",
-      "action": "edit",
-      "description": "Edit",
-      "priority": false,
-      "show": false
-    },
-    {
-      "id": "gucmail.tui.pim_screens.ContactsScreen:create:n:0",
-      "context": "gucmail.tui.pim_screens.ContactsScreen",
-      "scope": "Contacts",
-      "default_key": "n",
-      "action": "create",
-      "description": "New contact",
-      "priority": false,
-      "show": false
-    },
-    {
-      "id": "gucmail.tui.pim_screens.ContactsScreen:refresh:r:0",
-      "context": "gucmail.tui.pim_screens.ContactsScreen",
-      "scope": "Contacts",
-      "default_key": "r",
-      "action": "refresh",
-      "description": "Refresh",
-      "priority": false,
-      "show": false
-    },
-    {
-      "id": "gucmail.tui.pim_screens.ContactsScreen:toggle_selection:space:0",
-      "context": "gucmail.tui.pim_screens.ContactsScreen",
-      "scope": "Contacts",
-      "default_key": "space",
-      "action": "toggle_selection",
-      "description": "Select",
-      "priority": false,
-      "show": false
-    },
-    {
-      "id": "gucmail.tui.pim_screens.CorrespondentsScreen:compose:c:0",
-      "context": "gucmail.tui.pim_screens.CorrespondentsScreen",
-      "scope": "Contacts",
-      "default_key": "c",
-      "action": "compose",
-      "description": "Compose",
-      "priority": false,
-      "show": false
-    },
-    {
-      "id": "gucmail.tui.pim_screens.CorrespondentsScreen:refresh:r:0",
-      "context": "gucmail.tui.pim_screens.CorrespondentsScreen",
-      "scope": "Contacts",
-      "default_key": "r",
-      "action": "refresh",
-      "description": "Refresh",
-      "priority": false,
-      "show": false
-    },
-    {
-      "id": "gucmail.tui.pim_screens.TaskEditorScreen:save:ctrl+s:0",
-      "context": "gucmail.tui.pim_screens.TaskEditorScreen",
-      "scope": "Tasks",
-      "default_key": "ctrl+s",
-      "action": "save",
-      "description": "Save",
-      "priority": false,
-      "show": false
-    },
-    {
-      "id": "gucmail.tui.pim_screens.TasksScreen:delete:d:0",
-      "context": "gucmail.tui.pim_screens.TasksScreen",
-      "scope": "Tasks",
-      "default_key": "d",
-      "action": "delete",
-      "description": "Delete",
-      "priority": false,
-      "show": false
-    },
-    {
-      "id": "gucmail.tui.pim_screens.TasksScreen:edit:e:0",
-      "context": "gucmail.tui.pim_screens.TasksScreen",
-      "scope": "Tasks",
-      "default_key": "e",
-      "action": "edit",
-      "description": "Edit",
-      "priority": false,
-      "show": false
-    },
-    {
-      "id": "gucmail.tui.pim_screens.TasksScreen:create:n:0",
-      "context": "gucmail.tui.pim_screens.TasksScreen",
-      "scope": "Tasks",
-      "default_key": "n",
-      "action": "create",
-      "description": "New task",
-      "priority": false,
-      "show": false
-    },
-    {
-      "id": "gucmail.tui.pim_screens.TasksScreen:refresh:r:0",
-      "context": "gucmail.tui.pim_screens.TasksScreen",
-      "scope": "Tasks",
-      "default_key": "r",
-      "action": "refresh",
-      "description": "Refresh",
-      "priority": false,
-      "show": false
-    },
-    {
-      "id": "gucmail.tui.pim_screens.TasksScreen:toggle_selection:space:0",
-      "context": "gucmail.tui.pim_screens.TasksScreen",
-      "scope": "Tasks",
-      "default_key": "space",
-      "action": "toggle_selection",
-      "description": "Select",
-      "priority": false,
-      "show": false
-    },
-    {
-      "id": "gucmail.tui.pim_screens.TasksScreen:complete:x:0",
-      "context": "gucmail.tui.pim_screens.TasksScreen",
-      "scope": "Tasks",
-      "default_key": "x",
-      "action": "complete",
-      "description": "Complete",
       "priority": false,
       "show": false
     },
@@ -1292,6 +1292,76 @@
       "show": false
     },
     {
+      "id": "gucmail.tui.tasks_screens.TaskEditorScreen:save:ctrl+s:0",
+      "context": "gucmail.tui.tasks_screens.TaskEditorScreen",
+      "scope": "Tasks",
+      "default_key": "ctrl+s",
+      "action": "save",
+      "description": "Save",
+      "priority": false,
+      "show": false
+    },
+    {
+      "id": "gucmail.tui.tasks_screens.TasksScreen:delete:d:0",
+      "context": "gucmail.tui.tasks_screens.TasksScreen",
+      "scope": "Tasks",
+      "default_key": "d",
+      "action": "delete",
+      "description": "Delete",
+      "priority": false,
+      "show": false
+    },
+    {
+      "id": "gucmail.tui.tasks_screens.TasksScreen:edit:e:0",
+      "context": "gucmail.tui.tasks_screens.TasksScreen",
+      "scope": "Tasks",
+      "default_key": "e",
+      "action": "edit",
+      "description": "Edit",
+      "priority": false,
+      "show": false
+    },
+    {
+      "id": "gucmail.tui.tasks_screens.TasksScreen:create:n:0",
+      "context": "gucmail.tui.tasks_screens.TasksScreen",
+      "scope": "Tasks",
+      "default_key": "n",
+      "action": "create",
+      "description": "New task",
+      "priority": false,
+      "show": false
+    },
+    {
+      "id": "gucmail.tui.tasks_screens.TasksScreen:refresh:r:0",
+      "context": "gucmail.tui.tasks_screens.TasksScreen",
+      "scope": "Tasks",
+      "default_key": "r",
+      "action": "refresh",
+      "description": "Refresh",
+      "priority": false,
+      "show": false
+    },
+    {
+      "id": "gucmail.tui.tasks_screens.TasksScreen:toggle_selection:space:0",
+      "context": "gucmail.tui.tasks_screens.TasksScreen",
+      "scope": "Tasks",
+      "default_key": "space",
+      "action": "toggle_selection",
+      "description": "Select",
+      "priority": false,
+      "show": false
+    },
+    {
+      "id": "gucmail.tui.tasks_screens.TasksScreen:complete:x:0",
+      "context": "gucmail.tui.tasks_screens.TasksScreen",
+      "scope": "Tasks",
+      "default_key": "x",
+      "action": "complete",
+      "description": "Complete",
+      "priority": false,
+      "show": false
+    },
+    {
       "id": "gucmail.tui.tutorial_screen.TutorialScreen:next:alt+right:0",
       "context": "gucmail.tui.tutorial_screen.TutorialScreen",
       "scope": "Help",
@@ -1355,6 +1425,11 @@
     },
     {
       "context": "gucmail.tui.app.GUCmailApp",
+      "key": "ctrl+a",
+      "action": "select_all_messages"
+    },
+    {
+      "context": "gucmail.tui.app.GUCmailApp",
       "key": "ctrl+c",
       "action": "help_quit"
     },
@@ -1362,6 +1437,11 @@
       "context": "gucmail.tui.app.GUCmailApp",
       "key": "ctrl+q",
       "action": "quit"
+    },
+    {
+      "context": "gucmail.tui.app.GUCmailApp",
+      "key": "ctrl+z",
+      "action": "undo"
     },
     {
       "context": "gucmail.tui.app.GUCmailApp",
@@ -1689,6 +1769,71 @@
       "action": "app.focus_next"
     },
     {
+      "context": "gucmail.tui.calendar_screens.CalendarEditorScreen",
+      "key": "ctrl+c",
+      "action": "screen.copy_text"
+    },
+    {
+      "context": "gucmail.tui.calendar_screens.CalendarEditorScreen",
+      "key": "escape",
+      "action": "cancel"
+    },
+    {
+      "context": "gucmail.tui.calendar_screens.CalendarEditorScreen",
+      "key": "shift+tab",
+      "action": "app.focus_previous"
+    },
+    {
+      "context": "gucmail.tui.calendar_screens.CalendarEditorScreen",
+      "key": "super+c",
+      "action": "screen.copy_text"
+    },
+    {
+      "context": "gucmail.tui.calendar_screens.CalendarEditorScreen",
+      "key": "tab",
+      "action": "app.focus_next"
+    },
+    {
+      "context": "gucmail.tui.calendar_screens.CalendarScreen",
+      "key": "ctrl+c",
+      "action": "cancel_operation"
+    },
+    {
+      "context": "gucmail.tui.calendar_screens.CalendarScreen",
+      "key": "enter",
+      "action": "details"
+    },
+    {
+      "context": "gucmail.tui.calendar_screens.CalendarScreen",
+      "key": "escape",
+      "action": "close"
+    },
+    {
+      "context": "gucmail.tui.calendar_screens.CalendarScreen",
+      "key": "left",
+      "action": "previous_period"
+    },
+    {
+      "context": "gucmail.tui.calendar_screens.CalendarScreen",
+      "key": "right",
+      "action": "next_period"
+    },
+    {
+      "context": "gucmail.tui.calendar_screens.CalendarScreen",
+      "key": "shift+tab",
+      "action": "app.focus_previous"
+    },
+    {
+      "context": "gucmail.tui.calendar_screens.CalendarScreen",
+      "key": "super+c",
+      "action": "screen.copy_text"
+    },
+    {
+      "context": "gucmail.tui.calendar_screens.CalendarScreen",
+      "key": "tab",
+      "action": "app.focus_next"
+    },
+    {
       "context": "gucmail.tui.compose_screen.ComposeScreen",
       "key": "backspace",
       "action": "close"
@@ -1740,6 +1885,116 @@
     },
     {
       "context": "gucmail.tui.contact_groups_screen.ContactGroupEditor",
+      "key": "tab",
+      "action": "app.focus_next"
+    },
+    {
+      "context": "gucmail.tui.contacts_screens.ContactEditorScreen",
+      "key": "ctrl+c",
+      "action": "screen.copy_text"
+    },
+    {
+      "context": "gucmail.tui.contacts_screens.ContactEditorScreen",
+      "key": "escape",
+      "action": "cancel"
+    },
+    {
+      "context": "gucmail.tui.contacts_screens.ContactEditorScreen",
+      "key": "shift+tab",
+      "action": "app.focus_previous"
+    },
+    {
+      "context": "gucmail.tui.contacts_screens.ContactEditorScreen",
+      "key": "super+c",
+      "action": "screen.copy_text"
+    },
+    {
+      "context": "gucmail.tui.contacts_screens.ContactEditorScreen",
+      "key": "tab",
+      "action": "app.focus_next"
+    },
+    {
+      "context": "gucmail.tui.contacts_screens.ContactsScreen",
+      "key": "ctrl+c",
+      "action": "cancel_operation"
+    },
+    {
+      "context": "gucmail.tui.contacts_screens.ContactsScreen",
+      "key": "enter",
+      "action": "details"
+    },
+    {
+      "context": "gucmail.tui.contacts_screens.ContactsScreen",
+      "key": "escape",
+      "action": "close"
+    },
+    {
+      "context": "gucmail.tui.contacts_screens.ContactsScreen",
+      "key": "shift+tab",
+      "action": "app.focus_previous"
+    },
+    {
+      "context": "gucmail.tui.contacts_screens.ContactsScreen",
+      "key": "super+c",
+      "action": "screen.copy_text"
+    },
+    {
+      "context": "gucmail.tui.contacts_screens.ContactsScreen",
+      "key": "tab",
+      "action": "app.focus_next"
+    },
+    {
+      "context": "gucmail.tui.contacts_screens.CorrespondentsScreen",
+      "key": "ctrl+c",
+      "action": "cancel_operation"
+    },
+    {
+      "context": "gucmail.tui.contacts_screens.CorrespondentsScreen",
+      "key": "enter",
+      "action": "open_mail"
+    },
+    {
+      "context": "gucmail.tui.contacts_screens.CorrespondentsScreen",
+      "key": "escape",
+      "action": "close"
+    },
+    {
+      "context": "gucmail.tui.contacts_screens.CorrespondentsScreen",
+      "key": "shift+tab",
+      "action": "app.focus_previous"
+    },
+    {
+      "context": "gucmail.tui.contacts_screens.CorrespondentsScreen",
+      "key": "super+c",
+      "action": "screen.copy_text"
+    },
+    {
+      "context": "gucmail.tui.contacts_screens.CorrespondentsScreen",
+      "key": "tab",
+      "action": "app.focus_next"
+    },
+    {
+      "context": "gucmail.tui.desktop_setup_screen.DesktopSetupScreen",
+      "key": "ctrl+c",
+      "action": "cancel_operation"
+    },
+    {
+      "context": "gucmail.tui.desktop_setup_screen.DesktopSetupScreen",
+      "key": "escape",
+      "action": "close"
+    },
+    {
+      "context": "gucmail.tui.desktop_setup_screen.DesktopSetupScreen",
+      "key": "shift+tab",
+      "action": "app.focus_previous"
+    },
+    {
+      "context": "gucmail.tui.desktop_setup_screen.DesktopSetupScreen",
+      "key": "super+c",
+      "action": "screen.copy_text"
+    },
+    {
+      "context": "gucmail.tui.desktop_setup_screen.DesktopSetupScreen",
       "key": "tab",
       "action": "app.focus_next"
     },
@@ -2359,257 +2614,52 @@
       "action": "app.focus_next"
     },
     {
-      "context": "gucmail.tui.pim_screens.CalendarEditorScreen",
+      "context": "gucmail.tui.pim_common.CalendarScopeScreen",
       "key": "ctrl+c",
       "action": "screen.copy_text"
     },
     {
-      "context": "gucmail.tui.pim_screens.CalendarEditorScreen",
+      "context": "gucmail.tui.pim_common.CalendarScopeScreen",
       "key": "escape",
       "action": "cancel"
     },
     {
-      "context": "gucmail.tui.pim_screens.CalendarEditorScreen",
+      "context": "gucmail.tui.pim_common.CalendarScopeScreen",
       "key": "shift+tab",
       "action": "app.focus_previous"
     },
     {
-      "context": "gucmail.tui.pim_screens.CalendarEditorScreen",
+      "context": "gucmail.tui.pim_common.CalendarScopeScreen",
       "key": "super+c",
       "action": "screen.copy_text"
     },
     {
-      "context": "gucmail.tui.pim_screens.CalendarEditorScreen",
+      "context": "gucmail.tui.pim_common.CalendarScopeScreen",
       "key": "tab",
       "action": "app.focus_next"
     },
     {
-      "context": "gucmail.tui.pim_screens.CalendarScopeScreen",
+      "context": "gucmail.tui.pim_common.FilePathScreen",
       "key": "ctrl+c",
       "action": "screen.copy_text"
     },
     {
-      "context": "gucmail.tui.pim_screens.CalendarScopeScreen",
+      "context": "gucmail.tui.pim_common.FilePathScreen",
       "key": "escape",
       "action": "cancel"
     },
     {
-      "context": "gucmail.tui.pim_screens.CalendarScopeScreen",
+      "context": "gucmail.tui.pim_common.FilePathScreen",
       "key": "shift+tab",
       "action": "app.focus_previous"
     },
     {
-      "context": "gucmail.tui.pim_screens.CalendarScopeScreen",
+      "context": "gucmail.tui.pim_common.FilePathScreen",
       "key": "super+c",
       "action": "screen.copy_text"
     },
     {
-      "context": "gucmail.tui.pim_screens.CalendarScopeScreen",
-      "key": "tab",
-      "action": "app.focus_next"
-    },
-    {
-      "context": "gucmail.tui.pim_screens.CalendarScreen",
-      "key": "ctrl+c",
-      "action": "cancel_operation"
-    },
-    {
-      "context": "gucmail.tui.pim_screens.CalendarScreen",
-      "key": "enter",
-      "action": "details"
-    },
-    {
-      "context": "gucmail.tui.pim_screens.CalendarScreen",
-      "key": "escape",
-      "action": "close"
-    },
-    {
-      "context": "gucmail.tui.pim_screens.CalendarScreen",
-      "key": "left",
-      "action": "previous_period"
-    },
-    {
-      "context": "gucmail.tui.pim_screens.CalendarScreen",
-      "key": "right",
-      "action": "next_period"
-    },
-    {
-      "context": "gucmail.tui.pim_screens.CalendarScreen",
-      "key": "shift+tab",
-      "action": "app.focus_previous"
-    },
-    {
-      "context": "gucmail.tui.pim_screens.CalendarScreen",
-      "key": "super+c",
-      "action": "screen.copy_text"
-    },
-    {
-      "context": "gucmail.tui.pim_screens.CalendarScreen",
-      "key": "tab",
-      "action": "app.focus_next"
-    },
-    {
-      "context": "gucmail.tui.pim_screens.ContactEditorScreen",
-      "key": "ctrl+c",
-      "action": "screen.copy_text"
-    },
-    {
-      "context": "gucmail.tui.pim_screens.ContactEditorScreen",
-      "key": "escape",
-      "action": "cancel"
-    },
-    {
-      "context": "gucmail.tui.pim_screens.ContactEditorScreen",
-      "key": "shift+tab",
-      "action": "app.focus_previous"
-    },
-    {
-      "context": "gucmail.tui.pim_screens.ContactEditorScreen",
-      "key": "super+c",
-      "action": "screen.copy_text"
-    },
-    {
-      "context": "gucmail.tui.pim_screens.ContactEditorScreen",
-      "key": "tab",
-      "action": "app.focus_next"
-    },
-    {
-      "context": "gucmail.tui.pim_screens.ContactsScreen",
-      "key": "ctrl+c",
-      "action": "cancel_operation"
-    },
-    {
-      "context": "gucmail.tui.pim_screens.ContactsScreen",
-      "key": "enter",
-      "action": "details"
-    },
-    {
-      "context": "gucmail.tui.pim_screens.ContactsScreen",
-      "key": "escape",
-      "action": "close"
-    },
-    {
-      "context": "gucmail.tui.pim_screens.ContactsScreen",
-      "key": "shift+tab",
-      "action": "app.focus_previous"
-    },
-    {
-      "context": "gucmail.tui.pim_screens.ContactsScreen",
-      "key": "super+c",
-      "action": "screen.copy_text"
-    },
-    {
-      "context": "gucmail.tui.pim_screens.ContactsScreen",
-      "key": "tab",
-      "action": "app.focus_next"
-    },
-    {
-      "context": "gucmail.tui.pim_screens.CorrespondentsScreen",
-      "key": "ctrl+c",
-      "action": "cancel_operation"
-    },
-    {
-      "context": "gucmail.tui.pim_screens.CorrespondentsScreen",
-      "key": "enter",
-      "action": "open_mail"
-    },
-    {
-      "context": "gucmail.tui.pim_screens.CorrespondentsScreen",
-      "key": "escape",
-      "action": "close"
-    },
-    {
-      "context": "gucmail.tui.pim_screens.CorrespondentsScreen",
-      "key": "shift+tab",
-      "action": "app.focus_previous"
-    },
-    {
-      "context": "gucmail.tui.pim_screens.CorrespondentsScreen",
-      "key": "super+c",
-      "action": "screen.copy_text"
-    },
-    {
-      "context": "gucmail.tui.pim_screens.CorrespondentsScreen",
-      "key": "tab",
-      "action": "app.focus_next"
-    },
-    {
-      "context": "gucmail.tui.pim_screens.FilePathScreen",
-      "key": "ctrl+c",
-      "action": "screen.copy_text"
-    },
-    {
-      "context": "gucmail.tui.pim_screens.FilePathScreen",
-      "key": "escape",
-      "action": "cancel"
-    },
-    {
-      "context": "gucmail.tui.pim_screens.FilePathScreen",
-      "key": "shift+tab",
-      "action": "app.focus_previous"
-    },
-    {
-      "context": "gucmail.tui.pim_screens.FilePathScreen",
-      "key": "super+c",
-      "action": "screen.copy_text"
-    },
-    {
-      "context": "gucmail.tui.pim_screens.FilePathScreen",
-      "key": "tab",
-      "action": "app.focus_next"
-    },
-    {
-      "context": "gucmail.tui.pim_screens.TaskEditorScreen",
-      "key": "ctrl+c",
-      "action": "screen.copy_text"
-    },
-    {
-      "context": "gucmail.tui.pim_screens.TaskEditorScreen",
-      "key": "escape",
-      "action": "cancel"
-    },
-    {
-      "context": "gucmail.tui.pim_screens.TaskEditorScreen",
-      "key": "shift+tab",
-      "action": "app.focus_previous"
-    },
-    {
-      "context": "gucmail.tui.pim_screens.TaskEditorScreen",
-      "key": "super+c",
-      "action": "screen.copy_text"
-    },
-    {
-      "context": "gucmail.tui.pim_screens.TaskEditorScreen",
-      "key": "tab",
-      "action": "app.focus_next"
-    },
-    {
-      "context": "gucmail.tui.pim_screens.TasksScreen",
-      "key": "ctrl+c",
-      "action": "cancel_operation"
-    },
-    {
-      "context": "gucmail.tui.pim_screens.TasksScreen",
-      "key": "enter",
-      "action": "details"
-    },
-    {
-      "context": "gucmail.tui.pim_screens.TasksScreen",
-      "key": "escape",
-      "action": "close"
-    },
-    {
-      "context": "gucmail.tui.pim_screens.TasksScreen",
-      "key": "shift+tab",
-      "action": "app.focus_previous"
-    },
-    {
-      "context": "gucmail.tui.pim_screens.TasksScreen",
-      "key": "super+c",
-      "action": "screen.copy_text"
-    },
-    {
-      "context": "gucmail.tui.pim_screens.TasksScreen",
+      "context": "gucmail.tui.pim_common.FilePathScreen",
       "key": "tab",
       "action": "app.focus_next"
     },
@@ -2879,6 +2929,31 @@
       "action": "app.focus_next"
     },
     {
+      "context": "gucmail.tui.sign_in_screen.SignInScreen",
+      "key": "ctrl+c",
+      "action": "screen.copy_text"
+    },
+    {
+      "context": "gucmail.tui.sign_in_screen.SignInScreen",
+      "key": "escape",
+      "action": "not_now"
+    },
+    {
+      "context": "gucmail.tui.sign_in_screen.SignInScreen",
+      "key": "shift+tab",
+      "action": "app.focus_previous"
+    },
+    {
+      "context": "gucmail.tui.sign_in_screen.SignInScreen",
+      "key": "super+c",
+      "action": "screen.copy_text"
+    },
+    {
+      "context": "gucmail.tui.sign_in_screen.SignInScreen",
+      "key": "tab",
+      "action": "app.focus_next"
+    },
+    {
       "context": "gucmail.tui.startup_screen.StartupScreen",
       "key": "ctrl+c",
       "action": "cancel_operation"
@@ -2954,6 +3029,61 @@
       "action": "app.focus_next"
     },
     {
+      "context": "gucmail.tui.tasks_screens.TaskEditorScreen",
+      "key": "ctrl+c",
+      "action": "screen.copy_text"
+    },
+    {
+      "context": "gucmail.tui.tasks_screens.TaskEditorScreen",
+      "key": "escape",
+      "action": "cancel"
+    },
+    {
+      "context": "gucmail.tui.tasks_screens.TaskEditorScreen",
+      "key": "shift+tab",
+      "action": "app.focus_previous"
+    },
+    {
+      "context": "gucmail.tui.tasks_screens.TaskEditorScreen",
+      "key": "super+c",
+      "action": "screen.copy_text"
+    },
+    {
+      "context": "gucmail.tui.tasks_screens.TaskEditorScreen",
+      "key": "tab",
+      "action": "app.focus_next"
+    },
+    {
+      "context": "gucmail.tui.tasks_screens.TasksScreen",
+      "key": "ctrl+c",
+      "action": "cancel_operation"
+    },
+    {
+      "context": "gucmail.tui.tasks_screens.TasksScreen",
+      "key": "enter",
+      "action": "details"
+    },
+    {
+      "context": "gucmail.tui.tasks_screens.TasksScreen",
+      "key": "escape",
+      "action": "close"
+    },
+    {
+      "context": "gucmail.tui.tasks_screens.TasksScreen",
+      "key": "shift+tab",
+      "action": "app.focus_previous"
+    },
+    {
+      "context": "gucmail.tui.tasks_screens.TasksScreen",
+      "key": "super+c",
+      "action": "screen.copy_text"
+    },
+    {
+      "context": "gucmail.tui.tasks_screens.TasksScreen",
+      "key": "tab",
+      "action": "app.focus_next"
+    },
+    {
       "context": "gucmail.tui.tutorial_screen.TutorialScreen",
       "key": "alt+left",
       "action": "back"
@@ -3010,6 +3140,31 @@
     },
     {
       "context": "gucmail.tui.unanswered_screen.UnansweredScreen",
+      "key": "tab",
+      "action": "app.focus_next"
+    },
+    {
+      "context": "gucmail.tui.welcome_tour.WelcomeTourScreen",
+      "key": "ctrl+c",
+      "action": "screen.copy_text"
+    },
+    {
+      "context": "gucmail.tui.welcome_tour.WelcomeTourScreen",
+      "key": "escape",
+      "action": "skip"
+    },
+    {
+      "context": "gucmail.tui.welcome_tour.WelcomeTourScreen",
+      "key": "shift+tab",
+      "action": "app.focus_previous"
+    },
+    {
+      "context": "gucmail.tui.welcome_tour.WelcomeTourScreen",
+      "key": "super+c",
+      "action": "screen.copy_text"
+    },
+    {
+      "context": "gucmail.tui.welcome_tour.WelcomeTourScreen",
       "key": "tab",
       "action": "app.focus_next"
     }

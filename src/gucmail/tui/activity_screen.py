@@ -13,7 +13,6 @@ from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal, Vertical, VerticalScroll
 from textual.events import DescendantFocus, Resize
-from textual.message import Message
 from textual.widgets import Button, Collapsible, Input, Label, Static
 
 from gucmail.formatting import format_timestamp
@@ -26,6 +25,7 @@ from gucmail.tui.area_common import (
     clean_cell,
     current_row_highlight,
 )
+from gucmail.tui.events import MessageOperationRequested
 from gucmail.tui.literal_select import LiteralSelect as Select
 from gucmail.tui.literal_table import LiteralDataTable as DataTable
 
@@ -199,14 +199,6 @@ class ActivityScreenBackend(Protocol):
     ) -> ActivityUndoResultView: ...
 
 
-class MessageOperationRequested(Message):
-    """Request an exact, read-only recovery record from the owning app."""
-
-    def __init__(self, operation_id: str) -> None:
-        super().__init__()
-        self.operation_id = operation_id
-
-
 class ActivityScreen(OperationalScreen):
     """Filterable activity history with watcher and delivery controls."""
 
@@ -214,10 +206,10 @@ class ActivityScreen(OperationalScreen):
         ("All activity", "all"),
         ("Mail", "mail"),
         ("Connection", "connection"),
-        ("Watcher", "watcher"),
+        ("Alerts", "watcher"),
         ("Notification", "notification"),
         ("Webhook", "webhook"),
-        ("Scheduler", "scheduler"),
+        ("Scheduled mail", "scheduler"),
         ("Backup", "backup"),
         ("Errors and retries", "error"),
     )
@@ -273,7 +265,7 @@ class ActivityScreen(OperationalScreen):
         Binding("f", "focus_filter", "Filter", show=False),
         Binding("t", "toggle_watcher", "Toggle watcher", show=False),
         Binding("p", "pause_resume_watcher", "Pause/resume", show=False),
-        Binding("ctrl+r", "force_synchronization", "Force sync", show=False),
+        Binding("ctrl+r", "force_synchronization", "Check now", show=False),
     ]
 
     def __init__(
@@ -309,10 +301,10 @@ class ActivityScreen(OperationalScreen):
         with Vertical(id="activity-root"):
             yield from self._compose_body()
             with Horizontal(id="activity-watcher-actions"):
-                yield Button("Start watcher", id="activity-toggle-watcher", variant="primary")
-                yield Button("Pause watcher", id="activity-pause-watcher", disabled=True)
-                yield Button("Force sync", id="activity-force-sync")
-                yield Button("Test notifications", id="activity-test-notification")
+                yield Button("Turn on alerts", id="activity-toggle-watcher", variant="primary")
+                yield Button("Pause alerts", id="activity-pause-watcher", disabled=True)
+                yield Button("Check now", id="activity-force-sync")
+                yield Button("Send test alert", id="activity-test-notification")
             with Horizontal(id="activity-actions"):
                 yield Button("Operation details", id="activity-operation-details", disabled=True)
                 yield Button("Retry delivery", id="activity-retry-delivery", disabled=True)
@@ -329,9 +321,9 @@ class ActivityScreen(OperationalScreen):
     def _compose_body(self) -> ComposeResult:
         with VerticalScroll(id="activity-body"):
             yield Label("Activity", id="activity-title")
-            yield Static("Loading sanitized activity history…", id="area-state", markup=False)
-            yield Static("Watcher status is loading.", id="activity-overview", markup=False)
-            with Collapsible(title="Monitoring details", id="activity-monitoring-details"):
+            yield Static("Loading activity…", id="area-state", markup=False)
+            yield Static("", id="activity-overview", markup=False)
+            with Collapsible(title="Alert details", id="activity-monitoring-details"):
                 yield Static("", id="activity-watcher", markup=False)
             with Horizontal(id="activity-filters"):
                 yield Select(
@@ -341,14 +333,12 @@ class ActivityScreen(OperationalScreen):
                     id="activity-category",
                 )
                 yield Input(
-                    placeholder="Filter summaries, event IDs, or correlation IDs",
+                    placeholder="Filter activity",
                     id="activity-search",
                 )
             yield DataTable(id="activity-table", cursor_type="row", zebra_stripes=True)
             with VerticalScroll(id="activity-detail-scroll"):
-                yield Static(
-                    "Select an event for sanitized details.", id="activity-detail", markup=False
-                )
+                yield Static("Select an entry to see details.", id="activity-detail", markup=False)
 
     def on_mount(self) -> None:
         self.set_class(self.size.width < 100 or self.size.height < 30, "compact-activity")
@@ -395,20 +385,20 @@ class ActivityScreen(OperationalScreen):
         self._snapshot = result
         self._render_watcher(result.watcher)
         self._render_events(result.events)
-        mode = "Offline history" if result.offline or self.offline else "Live local history"
-        redaction = "redaction enabled" if result.redaction_enabled else "redaction disabled"
+        offline = result.offline or self.offline
         self.query_one("#area-state", Static).tooltip = clean_cell(
             result.retention_description, max_length=180
         )
+        count = len(result.events)
         if result.events:
             self._set_view_state(
-                ViewState.OFFLINE if result.offline or self.offline else ViewState.READY,
-                f"{mode}: {len(result.events)} events · {redaction}",
+                ViewState.OFFLINE if offline else ViewState.READY,
+                f"{count} entr{'y' if count == 1 else 'ies'}" + (" · offline" if offline else ""),
             )
         else:
             self._set_view_state(
-                ViewState.OFFLINE if result.offline or self.offline else ViewState.EMPTY,
-                f"{mode}: no events match this filter · {redaction}.",
+                ViewState.OFFLINE if offline else ViewState.EMPTY,
+                "Nothing here yet. New mail, alerts and changes show up here.",
             )
         if self._queued_watcher_action is not None:
             self.set_timer(0.01, self._run_queued_watcher_control)
@@ -422,33 +412,33 @@ class ActivityScreen(OperationalScreen):
             clean_cell(folder, max_length=60) for folder in watcher.monitored_folders
         )
         text = (
-            f"Watcher: {clean_cell(watcher.state)} · "
-            f"Configured: {clean_cell(watcher.configured_method)} · "
-            f"Active: {clean_cell(watcher.active_method)}\n"
+            f"Alerts: {clean_cell(watcher.state)} · "
+            f"Method: {clean_cell(watcher.active_method)}\n"
             f"Profile: {clean_cell(watcher.active_profile or 'None')} · "
             f"Folders: {folders or 'None'}\n"
-            f"Last successful check: {self._time(watcher.last_success_at, 'Never')} · "
+            f"Last check: {self._time(watcher.last_success_at, 'Never')} · "
             f"Next check: {self._time(watcher.next_check_at, 'Not scheduled')} · "
-            f"Queued notifications: {watcher.notification_queue_count}"
+            f"Waiting to send: {watcher.notification_queue_count}"
         )
         if watcher.last_error:
             text += f"\nLast error: {clean_cell(watcher.last_error, max_length=300)}"
         self.query_one("#activity-watcher", Static).update(text)
         overview = (
-            f"Watcher  {clean_cell(watcher.state)}    ·    "
-            f"Notifications queued  {watcher.notification_queue_count}\n"
+            f"New-mail alerts  {'on' if watcher.enabled else 'off'}    ·    "
             f"Last check  {self._time(watcher.last_success_at, 'Never')}"
         )
+        if watcher.notification_queue_count:
+            overview += f"    ·    Waiting to send  {watcher.notification_queue_count}"
         if watcher.last_error:
             overview += f"\nLast error: {clean_cell(watcher.last_error, max_length=300)}"
         self.query_one("#activity-overview", Static).update(overview)
         toggle = self.query_one("#activity-toggle-watcher", Button)
-        toggle.label = "Stop watcher" if watcher.enabled else "Start watcher"
+        toggle.label = "Turn off alerts" if watcher.enabled else "Turn on alerts"
         toggle.variant = "warning" if watcher.enabled else "primary"
         toggle.disabled = self.offline and not watcher.enabled
         paused = watcher.state in {"paused", "pause requested"}
         pause = self.query_one("#activity-pause-watcher", Button)
-        pause.label = "Resume watcher" if paused else "Pause watcher"
+        pause.label = "Resume alerts" if paused else "Pause alerts"
         pause.disabled = not watcher.enabled or (self.offline and paused)
 
     def _time(self, value: str | None, empty: str = "Unknown") -> str:
@@ -489,7 +479,7 @@ class ActivityScreen(OperationalScreen):
         else:
             self._selected_event_id = None
             self.query_one("#activity-detail", Static).update(
-                "No sanitized activity events match this filter."
+                "Nothing matches this filter."
             )
             self._update_retry_button()
 
@@ -793,7 +783,7 @@ class ActivityScreen(OperationalScreen):
             raise PublicOperationError("The activity backend did not return an export location.")
         self._set_view_state(
             ViewState.READY,
-            f"Sanitized activity exported to {clean_cell(path, max_length=400)}.",
+            f"Activity exported to {clean_cell(path, max_length=400)}.",
         )
 
     def action_clear_local_activity_history(self) -> None:
@@ -833,7 +823,7 @@ class ActivityScreen(OperationalScreen):
 
     def _start_clear_history(self, plan: ActivityClearPlanView) -> None:
         self._begin_operation(
-            "Clearing local Activity history",
+            "Clearing activity history",
             lambda cancel, progress: self.backend.execute_clear_activity(
                 plan,
                 confirmed=True,

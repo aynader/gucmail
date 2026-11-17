@@ -469,6 +469,6 @@ async def test_normal_due_workspace_uses_same_captured_local_date_in_query_and_r
         assert screen._view_today == today
         assert len(gateway.calls) == 1
         state = str(screen.query_one("#area-state", Static).render())
-        assert f"{len(expected)} task" in state and "Current page" in state
+        assert f"{len(expected)} task" in state
         assert "7 candidates examined" in screen.query_one("#area-state", Static).tooltip
         assert gateway.updates == [] and context._gateway is None

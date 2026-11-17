@@ -528,8 +528,8 @@ _OPERATIONS: tuple[Capability, ...] = (
         path=ImplementationPath.REGISTRY_ONLY,
         implemented=ImplementationStatus.PARTIAL,
         fallback=(
-            "Return 'Quota unavailable'; separately report exact local sizes and "
-            "server-returned thresholds."
+            "Sum folder sizes for usage and use the configured send limit. Report "
+            "server-returned thresholds when present."
         ),
         reason="Standard EWS has no dependable used/quota operation for ordinary mailboxes.",
     ),
@@ -538,8 +538,8 @@ _OPERATIONS: tuple[Capability, ...] = (
         "quota",
         SafetyClass.READ_ONLY,
         path=ImplementationPath.EXTENDED_PROPERTY,
-        implemented=ImplementationStatus.NOT_IMPLEMENTED,
-        reason="The property is documented but not registered by the current adapter.",
+        implemented=ImplementationStatus.IMPLEMENTED,
+        reason="Folder sizes are summed to show mailbox usage.",
     ),
     _cap(
         "PidTagDeferredSendTime",

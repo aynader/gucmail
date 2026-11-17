@@ -82,8 +82,12 @@ def test_invalid_columns_are_rejected_without_configuration_write(tmp_path, inva
 
 def test_default_adaptive_columns_and_explicit_horizontal_scroll_widths():
     compact = fitted_columns(DEFAULT_COLUMNS, 50, 1)
+    # Too narrow for the date: it gives way so the subject stays readable.
     assert [column.id for column, _ in compact] == ["state", "sender", "subject"]
     assert sum(width for _, width in compact) + 6 == 50
+    medium = fitted_columns(DEFAULT_COLUMNS, 70, 1)
+    assert [column.id for column, _ in medium] == ["state", "sender", "subject", "received"]
+    assert dict((column.id, size) for column, size in medium)["subject"] >= 20
     wide = fitted_columns(DEFAULT_COLUMNS, 115, 1)
     assert [column.id for column, _ in wide] == ["state", "sender", "subject", "received", "size"]
     assert sum(width for _, width in wide) + 10 == 115
@@ -311,6 +315,7 @@ async def test_actual_settings_guided_apply_reflows_preserves_selection_and_rest
             "subject",
             "state",
             "sender",
+            "received",
             "attachments",
         ]
         assert app.ui.selected_reference == "second"

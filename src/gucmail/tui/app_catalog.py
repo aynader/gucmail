@@ -5,7 +5,7 @@ from __future__ import annotations
 import contextlib
 import html
 from datetime import datetime, timedelta
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 from zoneinfo import ZoneInfo
 
 from textual.containers import Horizontal, Vertical
@@ -17,9 +17,6 @@ from textual.widgets import (
     Tree,
 )
 
-from gucmail.commands import (
-    CommandInvocation,
-)
 from gucmail.errors import (
     ConfigurationError,
 )
@@ -28,52 +25,16 @@ from gucmail.models import (
     MessageDetail,
     MessageSummary,
 )
-from gucmail.palette import (
-    universal_palette_registry,
-)
 from gucmail.security import sanitize_terminal
-from gucmail.services.drafts import DraftService
-from gucmail.services.local_search import LocalSearchMode
 from gucmail.settings import DEFAULT_SETTINGS
-from gucmail.tui.activity_screen import ActivityScreen
 from gucmail.tui.app_core import AppCore
 from gucmail.tui.app_helpers import _safe_failure
-from gucmail.tui.app_palette import PaletteMixin
-from gucmail.tui.appearance_screen import ThemeBrowserScreen
-from gucmail.tui.backup_screen import BackupScreen
-from gucmail.tui.compose_screen import ComposeScreen
-from gucmail.tui.diagnostics_screen import DiagnosticsScreen
-from gucmail.tui.dialogs import MailQueryScreen
-from gucmail.tui.drafts_attachments_screen import (
-    DraftAttachmentScreen,
-)
-from gucmail.tui.help_screen import HelpScreen
 from gucmail.tui.literal_select import LiteralSelect as Select
-from gucmail.tui.local_search_screen import (
-    LocalSearchScreen,
-)
-from gucmail.tui.notification_settings_screen import (
-    NotificationSettingsScreen,
-)
-from gucmail.tui.palette_routes import (
-    PaletteRoute,
-    RouteTarget,
-)
-from gucmail.tui.pim_screens import (
-    CalendarScreen,
-    ContactsScreen,
-    TasksScreen,
-)
-from gucmail.tui.reader import FloatingReader
-from gucmail.tui.saved_search_screen import (
-    SavedSearchScreen,
-)
-from gucmail.tui.scheduled_screen import ScheduledScreen
-from gucmail.tui.settings_screen import (
-    SettingsScreen,
-)
 from gucmail.tui.shell_widgets import AreaScreen
-from gucmail.tui.storage_screen import StorageScreen
+
+if TYPE_CHECKING:
+    from gucmail.commands import CommandInvocation
+    from gucmail.tui.palette_routes import PaletteRoute, RouteTarget
 
 
 class CatalogMixin(AppCore):
@@ -81,6 +42,8 @@ class CatalogMixin(AppCore):
 
     @staticmethod
     def _route_area(target: RouteTarget) -> str | None:
+        from gucmail.tui.palette_routes import RouteTarget
+
         return {
             RouteTarget.ACTIVITY: "activity",
             RouteTarget.BACKUP: "backups",
@@ -101,6 +64,21 @@ class CatalogMixin(AppCore):
         }.get(target)
 
     def _route_screen(self, target: RouteTarget) -> Screen[Any] | None:
+        from gucmail.tui.activity_screen import ActivityScreen
+        from gucmail.tui.appearance_screen import ThemeBrowserScreen
+        from gucmail.tui.backup_screen import BackupScreen
+        from gucmail.tui.compose_screen import ComposeScreen
+        from gucmail.tui.diagnostics_screen import DiagnosticsScreen
+        from gucmail.tui.drafts_attachments_screen import DraftAttachmentScreen
+        from gucmail.tui.local_search_screen import LocalSearchScreen
+        from gucmail.tui.notification_settings_screen import NotificationSettingsScreen
+        from gucmail.tui.palette_routes import RouteTarget
+        from gucmail.tui.pim_screens import CalendarScreen, ContactsScreen, TasksScreen
+        from gucmail.tui.saved_search_screen import SavedSearchScreen
+        from gucmail.tui.scheduled_screen import ScheduledScreen
+        from gucmail.tui.settings_screen import SettingsScreen
+        from gucmail.tui.storage_screen import StorageScreen
+
         screen = self.screen
         expected: dict[RouteTarget, type[Screen[Any]]] = {
             RouteTarget.ACTIVITY: ActivityScreen,
@@ -149,6 +127,8 @@ class CatalogMixin(AppCore):
         invocation: CommandInvocation,
         *prefixes: str,
     ) -> str:
+        from gucmail.tui.app_palette import PaletteMixin
+
         value = PaletteMixin._palette_scalar(invocation.get("query")) or ""
         if not value:
             value = (invocation.original_text or "").strip()
@@ -159,6 +139,13 @@ class CatalogMixin(AppCore):
         return value.strip()
 
     def _catalog_search(self, route: PaletteRoute, invocation: CommandInvocation) -> None:
+        from gucmail.commands import CommandInvocation
+        from gucmail.palette import universal_palette_registry
+        from gucmail.services.local_search import LocalSearchMode
+        from gucmail.tui.dialogs import MailQueryScreen
+        from gucmail.tui.palette_routes import RouteTarget
+        from gucmail.tui.pim_screens import TasksScreen
+
         if route.command_id in {"search.search_current_folder", "search.search_all_mail"}:
             spec = universal_palette_registry().get(route.command_id)
             names = {
@@ -325,6 +312,16 @@ class CatalogMixin(AppCore):
         self._palette_search(routed, self._palette_context())
 
     def _catalog_open(self, route: PaletteRoute, invocation: CommandInvocation) -> None:
+        from gucmail.services.drafts import DraftService
+        from gucmail.tui.activity_screen import ActivityScreen
+        from gucmail.tui.compose_screen import ComposeScreen
+        from gucmail.tui.diagnostics_screen import DiagnosticsScreen
+        from gucmail.tui.drafts_attachments_screen import DraftAttachmentScreen
+        from gucmail.tui.palette_routes import RouteTarget
+        from gucmail.tui.pim_screens import CalendarScreen, ContactsScreen, TasksScreen
+        from gucmail.tui.scheduled_screen import ScheduledScreen
+        from gucmail.tui.storage_screen import StorageScreen
+
         if route.command_id == "offline.show_offline_status":
             self._palette_offline_status(invocation, self._palette_context())
             return
@@ -367,7 +364,7 @@ class CatalogMixin(AppCore):
                             else service.get(reference)
                         )
                     except Exception as exc:
-                        self._set_status(_safe_failure(exc, action="Draft unavailable"))
+                        self._set_status(_safe_failure(exc, action="Couldn't open the draft"))
                     else:
                         self._open_compose(draft)
                 else:
@@ -523,6 +520,8 @@ class CatalogMixin(AppCore):
     def _catalog_application_action(
         self, route: PaletteRoute, invocation: CommandInvocation | None = None
     ) -> None:
+        from gucmail.commands import CommandInvocation
+
         invocation = invocation or CommandInvocation(route.command_id)
         if route.action == "compose" and route.intent:
             self._compose_from_route(route, invocation)
@@ -546,6 +545,10 @@ class CatalogMixin(AppCore):
         invocation: CommandInvocation,
     ) -> bool:
         """Execute a Backup palette route without losing its explicit scope."""
+
+        from gucmail.tui.backup_screen import BackupScreen
+        from gucmail.tui.local_search_screen import LocalSearchScreen
+        from gucmail.tui.palette_routes import RouteTarget
 
         if route.target is not RouteTarget.BACKUP:
             return False
@@ -621,7 +624,7 @@ class CatalogMixin(AppCore):
                 except NoMatches:
                     local_filter = ""
                 if not self._current_search_text and not local_filter:
-                    self._set_status("Run a search before backing up its bounded results.")
+                    self._set_status("Run a search before backing up its results.")
                     return True
                 selected_messages = tuple(
                     item.reference
@@ -629,7 +632,7 @@ class CatalogMixin(AppCore):
                     if isinstance(item, MessageSummary)
                 )
                 if not selected_messages:
-                    self._set_status("The current bounded search has no messages to back up.")
+                    self._set_status("The current search has no messages to back up.")
                     return True
             elif scope == "selected_cluster":
                 search_screen = self.screen if isinstance(self.screen, LocalSearchScreen) else None
@@ -706,6 +709,20 @@ class CatalogMixin(AppCore):
         route: PaletteRoute,
         invocation: CommandInvocation,
     ) -> None:
+        from gucmail.services.local_search import LocalSearchMode
+        from gucmail.tui.activity_screen import ActivityScreen
+        from gucmail.tui.appearance_screen import ThemeBrowserScreen
+        from gucmail.tui.backup_screen import BackupScreen
+        from gucmail.tui.compose_screen import ComposeScreen
+        from gucmail.tui.drafts_attachments_screen import DraftAttachmentScreen
+        from gucmail.tui.local_search_screen import LocalSearchScreen
+        from gucmail.tui.notification_settings_screen import NotificationSettingsScreen
+        from gucmail.tui.palette_routes import RouteTarget
+        from gucmail.tui.pim_screens import CalendarScreen, ContactsScreen, TasksScreen
+        from gucmail.tui.scheduled_screen import ScheduledScreen
+        from gucmail.tui.settings_screen import SettingsScreen
+        from gucmail.tui.storage_screen import StorageScreen
+
         if self._catalog_backup_screen_action(route, invocation):
             return
         source_draft = self.screen if isinstance(self.screen, DraftAttachmentScreen) else None
@@ -1031,7 +1048,7 @@ class CatalogMixin(AppCore):
                     reason=f"Palette: {route.command_id}",
                 )
             except (ConfigurationError, KeyError, ValueError) as exc:
-                self._set_status(_safe_failure(exc, action="Appearance setting failed"))
+                self._set_status(_safe_failure(exc, action="Couldn't change the look"))
                 return
             changed = (
                 tuple(change.setting_id for change in revision.changes)
@@ -1061,7 +1078,7 @@ class CatalogMixin(AppCore):
                         reason=f"Palette: {route.command_id}",
                     )
             except (ConfigurationError, KeyError, ValueError) as exc:
-                self._set_status(_safe_failure(exc, action="Appearance reset failed"))
+                self._set_status(_safe_failure(exc, action="Couldn't reset the look"))
                 return
             changed = (
                 tuple(change.setting_id for change in revision.changes)
@@ -1090,6 +1107,10 @@ class CatalogMixin(AppCore):
         route: PaletteRoute,
         invocation: CommandInvocation,
     ) -> None:
+        from gucmail.tui.help_screen import HelpScreen
+        from gucmail.tui.palette_routes import RouteTarget
+        from gucmail.tui.settings_screen import SettingsScreen
+
         query = route.query or ""
         page_id = route.help_topic
         if route.command_id == "help.explain_a_selected_setting":
@@ -1123,6 +1144,12 @@ class CatalogMixin(AppCore):
         )
 
     def _catalog_direct(self, route: PaletteRoute, invocation: CommandInvocation) -> None:
+        from gucmail.commands import CommandInvocation
+        from gucmail.tui.compose_screen import ComposeScreen
+        from gucmail.tui.drafts_attachments_screen import DraftAttachmentScreen
+        from gucmail.tui.palette_routes import RouteTarget
+        from gucmail.tui.reader import FloatingReader
+
         action = route.action or ""
         if route.target is RouteTarget.APPLICATION and action == "leave_offline_mode":
             self._palette_leave_offline(invocation, self._palette_context())
@@ -1233,7 +1260,7 @@ class CatalogMixin(AppCore):
                 else self._format_message(detail)
             )
             self.copy_to_clipboard(str(value or ""))
-            self._set_status("Copied sanitized message information to the clipboard")
+            self._set_status("Copied message information to the clipboard")
         elif route.target is RouteTarget.MESSAGE_READER and action == "close_floating_reader":
             with contextlib.suppress(NoMatches):
                 self.query_one("#floating-reader", FloatingReader).remove()

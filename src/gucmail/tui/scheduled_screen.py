@@ -42,6 +42,7 @@ from gucmail.tui.area_common import (
     clean_cell,
     current_row_highlight,
 )
+from gucmail.tui.labels import send_state, when
 from gucmail.tui.literal_select import LiteralSelect as Select
 from gucmail.tui.literal_table import LiteralDataTable as DataTable
 
@@ -476,11 +477,12 @@ class SchedulerServiceBackend:
                 "Connect to Exchange before running due scheduled messages."
             )
         self._check_cancel(cancel)
-        progress(OperationProgress("Running bounded due queue", 0, limit))
+        progress(OperationProgress("Sending due messages", 0, limit))
         run: SchedulerRun = self.service.run_once(limit=limit)
         detail = (
-            f"Claimed {run.claimed}; sent {run.sent}; manual review {run.needs_review}; "
-            f"stale leases recovered {run.stale_recovered}."
+            f"Sent {run.sent}"
+            + (f", {run.needs_review} need a check" if run.needs_review else "")
+            + "."
         )
         return ScheduledOperationView("scheduler", "paused" if run.paused else "completed", detail)
 
@@ -711,22 +713,33 @@ class ScheduledScreen(OperationalScreen):
         self._highlighted: str | None = None
         self._status: SchedulerStatusView | None = None
 
+    def _display_zone(self) -> str:
+        context = getattr(self.app, "context", None)
+        return str(getattr(getattr(context, "config", None), "timezone", None) or "UTC")
+
+    def _zone(self, job: ScheduledJobView) -> str:
+        try:
+            ZoneInfo(job.timezone)
+        except (ZoneInfoNotFoundError, ValueError):
+            return self._display_zone()
+        return job.timezone
+
     def compose(self) -> ComposeResult:
         with Vertical(id="scheduled-root"):
             yield Label("Scheduled Mail", id="scheduled-title")
             with Horizontal(id="scheduled-toolbar"):
                 yield Input(
-                    placeholder="Filter subject, recipient, state, or reference",
+                    placeholder="Filter by subject or recipient",
                     id="scheduled-filter",
                 )
                 yield Select(
                     (
-                        ("All states", ""),
-                        ("Upcoming", "scheduled"),
-                        ("Undo Send", "undo_delay"),
+                        ("Any status", ""),
+                        ("Scheduled", "scheduled"),
+                        ("Sending soon", "undo_delay"),
                         ("Failed", "failed"),
-                        ("Uncertain", "send_state_uncertain"),
-                        ("Manual review", "manual_review_required"),
+                        ("Check Sent", "send_state_uncertain"),
+                        ("Check needed", "manual_review_required"),
                         ("Sent", "sent"),
                         ("Cancelled", "cancelled"),
                     ),
@@ -765,14 +778,14 @@ class ScheduledScreen(OperationalScreen):
                 yield Button("Cancel schedule", id="scheduled-cancel", variant="warning")
                 yield Button("Send now", id="scheduled-send-now", variant="error")
             with HorizontalScroll(id="scheduled-footer"):
-                yield Button("Run due (max 20)", id="scheduled-run-due", variant="warning")
+                yield Button("Send due now", id="scheduled-run-due", variant="warning")
                 yield Button("Pause", id="scheduled-pause")
                 yield Button("Refresh", id="scheduled-refresh")
                 yield Button("Close", classes="area-close", variant="primary")
 
     def on_mount(self) -> None:
         table = self.query_one("#scheduled-table", DataTable)
-        table.add_columns("State", "When", "Subject", "To", "Attempts", "Reference")
+        table.add_columns("Status", "When", "Subject", "To")
         self.query_one("#scheduled-send-now", Button).disabled = (
             self.offline or not self.backend.online
         )
@@ -833,37 +846,34 @@ class ScheduledScreen(OperationalScreen):
         table.clear()
         for job in jobs:
             table.add_row(
-                clean_cell(job.state, max_length=30),
-                clean_cell(job.scheduled_for, max_length=40),
+                send_state(job.state),
+                clean_cell(when(job.scheduled_for, self._zone(job)), max_length=40),
                 clean_cell(job.subject or "(no subject)", max_length=90),
                 clean_cell(", ".join(job.to), max_length=80),
-                str(job.attempts),
-                clean_cell(job.reference, max_length=70),
                 key=job.reference,
             )
-        summary = (
-            ("Paused" if status.paused else "Running")
-            + f" · {len(jobs)} visible / {sum(status.counts.values())} total"
-            + f" · manual review {status.manual_review}"
-            + (
-                f" · next {status.next_scheduled}"
-                if status.next_scheduled
-                else " · no upcoming job"
-            )
-        )
+        parts = ["Sending paused" if status.paused else "Sending on"]
+        if status.next_scheduled:
+            parts.append("next " + when(status.next_scheduled, self._display_zone()))
+        if status.manual_review:
+            parts.append(f"{status.manual_review} need a check")
+        summary = " · ".join(parts)
         self.query_one("#scheduled-summary", Static).update(clean_cell(summary, max_length=500))
         pause = self.query_one("#scheduled-pause", Button)
         pause.label = "Resume" if status.paused else "Pause"
         pause.variant = "success" if status.paused else "default"
         if jobs:
-            self._set_view_state(ViewState.READY, f"Loaded {len(jobs)} bounded scheduled messages.")
+            noun = "message" if len(jobs) == 1 else "messages"
+            self._set_view_state(ViewState.READY, f"{len(jobs)} scheduled {noun}")
             target = previous if previous in self._jobs else jobs[0].reference
             row = next(index for index, item in enumerate(jobs) if item.reference == target)
             table.move_cursor(row=row)
             self._select(target)
         else:
             self._highlighted = None
-            self._set_view_state(ViewState.EMPTY, "No scheduled messages match this bounded view.")
+            self._set_view_state(
+                ViewState.EMPTY, "Nothing scheduled. Schedule a draft from the composer."
+            )
             self.query_one("#scheduled-detail", Static).update("No scheduled message selected.")
         self._update_actions()
 
@@ -879,25 +889,26 @@ class ScheduledScreen(OperationalScreen):
             return
         self._highlighted = reference
         recipients = ", ".join(job.to) or "(none)"
+        zone = self._zone(job)
         details = [
             clean_cell(job.subject, max_length=240) or "(no subject)",
             f"To: {clean_cell(recipients, max_length=240)}",
-            f"When: {clean_cell(job.scheduled_for)} ({clean_cell(job.timezone)})",
-            f"State: {clean_cell(job.state)} · Attempts: {job.attempts} · "
-            f"Attachments: {job.attachment_count}",
-            f"Expression: {clean_cell(job.original_expression, max_length=240)}",
-            f"Draft: {clean_cell(job.draft_reference, max_length=160)}",
+            f"When: {clean_cell(when(job.scheduled_for, zone))}"
+            + (f" ({clean_cell(job.timezone)})" if zone != self._display_zone() else ""),
+            f"Status: {send_state(job.state)}",
         ]
+        if job.attachment_count:
+            details.append(f"Attachments: {job.attachment_count}")
+        if job.attempts:
+            details.append(f"Tries: {job.attempts}")
         if job.recurrence_id:
-            details.append(f"Recurrence: {clean_cell(job.recurrence_id, max_length=160)}")
+            details.append("Repeats")
         if job.next_attempt_at:
-            details.append(f"Next attempt: {clean_cell(job.next_attempt_at)}")
+            details.append(f"Next try: {clean_cell(when(job.next_attempt_at, zone))}")
         if job.last_error:
-            details.append(f"Last error: {clean_cell(job.last_error, max_length=300)}")
+            details.append(f"Last problem: {clean_cell(job.last_error, max_length=300)}")
         if job.require_final_confirmation:
-            details.append("Final confirmation is required before sending.")
-        if job.outcome_reference:
-            details.append(f"Outcome: {clean_cell(job.outcome_reference, max_length=160)}")
+            details.append("Asks you to confirm before sending.")
         self.query_one("#scheduled-detail", Static).update("\n".join(details))
         self._update_actions()
 
@@ -1054,7 +1065,7 @@ class ScheduledScreen(OperationalScreen):
 
     def _run_due(self) -> None:
         self._begin_operation(
-            "Running bounded due queue",
+            "Sending due messages",
             lambda cancel, progress: self.backend.run_due(
                 limit=20, cancel=cancel, progress=progress
             ),
@@ -1111,11 +1122,11 @@ class ScheduledScreen(OperationalScreen):
         if self.offline or not self.backend.online:
             return
         self._confirm(
-            "Run due scheduled messages?",
-            "Process at most 20 due jobs. Each durable job is claimed transactionally; "
-            "uncertain outcomes are held for manual review rather than retried blindly.",
+            "Send due messages now?",
+            "Sends up to 20 messages whose time has come. If a send can't be confirmed, "
+            "it waits for you to check instead of sending twice.",
             self._run_due,
-            confirm_label="Run due jobs",
+            confirm_label="Send due",
         )
 
     def action_toggle_pause(self) -> None:

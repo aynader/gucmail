@@ -22,7 +22,6 @@ from pyfiglet import Figlet, FigletFont
 from gucmail.tui.themes import (
     ColorCapability,
     ThemeDefinition,
-    ThemeValidationError,
     contrast_ratio,
 )
 
@@ -801,32 +800,58 @@ def _figlet_presets() -> tuple[BrandingPreset, ...]:
     return tuple(presets)
 
 
-_BUILTIN_PRESETS: Final[tuple[BrandingPreset, ...]] = (
-    *_HANDCRAFTED_PRESETS,
-    *_generated_presets(),
-    *_figlet_presets(),
-)
+@lru_cache(maxsize=1)
+def _common_presets() -> dict[str, BrandingPreset]:
+    """Hand-made and generated presets: enough to resolve a saved choice at startup."""
+
+    return {preset.id: preset for preset in (*_HANDCRAFTED_PRESETS, *_generated_presets())}
+
+
+@lru_cache(maxsize=1)
+def _builtin_presets() -> tuple[BrandingPreset, ...]:
+    """Every preset, including one per installed FIGlet font (reads ~600 font files)."""
+
+    return (*_common_presets().values(), *_figlet_presets())
 
 
 class BrandingCatalog:
-    """Broad searchable catalog; custom art lives in preferences, never executable data."""
+    """Broad searchable catalog; custom art lives in preferences, never executable data.
 
-    def __init__(self, presets: Iterable[BrandingPreset] = _BUILTIN_PRESETS) -> None:
-        self._presets = {preset.id: preset for preset in presets}
-        if len(self._presets) != len(tuple(presets)):
+    The FIGlet font presets are listed only when the whole catalog is needed, so
+    resolving the saved logo at startup stays fast.
+    """
+
+    def __init__(self, presets: Iterable[BrandingPreset] | None = None) -> None:
+        self._builtin = presets is None
+        self._indexed: dict[str, BrandingPreset] | None = None
+        if presets is not None:
+            self._indexed = self._index(tuple(presets))
+
+    @staticmethod
+    def _index(presets: tuple[BrandingPreset, ...]) -> dict[str, BrandingPreset]:
+        indexed = {preset.id: preset for preset in presets}
+        if len(indexed) != len(presets):
             raise BrandingValidationError("Branding IDs must be unique")
+        return indexed
+
+    def _all(self) -> dict[str, BrandingPreset]:
+        if self._indexed is None:
+            self._indexed = self._index(_builtin_presets())
+        return self._indexed
 
     @property
     def presets(self) -> tuple[BrandingPreset, ...]:
-        return tuple(self._presets.values())
+        return tuple(self._all().values())
 
     @property
     def categories(self) -> tuple[str, ...]:
         return tuple(sorted({preset.category for preset in self.presets}))
 
     def get(self, preset_id: str) -> BrandingPreset:
+        if self._builtin and self._indexed is None and preset_id in _common_presets():
+            return _common_presets()[preset_id]
         try:
-            return self._presets[preset_id]
+            return self._all()[preset_id]
         except KeyError as exc:
             raise BrandingValidationError(f"Unknown branding preset: {preset_id}") from exc
 
@@ -1406,9 +1431,3 @@ def validate_theme_branding(theme: ThemeDefinition) -> tuple[str, ...]:
         if contrast_ratio(color, theme.palette.header) < 3.0:
             warnings.append(f"{name} is below 3:1 against the header")
     return tuple(warnings)
-
-
-def theme_validation_error_to_branding(exc: ThemeValidationError) -> BrandingValidationError:
-    """Translate a theme lookup error for settings-facing branding callers."""
-
-    return BrandingValidationError(str(exc))

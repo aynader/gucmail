@@ -1,4 +1,4 @@
-# Connection, login, timeout, and stale-session problems
+# Can't sign in or connect
 
 Start with the visible state and one controlled diagnostic pass. Rapid retries can lock an account or worsen Exchange throttling.
 

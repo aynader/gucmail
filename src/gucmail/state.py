@@ -21,6 +21,15 @@ if TYPE_CHECKING:
     from gucmail.help.models import HelpUserState
 
 MIGRATIONS: dict[int, str] = {
+    17: """
+        CREATE TABLE message_list_cache (
+            account_key TEXT NOT NULL,
+            folder TEXT NOT NULL,
+            payload_json TEXT NOT NULL,
+            cached_at TEXT NOT NULL,
+            PRIMARY KEY(account_key, folder)
+        );
+    """,
     16: """
         CREATE TABLE restore_operations (
             sequence INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -1094,93 +1103,6 @@ class QuotaObservationRecord:
     confidence: str
     detail: str | None
     observed_at: datetime
-
-
-@dataclass(frozen=True, slots=True)
-class NotificationProfileRecord:
-    account_key: str
-    profile_id: str
-    name: str
-    enabled: bool
-    folders: tuple[str, ...]
-    strategy_preference: str | None
-    poll_interval_seconds: int | None
-    privacy_mode: str
-    metadata: Mapping[str, Any]
-    created_at: datetime
-    updated_at: datetime
-
-
-@dataclass(frozen=True, slots=True)
-class NotificationRuleStateRecord:
-    account_key: str
-    rule_id: str
-    profile_id: str
-    name: str
-    enabled: bool
-    priority: int
-    position: int
-    definition: Mapping[str, Any]
-    created_at: datetime
-    updated_at: datetime
-
-
-@dataclass(frozen=True, slots=True)
-class QuietHoursRecord:
-    account_key: str
-    schedule_id: str
-    profile_id: str
-    weekday: int
-    start_minute: int
-    end_minute: int
-    behavior: str
-    enabled: bool
-    exceptions: Mapping[str, Any]
-    created_at: datetime
-    updated_at: datetime
-
-
-@dataclass(frozen=True, slots=True)
-class DigestScheduleRecord:
-    account_key: str
-    digest_id: str
-    profile_id: str
-    name: str
-    enabled: bool
-    schedule: Mapping[str, Any]
-    privacy_mode: str
-    last_emitted_at: datetime | None
-    next_due_at: datetime | None
-    created_at: datetime
-    updated_at: datetime
-
-
-@dataclass(frozen=True, slots=True)
-class NotificationProviderConfigRecord:
-    account_key: str
-    provider_id: str
-    kind: str
-    name: str
-    enabled: bool
-    secret_ref: str | None
-    metadata: Mapping[str, Any]
-    created_at: datetime
-    updated_at: datetime
-
-
-@dataclass(frozen=True, slots=True)
-class NotificationRouteRecord:
-    account_key: str
-    route_id: str
-    profile_id: str
-    rule_id: str | None
-    provider_id: str
-    enabled: bool
-    priority: int
-    privacy_mode: str
-    field_allowlist: tuple[str, ...] | None
-    created_at: datetime
-    updated_at: datetime
 
 
 _SENSITIVE_JSON_KEYS = frozenset(
@@ -2263,6 +2185,7 @@ class StateStore:
             "item_reference_aliases",
             "item_reference_remote_ids",
             "item_references",
+            "message_list_cache",
         )
         counts: dict[str, int] = {}
         with self.transaction(immediate=True) as connection:
@@ -2285,6 +2208,7 @@ class StateStore:
             "item_reference_aliases",
             "item_reference_remote_ids",
             "item_references",
+            "message_list_cache",
         )
         with self.connection() as connection:
             return {
@@ -2296,6 +2220,35 @@ class StateStore:
                 )
                 for table in cache_tables
             }
+
+    def put_message_list(self, folder: str, payload: list[dict[str, Any]]) -> None:
+        """Remember the first page of a folder so the next start can show it at once."""
+
+        clean_folder = _text(folder, label="Folder", maximum=1_024)
+        self.initialize()
+        with self.transaction(immediate=True) as connection:
+            connection.execute(
+                "INSERT INTO message_list_cache(account_key, folder, payload_json, cached_at) "
+                "VALUES (?, ?, ?, ?) ON CONFLICT(account_key, folder) DO UPDATE SET "
+                "payload_json=excluded.payload_json, cached_at=excluded.cached_at",
+                (self.account_key, clean_folder, json.dumps(payload, ensure_ascii=False), iso()),
+            )
+
+    def get_message_list(self, folder: str) -> list[dict[str, Any]] | None:
+        clean_folder = _text(folder, label="Folder", maximum=1_024)
+        self.initialize()
+        with self.connection() as connection:
+            row = connection.execute(
+                "SELECT payload_json FROM message_list_cache WHERE account_key=? AND folder=?",
+                (self.account_key, clean_folder),
+            ).fetchone()
+        if row is None:
+            return None
+        try:
+            payload = json.loads(str(row[0]))
+        except ValueError:
+            return None
+        return payload if isinstance(payload, list) else None
 
     def clear_cache(self) -> dict[str, int]:
         """Backward-compatible name for clearing only disposable cache records."""

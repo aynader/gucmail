@@ -11,7 +11,7 @@ import sys
 from collections.abc import Callable, Mapping
 from dataclasses import replace
 from threading import get_ident
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from rich.text import Text
 from textual.containers import Horizontal, Vertical, VerticalScroll
@@ -24,95 +24,38 @@ from gucmail.config import normalize_theme_identifier
 from gucmail.errors import (
     ConfigurationError,
 )
-from gucmail.help import (
-    HelpRuntimeContext,
-    HelpUserState,
-)
 from gucmail.security import sanitize_terminal
-from gucmail.services.attachment_preferences import AttachmentPreferences
-from gucmail.services.calendar_preferences import (
-    CALENDAR_OPERATION_SETTINGS,
-)
-from gucmail.services.contacts_display import CONTACT_DISPLAY_SETTINGS
-from gucmail.services.keyboard_bindings import (
-    KEYBOARD_SETTING,
-    KEYBOARD_SETTING_IDS,
-    validate_binding_configuration,
-)
-from gucmail.services.layout_presets import PRESET_FIELDS, LayoutPresetService
-from gucmail.services.mail_preferences import (
-    MailSortPreferences,
-)
-from gucmail.services.message_columns import (
-    COLUMN_LABELS,
-    DEFAULT_COLUMNS,
-    MessageColumn,
-    columns_value,
-    fitted_columns,
-    parse_columns,
-)
-from gucmail.services.shell_preferences import (
-    HEADER_DEFAULT,
-    STATUS_DEFAULT,
-    parse_shell_fields,
-)
-from gucmail.services.shortcuts import SHORTCUT_DEFAULTS, normalize_shortcut, validate_shortcuts
-from gucmail.services.tasks_display import TASK_DISPLAY_SETTINGS
 from gucmail.settings import DEFAULT_SETTINGS, SettingsContext, SettingsService
 from gucmail.tui.app_core import AppCore, TextualBorderStyle
 from gucmail.tui.area_common import (
     OperationalScreen,
 )
-from gucmail.tui.branding import (
-    BrandAlignment,
-    BrandColorBehavior,
-    BrandingPreferences,
-    BrandSize,
-    RenderedBranding,
-    render_branding,
-    slim_brand,
-)
-from gucmail.tui.branding_screen import BrandingBrowserBackend
-from gucmail.tui.drafts_attachments_screen import (
-    DraftAttachmentScreen,
-)
-from gucmail.tui.help_screen import SettingsHelpStateStore
-from gucmail.tui.keyboard_bindings import apply_keyboard_bindings
-from gucmail.tui.layout_presets_screen import LayoutPresetsScreen
 from gucmail.tui.literal_table import LiteralDataTable as DataTable
-from gucmail.tui.palette_routes import (
-    RouteTarget,
-)
-from gucmail.tui.pim_screens import (
-    CalendarScreen,
-    ContactsScreen,
-    TasksScreen,
-)
-from gucmail.tui.reader import FloatingReader
-from gucmail.tui.settings_screen import (
-    SettingsScreen,
-)
 from gucmail.tui.shell_widgets import CompactHeader, PaneDivider
-from gucmail.tui.shortcuts_screen import (
-    ShortcutsScreen,
-    runtime_shortcut_records,
-)
-from gucmail.tui.themes import (
-    ColorCapability,
-    ThemeDefinition,
-    ThemePolicy,
-    ThemePreferences,
-    ThemeValidationError,
-    adapt_theme,
-    adapt_theme_high_contrast,
-    to_textual_theme,
-)
+
+if TYPE_CHECKING:
+    from gucmail.help import HelpRuntimeContext
+    from gucmail.services.message_columns import (
+        MessageColumn,
+    )
+    from gucmail.tui.branding import (
+        BrandingPreferences,
+        RenderedBranding,
+    )
+    from gucmail.tui.help_screen import SettingsHelpStateStore
+    from gucmail.tui.themes import (
+        ColorCapability,
+        ThemeDefinition,
+        ThemePreferences,
+    )
 
 
 class PreferencesMixin(AppCore):
     """Methods of GUCmailApp; see gucmail.tui.app."""
 
     def _resolve_config_theme(self, configured: str) -> ThemeDefinition:
+        from gucmail.tui.themes import ThemePreferences, ThemeValidationError
+
         normalized = normalize_theme_identifier(configured)
         try:
             selected = self.theme_registry.get(normalized)
@@ -123,6 +66,8 @@ class PreferencesMixin(AppCore):
         return selected
 
     def _load_theme_preferences(self, selected_theme_id: str) -> ThemePreferences:
+        from gucmail.tui.themes import ThemePolicy, ThemePreferences
+
         try:
             settings = self.context.config_store.load_document().settings
         except Exception:
@@ -195,6 +140,8 @@ class PreferencesMixin(AppCore):
             return fallback
 
     def _load_message_columns(self) -> tuple[MessageColumn, ...]:
+        from gucmail.services.message_columns import DEFAULT_COLUMNS, columns_value, parse_columns
+
         try:
             return parse_columns(self._setting_value("layout.message_columns", columns_value()))
         except ConfigurationError:
@@ -207,6 +154,8 @@ class PreferencesMixin(AppCore):
                 self._render_message_rows(self._message_page_rows)
 
     def _preview_message_columns(self, value: Any) -> Callable[[], None]:
+        from gucmail.services.message_columns import parse_columns
+
         columns = parse_columns(value)
 
         def apply() -> tuple[MessageColumn, ...]:
@@ -353,6 +302,23 @@ class PreferencesMixin(AppCore):
 
     def _apply_committed_settings(self, setting_ids: tuple[str, ...]) -> None:
         """Reload committed values and apply every mounted shell consumer immediately."""
+
+        from gucmail.help import HelpUserState
+        from gucmail.services.attachment_preferences import AttachmentPreferences
+        from gucmail.services.calendar_preferences import CALENDAR_OPERATION_SETTINGS
+        from gucmail.services.contacts_display import CONTACT_DISPLAY_SETTINGS
+        from gucmail.services.keyboard_bindings import KEYBOARD_SETTING
+        from gucmail.services.mail_preferences import MailSortPreferences
+        from gucmail.services.shell_preferences import (
+            HEADER_DEFAULT,
+            STATUS_DEFAULT,
+            parse_shell_fields,
+        )
+        from gucmail.services.shortcuts import SHORTCUT_DEFAULTS
+        from gucmail.services.tasks_display import TASK_DISPLAY_SETTINGS
+        from gucmail.tui.branding_screen import BrandingBrowserBackend
+        from gucmail.tui.drafts_attachments_screen import DraftAttachmentScreen
+        from gucmail.tui.pim_screens import CalendarScreen, ContactsScreen, TasksScreen
 
         changed = set(setting_ids)
         service = self._settings_service()
@@ -566,9 +532,18 @@ class PreferencesMixin(AppCore):
 
     def _shortcut_label(self) -> str:
         shortcut = sanitize_terminal(self._palette_primary_shortcut, max_length=40)
-        return shortcut.replace("ctrl", "Ctrl").replace("alt", "Alt").replace("+", "+")
+        return "+".join(
+            part.upper() if len(part) == 1 else part.capitalize() for part in shortcut.split("+")
+        )
 
     def _load_shortcut_preferences(self) -> None:
+        from gucmail.services.keyboard_bindings import (
+            KEYBOARD_SETTING,
+            KEYBOARD_SETTING_IDS,
+            validate_binding_configuration,
+        )
+        from gucmail.services.shortcuts import SHORTCUT_DEFAULTS, validate_shortcuts
+
         self._shortcut_notice = ""
         self._binding_overrides: dict[str, str] = {}
         try:
@@ -601,6 +576,8 @@ class PreferencesMixin(AppCore):
         }
 
     def _apply_keyboard_bindings(self) -> None:
+        from gucmail.tui.keyboard_bindings import apply_keyboard_bindings
+
         apply_keyboard_bindings(self, self._binding_overrides)
         for screen in self.screen_stack:
             apply_keyboard_bindings(screen, self._binding_overrides)
@@ -608,12 +585,16 @@ class PreferencesMixin(AppCore):
 
     @staticmethod
     def _valid_shortcut(shortcut: str) -> bool:
+        from gucmail.services.shortcuts import normalize_shortcut
+
         try:
             return bool(normalize_shortcut(shortcut))
         except ConfigurationError:
             return False
 
     def _bind_theme_shortcuts(self) -> None:
+        from gucmail.services.shortcuts import normalize_shortcut
+
         for key, entries in tuple(self._bindings.key_to_bindings.items()):
             retained = [
                 binding
@@ -636,6 +617,13 @@ class PreferencesMixin(AppCore):
         self.refresh_bindings()
 
     def _load_branding_preferences(self) -> BrandingPreferences:
+        from gucmail.tui.branding import (
+            BrandAlignment,
+            BrandColorBehavior,
+            BrandingPreferences,
+            BrandSize,
+        )
+
         settings = self._settings_service()
 
         def value(setting_id: str, fallback: object) -> object:
@@ -691,6 +679,8 @@ class PreferencesMixin(AppCore):
             self._render_expanded_branding()
 
     def _activate_theme(self, definition: ThemeDefinition) -> ThemeDefinition:
+        from gucmail.tui.themes import adapt_theme, adapt_theme_high_contrast, to_textual_theme
+
         self.animation_level = (
             "none" if bool(self._setting_value("accessibility.reduced_motion", False)) else "full"
         )
@@ -746,6 +736,8 @@ class PreferencesMixin(AppCore):
 
     def _apply_theme_structure(self, definition: ThemeDefinition) -> None:
         """Apply the non-colour portion of one complete theme to mounted mail UI."""
+
+        from gucmail.tui.reader import FloatingReader
 
         theme_style = definition.style
         density_setting = str(self._setting_value("appearance.density", "theme"))
@@ -846,6 +838,8 @@ class PreferencesMixin(AppCore):
         )
 
     def _terminal_color_capability(self) -> ColorCapability:
+        from gucmail.tui.themes import ColorCapability
+
         if self._monochrome_output():
             return ColorCapability.MONOCHROME
         return {
@@ -856,6 +850,8 @@ class PreferencesMixin(AppCore):
         }.get(self.console.color_system or "", ColorCapability.TRUECOLOR)
 
     def _slim_branding(self, definition: ThemeDefinition) -> RenderedBranding:
+        from gucmail.tui.branding import slim_brand
+
         capability = self._terminal_color_capability()
         return slim_brand(definition, capability=capability)
 
@@ -873,6 +869,8 @@ class PreferencesMixin(AppCore):
         return value
 
     def _render_expanded_branding(self) -> None:
+        from gucmail.tui.branding import BrandSize, RenderedBranding, render_branding
+
         try:
             widget = self.query_one("#expanded-brand", Static)
         except NoMatches:
@@ -909,13 +907,39 @@ class PreferencesMixin(AppCore):
         with contextlib.suppress(NoMatches):
             self.query_one(CompactHeader).query_one("#compact-title").display = not show_banner
 
+    def _background_watcher_state(self) -> str | None:
+        """State of a live background watcher (start at login), from its own status file."""
+
+        from gucmail.headless import WatcherRunState, WatcherStatusStore, process_is_alive
+
+        directory = (self.context.paths.data_dir / "watcher").resolve()
+        prefix, suffix = "watcher-", ".status.json"
+        with contextlib.suppress(OSError):
+            for path in sorted(directory.glob(f"{prefix}*{suffix}")):
+                scope = path.name[len(prefix) : -len(suffix)]
+                status = None
+                with contextlib.suppress(Exception):
+                    status = WatcherStatusStore(directory, scope).read()
+                if status is None or status.state in {
+                    WatcherRunState.STOPPED,
+                    WatcherRunState.FAILED,
+                }:
+                    continue
+                if process_is_alive(status.pid):
+                    return status.state.value
+        return None
+
     def _watcher_header_label(self) -> str:
+        background = self._background_watcher_state()
+        if background is not None:
+            labels = {"running": "on", "reconnecting": "reconnecting", "stopping": "stopping"}
+            return f"Alerts {labels.get(background, background)}"
         try:
             records = self.context.state.list_watcher_status()
         except Exception:
-            return "Watcher unknown"
+            return "Alerts unknown"
         if not records:
-            return "Watcher off"
+            return "Alerts off"
         active = next(
             (
                 record
@@ -924,10 +948,14 @@ class PreferencesMixin(AppCore):
             ),
             records[0],
         )
-        state = str(getattr(active, "state", "unknown"))
-        return f"Watcher {sanitize_terminal(state, max_length=30)}"
+        state = str(getattr(active, "state", "unknown")).casefold()
+        labels = {"running": "on", "starting": "starting", "stopped": "off", "failed": "failed"}
+        return f"Alerts {labels.get(state, sanitize_terminal(state, max_length=30))}"
 
     def _help_runtime_context(self, active_view: str) -> HelpRuntimeContext:
+        from gucmail.help import HelpRuntimeContext
+        from gucmail.tui.shortcuts_screen import runtime_shortcut_records
+
         settings_service = self._settings_service()
         try:
             values = {
@@ -958,6 +986,8 @@ class PreferencesMixin(AppCore):
         )
 
     def _help_state_store(self) -> SettingsHelpStateStore:
+        from gucmail.tui.help_screen import SettingsHelpStateStore
+
         return SettingsHelpStateStore(self.context.state, self._settings_service())
 
     def preview_theme(self, theme_id: str) -> ThemeDefinition:
@@ -1146,6 +1176,9 @@ class PreferencesMixin(AppCore):
         self._apply_layout()
 
     def _layout_preset_values(self) -> dict[str, Any]:
+        from gucmail.services.layout_presets import PRESET_FIELDS
+        from gucmail.services.message_columns import columns_value
+
         values = {
             key: self._setting_value(key, DEFAULT_SETTINGS.get(key).default)
             for key in PRESET_FIELDS
@@ -1169,6 +1202,10 @@ class PreferencesMixin(AppCore):
         return values
 
     def action_layout_presets(self) -> None:
+        from gucmail.services.layout_presets import LayoutPresetService
+        from gucmail.tui.layout_presets_screen import LayoutPresetsScreen
+        from gucmail.tui.settings_screen import SettingsScreen
+
         if isinstance(self.screen, SettingsScreen):
             self.notify(
                 "Apply or cancel staged settings and close Settings before opening saved layouts.",
@@ -1184,6 +1221,8 @@ class PreferencesMixin(AppCore):
         )
 
     def _fit_message_columns(self, *, repopulate: bool = True) -> None:
+        from gucmail.services.message_columns import COLUMN_LABELS, fitted_columns
+
         try:
             table = self.query_one("#message-table", DataTable)
         except NoMatches:
@@ -1209,6 +1248,8 @@ class PreferencesMixin(AppCore):
         return "\n".join(f"{key}: {values[key]}" for key in sorted(values))
 
     def _open_shortcuts(self) -> None:
+        from gucmail.tui.shortcuts_screen import ShortcutsScreen, runtime_shortcut_records
+
         self.push_screen(
             ShortcutsScreen(
                 runtime_shortcut_records(self, self._current_shortcuts()),
@@ -1218,6 +1259,8 @@ class PreferencesMixin(AppCore):
         )
 
     def _refresh_appearance_settings(self) -> None:
+        from gucmail.tui.settings_screen import SettingsScreen
+
         if isinstance(self.screen, SettingsScreen):
             self.screen.refresh_after_external_change(changed="Appearance preferences")
 
@@ -1227,6 +1270,9 @@ class PreferencesMixin(AppCore):
         category: str | None = None,
         query: str | None = None,
     ) -> None:
+        from gucmail.tui.palette_routes import RouteTarget
+        from gucmail.tui.settings_screen import SettingsScreen
+
         screen_open = isinstance(self._route_screen(RouteTarget.SETTINGS), SettingsScreen)
         if not screen_open:
             self._open_area("settings")

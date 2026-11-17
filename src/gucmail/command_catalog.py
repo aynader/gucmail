@@ -2342,12 +2342,8 @@ def build_core_command_registry() -> CommandRegistry:
                 CommandSpec(
                     command_id=command_id,
                     name=name,
-                    description=f"{name} from the {category} workflow.",
-                    long_description=(
-                        f"Use this command to {name.casefold()}. It is routed through the shared "
-                        f"{category} application service or its operational TUI screen so the "
-                        "palette and direct UI use the same safety checks."
-                    ),
+                    description=f"{name} ({category.capitalize()})",
+                    long_description=f"{name}. Part of {category.capitalize()}.",
                     category=category,
                     keywords=tuple(
                         dict.fromkeys((category, *re.findall(r"[a-z0-9]+", name.casefold())))
